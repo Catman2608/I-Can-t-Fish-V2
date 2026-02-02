@@ -1,0 +1,4 @@
+First, run this code to change direction:
+cd /Users/YourName/directory/ICFV1
+Then, run this code to convert to app:
+pyinstaller --onefile --windowed --icon=icf v2 icon.icns ICF V2.py

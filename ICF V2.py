@@ -35,10 +35,10 @@ set_appearance_mode("dark")
 class App(CTk):
     def __init__(self):
         super().__init__()
-        self.widgets = {}     # Entry / Slider / Combobox widgets
+        self.vars = {}     # Entry / Slider / Combobox vars
         self.vars = {}        # IntVar / StringVar / BooleanVar
-        self.checkboxes = {}   # CTkCheckBox widgets
-        self.comboboxes = {}   # CTkComboBox widgets
+        self.checkboxes = {}   # CTkCheckBox vars
+        self.comboboxes = {}   # CTkComboBox vars
         
         # Screen size (cache once – thread safe)
         self.SCREEN_WIDTH = self.winfo_screenwidth()
@@ -133,21 +133,18 @@ class App(CTk):
         auto_rod_cb = CTkCheckBox(automation, text="Auto Select Rod", 
                                  variable=auto_rod_var, onvalue="on", offvalue="off")
         auto_rod_cb.grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        self.checkboxes["auto_select_rod"] = auto_rod_cb
 
         auto_zoom_var = StringVar(value="off")
         self.vars["auto_zoom_in"] = auto_zoom_var
         auto_zoom_cb = CTkCheckBox(automation, text="Auto Zoom In", 
                                   variable=auto_zoom_var, onvalue="on", offvalue="off")
         auto_zoom_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
-        self.checkboxes["auto_zoom_in"] = auto_zoom_cb
 
         fish_overlay_var = StringVar(value="off")
         self.vars["fish_overlay"] = fish_overlay_var
         fish_overlay_cb = CTkCheckBox(automation, text="Fish Overlay", 
                                      variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
-        self.checkboxes["fish_overlay"] = fish_overlay_cb
 
         CTkLabel(automation, text="Capture Mode:").grid(
             row=3, column=0, padx=12, pady=6, sticky="w"
@@ -206,28 +203,61 @@ class App(CTk):
 
         perfect_cast_var = StringVar(value="off")
         self.vars["perfect_cast"] = perfect_cast_var
-        perfect_cast_cb = CTkCheckBox(casting, text="Perfect Cast (slower)", 
-                                     variable=perfect_cast_var, onvalue="on", offvalue="off")
-        perfect_cast_cb.grid(row=0, column=0, padx=12, pady=12, sticky="w")
-        self.checkboxes["perfect_cast"] = perfect_cast_cb
 
-        CTkLabel(casting, text="Cast duration").grid(row=1, column=0, padx=12, pady=8, sticky="w")
-        cast_duration_entry = CTkEntry(casting, placeholder_text="0.6", width=120)
+        CTkCheckBox(
+            casting,
+            text="Perfect Cast (slower)",
+            variable=perfect_cast_var,
+            onvalue="on",
+            offvalue="off"
+        ).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+
+        # ---- Cast duration ----
+        CTkLabel(casting, text="Cast duration").grid(
+            row=1, column=0, padx=12, pady=8, sticky="w"
+        )
+
+        cast_duration_var = StringVar(value="0.6")
+        self.vars["cast_duration"] = cast_duration_var
+
+        cast_duration_entry = CTkEntry(
+            casting,
+            width=120,
+            textvariable=cast_duration_var
+        )
         cast_duration_entry.grid(row=1, column=1, padx=12, pady=8, sticky="w")
-        self.widgets["cast_duration"] = cast_duration_entry
-        
-        CTkLabel(casting, text="Delay after casting").grid(row=2, column=0, padx=12, pady=8, sticky="w")
-        casting_delay_entry = CTkEntry(casting, placeholder_text="0.6", width=120)
-        casting_delay_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
-        self.widgets["casting_delay"] = casting_delay_entry
 
+
+        # ---- Delay after casting ----
+        CTkLabel(casting, text="Delay after casting").grid(
+            row=2, column=0, padx=12, pady=8, sticky="w"
+        )
+
+        casting_delay_var = StringVar(value="0.6")
+        self.vars["casting_delay"] = casting_delay_var
+
+        casting_delay_entry = CTkEntry(
+            casting,
+            width=120,
+            textvariable=casting_delay_var
+        )
+        casting_delay_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
+
+
+        # ---- Perfect cast tolerance ----
         CTkLabel(casting, text="Perfect Cast Tolerance:").grid(
             row=3, column=0, padx=12, pady=10, sticky="w"
         )
 
-        perfect_cast_tolerance_entry = CTkEntry(casting, placeholder_text="5", width=120)
+        perfect_cast_tolerance_var = StringVar(value="5")
+        self.vars["perfect_cast_tolerance"] = perfect_cast_tolerance_var
+
+        perfect_cast_tolerance_entry = CTkEntry(
+            casting,
+            width=120,
+            textvariable=perfect_cast_tolerance_var
+        )
         perfect_cast_tolerance_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["perfect_cast_tolerance"] = perfect_cast_tolerance_entry
 
         support = CTkFrame(
             parent, fg_color="#222222",
@@ -254,49 +284,72 @@ class App(CTk):
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         frame = CTkFrame(
-            parent, fg_color="#222222",
-            border_color="#bd10e0", border_width=2
+            parent,
+            fg_color="#222222",
+            border_color="#bd10e0",
+            border_width=2
         )
         frame.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
 
+        # ---- Shake mode ----
         CTkLabel(frame, text="Shake mode:").grid(
             row=0, column=0, padx=12, pady=10, sticky="w"
         )
 
-        shake_var = StringVar(value="Click")
-        self.vars["shake_mode"] = shake_var
+        shake_mode_var = StringVar(value="Click")
+        self.vars["shake_mode"] = shake_mode_var
+
         shake_cb = CTkComboBox(
             frame,
             values=["Click", "Navigation"],
-            variable=shake_var,
+            variable=shake_mode_var,
             command=lambda v: self.set_status(f"Shake mode: {v}")
         )
         shake_cb.grid(row=0, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["shake_mode"] = shake_cb
 
+        # ---- Shake tolerance ----
         CTkLabel(frame, text="Click Shake Color Tolerance:").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
 
-        shake_color_entry = CTkEntry(frame, placeholder_text="5", width=120)
-        shake_color_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["shake_color_tolerance"] = shake_color_entry
-        
+        shake_tolerance_var = StringVar(value="5")
+        self.vars["shake_tolerance"] = shake_tolerance_var
+
+        CTkEntry(
+            frame,
+            width=120,
+            textvariable=shake_tolerance_var
+        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+
+        # ---- Shake scan delay ----
         CTkLabel(frame, text="Shake Scan Delay:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
 
-        shake_delay_entry = CTkEntry(frame, placeholder_text="5", width=120)
-        shake_delay_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["shake_scan_delay"] = shake_delay_entry
-        
+        shake_scan_delay_var = StringVar(value="0.01")
+        self.vars["shake_scan_delay"] = shake_scan_delay_var
+
+        CTkEntry(
+            frame,
+            width=120,
+            textvariable=shake_scan_delay_var
+        ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
+        # ---- Shake failsafe ----
         CTkLabel(frame, text="Shake Failsafe (attempts):").grid(
             row=3, column=0, padx=12, pady=10, sticky="w"
         )
 
-        shake_failsafe_entry = CTkEntry(frame, placeholder_text="41", width=120)
-        shake_failsafe_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["shake_failsafe"] = shake_failsafe_entry
+        shake_failsafe_var = StringVar(value="20")
+        self.vars["shake_failsafe"] = shake_failsafe_var
+
+        CTkEntry(
+            frame,
+            width=120,
+            textvariable=shake_failsafe_var
+        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+
     # MINIGAME SETTINGS TAB
     def build_minigame_tab(self, parent):
         frame = CTkFrame(
@@ -305,41 +358,33 @@ class App(CTk):
         )
         frame.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
 
-        left_color_var = StringVar(value="#F1F1F1")
-        self.vars["left_bar_color"] = left_color_var
         CTkLabel(frame, text="Left Bar Color (#RRGGBB):").grid(
             row=0, column=0, padx=12, pady=10, sticky="w"
         )
-        left_color_entry = CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=left_color_var)
-        left_color_entry.grid(row=0, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["left_bar_color"] = left_color_entry
+        left_color_var = StringVar(value="#F1F1F1")
+        self.vars["left_color"] = left_color_var
+        CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=left_color_var).grid(row=0, column=1, padx=12, pady=10, sticky="w")
 
-        right_color_var = StringVar(value="#FFFFFF")
-        self.vars["right_bar_color"] = right_color_var
         CTkLabel(frame, text="Right Bar Color (#RRGGBB):").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
-        right_color_entry = CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=right_color_var)
-        right_color_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["right_bar_color"] = right_color_entry
+        right_color_var = StringVar(value="#FFFFFF")
+        self.vars["right_color"] = right_color_var
+        CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=right_color_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
         
-        arrow_color_var = StringVar(value="#FFFFFF")
-        self.vars["arrow_color"] = arrow_color_var
         CTkLabel(frame, text="Arrow Color (#RRGGBB):").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
-        arrow_color_entry = CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=arrow_color_var)
-        arrow_color_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["arrow_color"] = arrow_color_entry
+        arrow_color_var = StringVar(value="#848587")
+        self.vars["arrow_color"] = arrow_color_var
+        CTkEntry(frame, placeholder_text="#848587", width=120, textvariable=arrow_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
         
         CTkLabel(frame, text="Fish Color (#RRGGBB):").grid(
             row=3, column=0, padx=12, pady=10, sticky="w"
         )
         fish_color_var = StringVar(value="#434B5B")
         self.vars["fish_color"] = fish_color_var
-        fish_color_entry = CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=fish_color_var)
-        fish_color_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["fish_color"] = fish_color_entry
+        CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=fish_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         
         left_tolerance_var = StringVar(value="8")
         self.vars["left_tolerance"] = left_tolerance_var
@@ -348,7 +393,6 @@ class App(CTk):
         )
         left_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=left_tolerance_var)
         left_tolerance_entry.grid(row=0, column=3, padx=12, pady=10, sticky="w")
-        self.widgets["left_tolerance"] = left_tolerance_entry
         
         right_tolerance_var = StringVar(value="8")
         self.vars["right_tolerance"] = right_tolerance_var
@@ -357,23 +401,28 @@ class App(CTk):
         )
         right_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=right_tolerance_var)
         right_tolerance_entry.grid(row=1, column=3, padx=12, pady=10, sticky="w")
-        self.widgets["right_tolerance"] = right_tolerance_entry
         
         CTkLabel(frame, text="Tolerance:").grid(
             row=2, column=2, padx=12, pady=10, sticky="w"
         )
-        arrow_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120)
+
+        arrow_tolerance_var = StringVar(value="8")
+        self.vars["arrow_tolerance"] = arrow_tolerance_var
+        arrow_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=arrow_tolerance_var)
         arrow_tolerance_entry.grid(row=2, column=3, padx=12, pady=10, sticky="w")
-        self.widgets["arrow_tolerance"] = arrow_tolerance_entry
         
         CTkLabel(frame, text="Tolerance:").grid(
             row=3, column=2, padx=12, pady=10, sticky="w"
         )
-        shake_tolerance_var = StringVar(value="5")
-        self.vars["shake_tolerance"] = shake_tolerance_var
-        fish_tolerance_entry = CTkEntry(frame, placeholder_text="0", width=120, textvariable=shake_tolerance_var)
-        fish_tolerance_entry.grid(row=3, column=3, padx=12, pady=10, sticky="w")
-        self.widgets["fish_tolerance"] = fish_tolerance_entry
+
+        fish_tolerance_var = StringVar(value="5")
+        self.vars["fish_tolerance"] = fish_tolerance_var
+
+        CTkEntry(
+            frame,
+            width=120,
+            textvariable=fish_tolerance_var
+        ).grid(row=3, column=3, padx=12, pady=10, sticky="w")
         
         frame2 = CTkFrame(
             parent,
@@ -386,25 +435,37 @@ class App(CTk):
         CTkLabel(frame2, text="Bar Ratio From Side:").grid(
             row=0, column=0, padx=12, pady=10, sticky="w"
         )
-        bar_ratio_entry = CTkEntry(frame2, placeholder_text="0.5", width=120)
-        bar_ratio_entry.grid(row=0, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["bar_ratio"] = bar_ratio_entry
+
+        bar_ratio_var = StringVar(value="0.5")
+        self.vars["bar_ratio"] = bar_ratio_var
+
+        CTkEntry(
+            frame2,
+            width=120,
+            textvariable=bar_ratio_var
+        ).grid(row=0, column=1, padx=12, pady=10, sticky="w")
         
         CTkLabel(frame2, text="Scan delay (seconds):").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
-        shake_scan_delay_var = StringVar(value="0.01")
-        self.vars["shake_scan_delay"] = shake_scan_delay_var
-        scan_delay_entry = CTkEntry(frame2, placeholder_text="0.01", width=120, textvariable=shake_scan_delay_var)
-        scan_delay_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["scan_delay"] = scan_delay_entry
+        minigame_scan_delay_var = StringVar(value="0.01")
+        self.vars["minigame_scan_delay"] = minigame_scan_delay_var
+        minigame_scan_delay_entry = CTkEntry(frame2, placeholder_text="0.01", width=120, textvariable=minigame_scan_delay_var)
+        minigame_scan_delay_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        self.vars["minigame_scan_delay"] = minigame_scan_delay_entry
 
         CTkLabel(frame2, text="Restart Delay:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
-        restart_delay_entry = CTkEntry(frame2, placeholder_text="1", width=120)
-        restart_delay_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["restart_delay"] = restart_delay_entry
+
+        restart_delay_var = StringVar(value="1")
+        self.vars["restart_delay"] = restart_delay_var
+
+        CTkEntry(
+            frame2,
+            width=120,
+            textvariable=restart_delay_var
+        ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
         frame3 = CTkFrame(
             parent,
@@ -416,23 +477,40 @@ class App(CTk):
         CTkLabel(frame3, text="Proportional gain:").grid(
             row=0, column=0, padx=12, pady=10, sticky="w"
         )
-        p_gain_entry = CTkEntry(frame3, placeholder_text="0.01", width=120)
-        p_gain_entry.grid(row=0, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["proportional_gain"] = p_gain_entry
-        
+
+        p_gain_var = StringVar(value="0.01")
+        self.vars["proportional_gain"] = p_gain_var
+
+        CTkEntry(
+            frame3,
+            width=120,
+            textvariable=p_gain_var
+        ).grid(row=0, column=1, padx=12, pady=10, sticky="w")
         CTkLabel(frame3, text="Derivative gain:").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
-        d_gain_entry = CTkEntry(frame3, placeholder_text="0.01", width=120)
-        d_gain_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["derivative_gain"] = d_gain_entry
 
+        d_gain_var = StringVar(value="0.01")
+        self.vars["derivative_gain"] = d_gain_var
+
+        CTkEntry(
+            frame3,
+            width=120,
+            textvariable=d_gain_var
+        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
         CTkLabel(frame3, text="Velocity Smoothing:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
-        velocity_smoothing_entry = CTkEntry(frame3, placeholder_text="6", width=120)
-        velocity_smoothing_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["velocity_smoothing"] = velocity_smoothing_entry
+
+        velocity_smoothing_var = StringVar(value="6")
+        self.vars["velocity_smoothing"] = velocity_smoothing_var
+
+        CTkEntry(
+            frame3,
+            width=120,
+            textvariable=velocity_smoothing_var
+        ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
     # SUPPORT SETTINGS TAB
     def build_support_tab(self, parent):
         # Discord Webhook Settings
@@ -447,140 +525,140 @@ class App(CTk):
         )
         webhook_url_entry = CTkEntry(webhook_combobox, placeholder_text="[Enter webhook link here]", width=240)
         webhook_url_entry.grid(row=0, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["webhook_url"] = webhook_url_entry
+        self.vars["webhook_url"] = webhook_url_entry
 
         CTkLabel(webhook_combobox, text="User ID:").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
         user_id_entry = CTkEntry(webhook_combobox, placeholder_text="[Copy your user ID and paste it here]", width=240)
         user_id_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        self.widgets["user_id"] = user_id_entry
+        self.vars["user_id"] = user_id_entry
     # Save and load settings
     def load_configs(self):
-        config_dir = os.path.join(os.path.dirname(__file__), "configs")
-        if not os.path.isdir(config_dir):
-            return ["No configs found"]
-
-        files = [
-            os.path.basename(f)
-            for f in glob.glob(os.path.join(config_dir, "*.json"))
-        ]
-        return files or ["No configs found"]
-    def get_config_path(self, config_name):
-        config_dir = os.path.join(os.path.dirname(__file__), "configs")
-        return os.path.join(config_dir, config_name)
-    def _save_entry(self, data, key, widget_name):
-        widget = self.widgets.get(widget_name)
-        if widget:
-            data[key] = widget.get()
-    def _save_var(self, data, key, var_name):
-        var = self.vars.get(var_name)
-        if var:
-            data[key] = var.get()
-    def _load_entry(self, data, key, widget_name, default=""):
-        widget = self.widgets.get(widget_name)
-        if widget:
-            widget.delete(0, END)
-            widget.insert(0, data.get(key, default))
-    def _load_var(self, data, key, var_name):
-        var = self.vars.get(var_name)
-        if var:
-            var.set(data.get(key, var.get()))
-    def save_last_config_name(self, config_name):
-        path = os.path.join(os.path.dirname(__file__), "last_config.json")
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump({"last_config": config_name}, f)
-
+        """Load list of available config files."""
+        config_dir = "configs"
+        if not os.path.exists(config_dir):
+            os.makedirs(config_dir)
+        
+        config_files = glob.glob(os.path.join(config_dir, "*.json"))
+        config_names = [os.path.basename(f) for f in config_files]
+        
+        if not config_names:
+            # Create default config if none exists
+            self.save_settings("default.json")
+            config_names = ["default.json"]
+        
+        return sorted(config_names)
+    
     def load_last_config_name(self):
-        path = os.path.join(os.path.dirname(__file__), "last_config.json")
-        if not os.path.exists(path):
-            return None
-
+        """Load the name of the last used config."""
         try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f).get("last_config")
-        except Exception:
-            return None
-    def save_settings(self, config_name):
-        """Save all settings to JSON file"""
+            if os.path.exists("last_config.json"):
+                with open("last_config.json", "r") as f:
+                    data = json.load(f)
+                    return data.get("last_config", "default.json")
+        except:
+            pass
+        return "default.json"
+    
+    def save_last_config_name(self, name):
+        """Save the name of the last used config."""
+        try:
+            with open("last_config.json", "w") as f:
+                json.dump({"last_config": name}, f)
+        except:
+            pass
+    
+    def save_settings(self, name):
+        """Save all settings to a JSON config file."""
+        config_dir = "configs"
+        if not os.path.exists(config_dir):
+            os.makedirs(config_dir)
+        
         data = {}
-
-        # Save color vars explicitly
-        for key in ["left_bar_color", "right_bar_color", "arrow_color", "fish_color", "bar_ratio", "velocity_smoothing"]:
-            if key in self.vars:
-                data[key] = self.vars[key].get()
-
+        
+        # Save all StringVar and related variables
+        try:
+            for key, var in self.vars.items():
+                if hasattr(var, 'get'):
+                    data[key] = var.get()
+                else:
+                    data[key] = var
+        except Exception as e:
+            print(f"Error saving vars: {e}")
+        
         # Save checkbox states
-        for key, var in self.vars.items():
-            if key in ["auto_select_rod", "auto_zoom_in", "fish_overlay", "perfect_cast"]:
-                data[key] = var.get()
+        try:
+            for key, checkbox in self.checkboxes.items():
+                data[f"checkbox_{key}"] = checkbox.get()
+        except Exception as e:
+            print(f"Error saving checkboxes: {e}")
         
-        # Save combobox values
-        for key, cb in self.comboboxes.items():
-            data[key] = cb.get()
+        # Save combobox states
+        try:
+            for key, combobox in self.comboboxes.items():
+                data[f"combobox_{key}"] = combobox.get()
+        except Exception as e:
+            print(f"Error saving comboboxes: {e}")
         
-        # Save entry values
-        for key, widget in self.widgets.items():
-            if isinstance(widget, CTkEntry):
-                data[key] = widget.get()
+        # Write to file
+        path = os.path.join(config_dir, name)
+        try:
+            with open(path, "w") as f:
+                json.dump(data, f, indent=4)
+            self.save_last_config_name(name)
+            self.set_status(f"Saved Config: {name}")
+        except Exception as e:
+            self.set_status(f"Error saving config: {e}")
+    
+    def load_settings(self, name):
+        """Load settings from a JSON config file."""
+        config_dir = "configs"
+        path = os.path.join(config_dir, name)
         
-        # Create configs directory if it doesn't exist
-        config_dir = os.path.join(os.path.dirname(__file__), "configs")
-        if not os.path.isdir(config_dir):
-            os.makedirs(config_dir, exist_ok=True)
-        
-        # Save to file
-        path = self.get_config_path(config_name)
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=4)
-        
-        # Update last config
-        self.save_last_config_name(config_name)
-        
-        # Update combobox list
-        config_list = self.load_configs()
-        if self.comboboxes.get("active_config"):
-            self.comboboxes["active_config"].configure(values=config_list)
-            self.vars["active_config"].set(config_name)
-            
-    def load_settings(self, config_name):
-        """Load settings from JSON file"""
-        path = self.get_config_path(config_name)
-
         if not os.path.exists(path):
-            self.set_status(f"Config not found: {config_name}")
+            self.set_status(f"Config not found: {name}")
             return
         
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, "r") as f:
                 data = json.load(f)
-
-            # Load color vars explicitly
-            for key in ["left_bar_color", "right_bar_color", "arrow_color", "fish_color", "bar_ratio", "velocity_smoothing"]:
-                if key in data and key in self.vars:
-                    self.vars[key].set(data[key])
-            
-            # Load checkbox states
-            for key, var in self.vars.items():
-                if key in data:
-                    var.set(data[key])
-            
-            # Load combobox values
-            for key, cb in self.comboboxes.items():
-                if key in data and data[key] in cb.cget("values"):
-                    cb.set(data[key])
-            
-            # Load entry values
-            for key, widget in self.widgets.items():
-                if key in data and isinstance(widget, CTkEntry):
-                    widget.delete(0, END)
-                    widget.insert(0, str(data[key]))
-            
-            # Update last config
-            self.save_last_config_name(config_name)
-                        
         except Exception as e:
-            print(f"Error loading config: {str(e)}")
+            self.set_status(f"Error loading config: {e}")
+            return
+        
+        # Load StringVar and related variables
+        try:
+            for key, var in self.vars.items():
+                if hasattr(var, 'set') and key in data:
+                    var.set(data[key])
+        except Exception as e:
+            print(f"Error loading vars: {e}")
+        
+        # Load checkbox states
+        try:
+            for key, checkbox in self.checkboxes.items():
+                checkbox_key = f"checkbox_{key}"
+                if checkbox_key in data:
+                    checkbox.set(data[checkbox_key])
+        except Exception as e:
+            print(f"Error loading checkboxes: {e}")
+        
+        # Load combobox states
+        try:
+            for key, cb in self.comboboxes.items():
+                if key in data:
+                    cb.set(data[key])
+        except Exception as e:
+            print(f"Error loading comboboxes: {e}")
+        
+        self.save_last_config_name(name)
+        self.set_status(f"Loaded Config: {name}")
+    def _get_screen_size(self):
+        self.update_idletasks()  # ensure Tk is initialized
+        width = self.winfo_screenwidth()
+        height = self.winfo_screenheight()
+        return width, height
     # Macro functions
     def on_key_press(self, key):
         try:
@@ -602,12 +680,7 @@ class App(CTk):
     def set_status(self, text, key=None):
         self.status_label.configure(text=text)
         start_key = key
-    def _get_screen_size(self):
-        self.update_idletasks()  # ensure Tk is initialized
-        width = self.winfo_screenwidth()
-        height = self.winfo_screenheight()
-        return width, height
-
+    
     # Pixel Search Functions
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
         """
@@ -811,12 +884,12 @@ class App(CTk):
     def _get_pid_gains(self):
         """Get PID gains from config, with sensible defaults."""
         try:
-            kp = float(self.widgets["proportional_gain"].get() or 0.6)
+            kp = float(self.vars["proportional_gain"].get() or 0.6)
         except:
             kp = 0.6
         
         try:
-            kd = float(self.widgets["derivative_gain"].get() or 0.2)
+            kd = float(self.vars["derivative_gain"].get() or 0.2)
         except:
             kd = 0.2
         
@@ -1106,7 +1179,7 @@ class App(CTk):
 
             # Optional delay after cast
             try:
-                delay = float(self.widgets["casting_delay"].get() or 0.6)
+                delay = float(self.vars["casting_delay"].get() or 0.6)
                 time.sleep(delay)
             except:
                 time.sleep(0.6)
@@ -1133,7 +1206,7 @@ class App(CTk):
     def _execute_cast_normal(self):
         # Basic cast: hold left click briefly
         mouse_controller.press(Button.left)
-        duration = float(self.widgets["cast_duration"].get() or 0.6)
+        duration = float(self.vars["cast_duration"].get() or 0.6)
         time.sleep(duration)  # adjust cast strength
         mouse_controller.release(Button.left)
         time.sleep(0.2)
@@ -1157,7 +1230,7 @@ class App(CTk):
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
         scan_delay = float(self.vars["shake_scan_delay"].get())
-        failsafe = int(self.widgets["shake_failsafe"].get() or 40)
+        failsafe = int(self.vars["shake_failsafe"].get() or 40)
 
         # initialize attempts counter to avoid UnboundLocalError
         attempts = 0
@@ -1226,7 +1299,7 @@ class App(CTk):
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
         scan_delay = float(self.vars["shake_scan_delay"].get())
-        failsafe = int(self.widgets["shake_failsafe"].get() or 20)
+        failsafe = int(self.vars["shake_failsafe"].get() or 20)
 
         attempts = 0
 
@@ -1283,16 +1356,16 @@ class App(CTk):
 
         fish_hex = self.vars["fish_color"].get()
         arrow_hex = self.vars["arrow_color"].get()
-        left_bar_hex = self.vars["left_bar_color"].get()
-        right_bar_hex = self.vars["right_bar_color"].get()
+        left_bar_hex = self.vars["left_color"].get()
+        right_bar_hex = self.vars["right_color"].get()
 
         try:
-            thresh = float(self.widgets["velocity_smoothing"].get() or 10)
+            thresh = float(self.vars["velocity_smoothing"].get() or 10)
         except:
             thresh = 10
 
         try:
-            bar_ratio = float(self.widgets["bar_ratio"].get() or 0.5)
+            bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
         except:
             bar_ratio = 0.5
         tolerance = int(self.vars["shake_tolerance"].get())

@@ -179,7 +179,7 @@ class App(CTk):
             configs,
             values=config_list,
             variable=config_var,
-            command=lambda v: self.set_status(f"Loaded {v}")
+            command=lambda v: self.load_settings(v)
         )
         config_cb.grid(row=0, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
@@ -452,7 +452,6 @@ class App(CTk):
         self.vars["minigame_scan_delay"] = minigame_scan_delay_var
         minigame_scan_delay_entry = CTkEntry(frame2, placeholder_text="0.01", width=120, textvariable=minigame_scan_delay_var)
         minigame_scan_delay_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        self.vars["minigame_scan_delay"] = minigame_scan_delay_entry
 
         CTkLabel(frame2, text="Restart Delay:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
@@ -781,7 +780,8 @@ class App(CTk):
         frame,
         left_hex,
         right_hex,
-        tolerance=12,
+        tolerance=8,
+        tolerance2=8,
         scan_height_ratio=0.55
     ):
         if frame is None:
@@ -806,7 +806,7 @@ class App(CTk):
         )
 
         right_mask = np.all(
-            np.abs(line - right_bgr) <= tolerance,
+            np.abs(line - right_bgr) <= tolerance2,
             axis=1
         )
 
@@ -1039,13 +1039,14 @@ class App(CTk):
             self.last_left_x = float(arrow_centroid_x)
             self.last_right_x = self.last_left_x + self.estimated_box_length
         
-        # Clamp to capture bounds
+        # Clamp to capture bounds (keep arrow anchored)
         if self.last_left_x < 0:
             self.last_left_x = 0.0
-            self.last_right_x = self.estimated_box_length
-        elif self.last_right_x > capture_width:
+            self.last_right_x = min(self.estimated_box_length, capture_width)
+        
+        if self.last_right_x > capture_width:
             self.last_right_x = float(capture_width)
-            self.last_left_x = self.last_right_x - self.estimated_box_length
+            self.last_left_x = max(0.0, self.last_right_x - self.estimated_box_length)
         
         # Calculate and store center
         box_center = (self.last_left_x + self.last_right_x) / 2.0
@@ -1056,6 +1057,24 @@ class App(CTk):
         self.last_holding_state = is_holding
         
         return box_center
+    def _find_bar_target(self, fish_x, left_bar_x, right_bar_x, bar_ratio):
+        """
+        Find max left and right of the bar
+        bar_ratio: fraction from bar edge (0.0 - 0.5 recommended)
+        """
+        bar_width = right_bar_x - left_bar_x
+        bar_ratio = max(0.05, min(0.45, bar_ratio))  # clamp for safety
+
+        left_target = left_bar_x + bar_width * bar_ratio
+        right_target = right_bar_x - bar_width * bar_ratio
+
+        if fish_x < left_target:
+            return left_target
+        elif fish_x > right_target:
+            return right_target
+        else:
+            return None  # inside safe zone
+
     # === MINIGAME WINDOW (instance methods) ===
     def init_minigame_window(self):
         """
@@ -1346,8 +1365,6 @@ class App(CTk):
             time.sleep(scan_delay)
 
     def _enter_minigame(self):
-        width, height = self._get_screen_size()
-
         # macOS-safe coordinates
         fish_left = int(self.SCREEN_WIDTH / 3.3684)
         fish_top = int(self.SCREEN_HEIGHT / 1.2766)
@@ -1359,18 +1376,18 @@ class App(CTk):
         left_bar_hex = self.vars["left_color"].get()
         right_bar_hex = self.vars["right_color"].get()
 
+        left_tol = int(self.vars["left_tolerance"].get() or 8)
+        right_tol = int(self.vars["right_tolerance"].get() or 8)
+        arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
+        fish_tol = int(self.vars["fish_tolerance"].get() or 5)
+        bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
+
         try:
             thresh = float(self.vars["velocity_smoothing"].get() or 10)
         except:
             thresh = 10
 
-        try:
-            bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
-        except:
-            bar_ratio = 0.5
-        tolerance = int(self.vars["shake_tolerance"].get())
-
-        DEADZONE = 8  # similar to old bar_ratio feel
+        DEADZONE = 8
         mouse_down = False
         fish_miss_count = 0
         MAX_FISH_MISSES = 20
@@ -1396,9 +1413,9 @@ class App(CTk):
                 time.sleep(0.01)
                 continue
 
-            fish_center = self._find_color_center(img, fish_hex, tolerance)
-            arrow_center = self._find_color_center(img, arrow_hex, tolerance)
-            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, tolerance)
+            fish_center = self._find_color_center(img, fish_hex, fish_tol)
+            arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
+            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
 
             # ---- FISH NOT FOUND ----
             if not fish_center:
@@ -1480,7 +1497,7 @@ class App(CTk):
             elif arrow_center:
                 # Use arrow to estimate bar center (IRUS 675 logic)
                 capture_width = fish_right - fish_left
-                arrow_centroid_x = self._find_arrow_centroid(img, arrow_hex, tolerance)
+                arrow_centroid_x = self._find_arrow_centroid(img, arrow_hex, arrow_tol)
                 if self.vars["fish_overlay"].get() == "on":
                     self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
 

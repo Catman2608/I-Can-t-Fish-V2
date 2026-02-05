@@ -67,6 +67,7 @@ class App(CTk):
         # Minigame overlay window and canvas
         self.minigame_window = None
         self.minigame_canvas = None
+        self.pid_source = None  # "bar" or "arrow"
 
         # Start hotkey listener
         self.key_listener = KeyListener(on_press=self.on_key_press)
@@ -77,16 +78,20 @@ class App(CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        logo_image = CTkImage(
-            light_image=Image.open(os.path.join(BASE_DIR, "icf_light.png")),
-            dark_image=Image.open(os.path.join(BASE_DIR, "icf_dark.png")),
-            size=(256, 54)
-        )
-        self.logo_image = logo_image
+        try:
+            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+            logo_image = CTkImage(
+                light_image=Image.open(os.path.join(BASE_DIR, "icf_light.png")),
+                dark_image=Image.open(os.path.join(BASE_DIR, "icf_dark.png")),
+                size=(256, 54)
+            )
+            self.logo_image = logo_image
 
-        logo_label = CTkLabel(self, image=self.logo_image, text="")
-        logo_label.grid(row=0, column=0, columnspan=6, pady=10)
+            logo_label = CTkLabel(self, image=self.logo_image, text="")
+            logo_label.grid(row=0, column=0, columnspan=6, pady=10)
+        except:
+            logo_label = CTkLabel(self, text="[I CANT FISH V2] BY LONGEST")
+            logo_label.grid(row=0, column=0, columnspan=6, pady=10)
         # Status Label 
         self.status_label = CTkLabel(self, text="Macro status: Idle") 
         self.status_label.grid( row=0, column=0, columnspan=6, pady=15, padx=20, sticky="w")
@@ -927,7 +932,9 @@ class App(CTk):
         
         # Derivative
         derivative = (error - self.prev_error) / dt
-        
+        # Derivative clamp (prevents spikes)
+        derivative = max(-300, min(300, derivative))
+
         output = (
             kp * error +
             ki * self.pid_integral +
@@ -944,7 +951,9 @@ class App(CTk):
         self.pid_integral = 0.0
         self.prev_error = 0.0
         self.last_time = None
-        
+        # Clear PID source so next detection resets state correctly
+        self.pid_source = None
+
         # Also reset arrow estimation state
         self.last_indicator_x = None
         self.last_holding_state = None
@@ -953,7 +962,7 @@ class App(CTk):
         self.last_right_x = None
         self.last_known_box_center_x = None
     
-    def _find_arrow_centroid(self, frame, arrow_hex, tolerance):
+    def _find_arrow_centroid_legacy(self, frame, arrow_hex, tolerance):
         """
         Find the centroid (center point) of the arrow indicator using contour detection.
         
@@ -993,6 +1002,28 @@ class App(CTk):
         
         return None
     
+    def _find_arrow_indicator_x(self, frame, arrow_hex, tolerance, is_holding):
+        """
+        IRUS-style arrow tracking:
+        - If holding: arrow is RIGHT edge → use max X
+        - If not holding: arrow is LEFT edge → use min X
+        Returns indicator X or None.
+        """
+        pixels = self._pixel_search(frame, arrow_hex, tolerance)
+        if not pixels:
+            return None
+
+        xs = [x for x, _ in pixels]
+
+        indicator_x = max(xs) if is_holding else min(xs)
+
+        # Small jitter filter
+        if self.last_indicator_x is not None:
+            if abs(indicator_x - self.last_indicator_x) < 2:
+                indicator_x = self.last_indicator_x
+
+        return indicator_x
+
     def _update_arrow_box_estimation(self, arrow_centroid_x, is_holding, capture_width):
         """
         Estimate box position based on arrow indicator using IRUS-style logic.
@@ -1059,21 +1090,23 @@ class App(CTk):
         return box_center
     def _find_bar_target(self, fish_x, left_bar_x, right_bar_x, bar_ratio):
         """
-        Find max left and right of the bar
-        bar_ratio: fraction from bar edge (0.0 - 0.5 recommended)
+        Symmetric safe-zone around fish_x.
+        bar_ratio: fraction of bar width (0.0 - 0.5 recommended)
         """
         bar_width = right_bar_x - left_bar_x
-        bar_ratio = max(0.05, min(0.45, bar_ratio))  # clamp for safety
+        bar_ratio = max(0.05, min(0.45, bar_ratio))
 
-        left_target = left_bar_x + bar_width * bar_ratio
-        right_target = right_bar_x - bar_width * bar_ratio
+        half_zone = bar_width * bar_ratio * 0.5
 
-        if fish_x < left_target:
-            return left_target
-        elif fish_x > right_target:
-            return right_target
+        left_limit  = fish_x - half_zone
+        right_limit = fish_x + half_zone
+
+        if fish_x < left_limit:
+            return left_limit
+        elif fish_x > right_limit:
+            return right_limit
         else:
-            return None  # inside safe zone
+            return None
 
     # === MINIGAME WINDOW (instance methods) ===
     def init_minigame_window(self):
@@ -1497,17 +1530,13 @@ class App(CTk):
             elif arrow_center:
                 # Use arrow to estimate bar center (IRUS 675 logic)
                 capture_width = fish_right - fish_left
-                arrow_centroid_x = self._find_arrow_centroid(img, arrow_hex, arrow_tol)
+                arrow_indicator_x = self._find_arrow_indicator_x( img, arrow_hex, arrow_tol, mouse_down )
                 if self.vars["fish_overlay"].get() == "on":
                     self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
 
-                if arrow_centroid_x is not None:
+                if arrow_indicator_x is not None:
                     # Estimate bar center using arrow-based logic
-                    estimated_bar_center = self._update_arrow_box_estimation(
-                        arrow_centroid_x, 
-                        mouse_down,  # is_holding
-                        capture_width
-                    )
+                    estimated_bar_center = self._update_arrow_box_estimation( arrow_indicator_x, mouse_down, capture_width )
                     
                     if estimated_bar_center is not None:
                         if self.vars["fish_overlay"].get() == "on":

@@ -56,6 +56,8 @@ class App(CTk):
         self.pid_integral = 0.0
         self.prev_error = 0.0
         self.last_time = None
+        self.prev_measurement = None
+        self.filtered_derivative = 0.0
 
         # Arrow-based box estimation variables
         self.last_indicator_x = None
@@ -903,48 +905,47 @@ class App(CTk):
         
         return kp, kd, ki
     
-    def _pid_control(self, error):
-        """
-        PID control calculation for minigame bar tracking.
-        
-        Args:
-            error: Current position error (fish_pos - bar_center)
-        
-        Returns:
-            Control output value
-        """
+    def _pid_control(self, error, measurement):
         now = time.perf_counter()
-        
+
         if self.last_time is None:
             self.last_time = now
-            self.prev_error = error
+            self.prev_measurement = measurement
             return 0.0
-        
+
         dt = now - self.last_time
         if dt <= 0:
             return 0.0
-        
+
         kp, kd, ki = self._get_pid_gains()
-        
-        # Integral
+
+        # Deadzone
+        if abs(error) < 2:
+            return 0.0
+
+        # --- Derivative on measurement ---
+        raw_derivative = (measurement - self.prev_measurement) / dt
+
+        alpha = 1.0 / float(self.vars["velocity_smoothing"].get() or 6)
+        self.filtered_derivative += alpha * (raw_derivative - self.filtered_derivative)
+
+        # --- Integral (optional) ---
         self.pid_integral += error * dt
-        self.pid_integral = max(-100, min(100, self.pid_integral))  # anti-windup clamp
-        
-        # Derivative
-        derivative = (error - self.prev_error) / dt
-        # Derivative clamp (prevents spikes)
-        derivative = max(-300, min(300, derivative))
+        self.pid_integral = max(-50, min(50, self.pid_integral))
 
         output = (
-            kp * error +
-            ki * self.pid_integral +
-            kd * derivative
+            kp * error
+            - kd * self.filtered_derivative   # NOTE the minus
+            + ki * self.pid_integral
         )
-        
-        self.prev_error = error
+
+        output = max(-50, min(50, output))
+
+        self.prev_measurement = measurement
         self.last_time = now
-        
+
         return output
+
     
     def _reset_pid_state(self):
         """Reset PID control state variables."""
@@ -952,6 +953,8 @@ class App(CTk):
         self.prev_error = 0.0
         self.last_time = None
         # Clear PID source so next detection resets state correctly
+        self.prev_measurement = None
+        self.filtered_derivative = 0.0
         self.pid_source = None
 
         # Also reset arrow estimation state
@@ -1449,6 +1452,10 @@ class App(CTk):
             fish_center = self._find_color_center(img, fish_hex, fish_tol)
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+            if left_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+            elif right_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
 
             # ---- FISH NOT FOUND ----
             if not fish_center:
@@ -1501,10 +1508,11 @@ class App(CTk):
                     self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
 
                 # PID calculation
-                error = fish_x - bar_center
-                control = self._pid_control(error)
+                error = bar_center - fish_x
+                control = self._pid_control(error, bar_center)
                 
                 # Map PID output to mouse clicks using hysteresis
+                control = self._pid_control(error, bar_center)
                 control = max(-100, min(100, control))
                 
                 # Hysteresis thresholds for smooth control
@@ -1546,10 +1554,11 @@ class App(CTk):
                         bar_center = int(estimated_bar_center + fish_left)
                         
                         # PID calculation with estimated bar
-                        error = fish_x - bar_center
-                        control = self._pid_control(error)
+                        error = bar_center - fish_x
+                        self._pid_control(error, bar_center)
                         
                         # Map PID output to mouse clicks using hysteresis
+                        control = self._pid_control(error, bar_center)
                         control = max(-100, min(100, control))
                         
                         on_thresh = 10

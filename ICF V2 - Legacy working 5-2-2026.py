@@ -56,8 +56,6 @@ class App(CTk):
         self.pid_integral = 0.0
         self.prev_error = 0.0
         self.last_time = None
-        self.prev_measurement = None
-        self.filtered_derivative = 0.0
 
         # Arrow-based box estimation variables
         self.last_indicator_x = None
@@ -69,7 +67,6 @@ class App(CTk):
         # Minigame overlay window and canvas
         self.minigame_window = None
         self.minigame_canvas = None
-        self.pid_source = None  # "bar" or "arrow"
 
         # Start hotkey listener
         self.key_listener = KeyListener(on_press=self.on_key_press)
@@ -905,58 +902,53 @@ class App(CTk):
         
         return kp, kd, ki
     
-    def _pid_control(self, error, measurement):
+    def _pid_control(self, error):
+        """
+        PID control calculation for minigame bar tracking.
+        
+        Args:
+            error: Current position error (fish_pos - bar_center)
+        
+        Returns:
+            Control output value
+        """
         now = time.perf_counter()
-
+        
         if self.last_time is None:
             self.last_time = now
-            self.prev_measurement = measurement
+            self.prev_error = error
             return 0.0
-
+        
         dt = now - self.last_time
         if dt <= 0:
             return 0.0
-
+        
         kp, kd, ki = self._get_pid_gains()
-
-        # Deadzone
-        if abs(error) < 2:
-            return 0.0
-
-        # --- Derivative on measurement ---
-        raw_derivative = (measurement - self.prev_measurement) / dt
-
-        alpha = 1.0 / float(self.vars["velocity_smoothing"].get() or 6)
-        self.filtered_derivative += alpha * (raw_derivative - self.filtered_derivative)
-
-        # --- Integral (optional) ---
+        
+        # Integral
         self.pid_integral += error * dt
-        self.pid_integral = max(-50, min(50, self.pid_integral))
-
+        self.pid_integral = max(-100, min(100, self.pid_integral))  # anti-windup clamp
+        
+        # Derivative
+        derivative = (error - self.prev_error) / dt
+        
         output = (
-            kp * error
-            - kd * self.filtered_derivative   # NOTE the minus
-            + ki * self.pid_integral
+            kp * error +
+            ki * self.pid_integral +
+            kd * derivative
         )
-
-        output = max(-50, min(50, output))
-
-        self.prev_measurement = measurement
+        
+        self.prev_error = error
         self.last_time = now
-
+        
         return output
-
     
     def _reset_pid_state(self):
         """Reset PID control state variables."""
         self.pid_integral = 0.0
         self.prev_error = 0.0
         self.last_time = None
-        # Clear PID source so next detection resets state correctly
-        self.prev_measurement = None
-        self.filtered_derivative = 0.0
-        self.pid_source = None
-
+        
         # Also reset arrow estimation state
         self.last_indicator_x = None
         self.last_holding_state = None
@@ -965,7 +957,7 @@ class App(CTk):
         self.last_right_x = None
         self.last_known_box_center_x = None
     
-    def _find_arrow_centroid_legacy(self, frame, arrow_hex, tolerance):
+    def _find_arrow_centroid(self, frame, arrow_hex, tolerance):
         """
         Find the centroid (center point) of the arrow indicator using contour detection.
         
@@ -1005,28 +997,6 @@ class App(CTk):
         
         return None
     
-    def _find_arrow_indicator_x(self, frame, arrow_hex, tolerance, is_holding):
-        """
-        IRUS-style arrow tracking:
-        - If holding: arrow is RIGHT edge → use max X
-        - If not holding: arrow is LEFT edge → use min X
-        Returns indicator X or None.
-        """
-        pixels = self._pixel_search(frame, arrow_hex, tolerance)
-        if not pixels:
-            return None
-
-        xs = [x for x, _ in pixels]
-
-        indicator_x = max(xs) if is_holding else min(xs)
-
-        # Small jitter filter
-        if self.last_indicator_x is not None:
-            if abs(indicator_x - self.last_indicator_x) < 2:
-                indicator_x = self.last_indicator_x
-
-        return indicator_x
-
     def _update_arrow_box_estimation(self, arrow_centroid_x, is_holding, capture_width):
         """
         Estimate box position based on arrow indicator using IRUS-style logic.
@@ -1093,23 +1063,21 @@ class App(CTk):
         return box_center
     def _find_bar_target(self, fish_x, left_bar_x, right_bar_x, bar_ratio):
         """
-        Symmetric safe-zone around fish_x.
-        bar_ratio: fraction of bar width (0.0 - 0.5 recommended)
+        Find max left and right of the bar
+        bar_ratio: fraction from bar edge (0.0 - 0.5 recommended)
         """
         bar_width = right_bar_x - left_bar_x
-        bar_ratio = max(0.05, min(0.45, bar_ratio))
+        bar_ratio = max(0.05, min(0.45, bar_ratio))  # clamp for safety
 
-        half_zone = bar_width * bar_ratio * 0.5
+        left_target = left_bar_x + bar_width * bar_ratio
+        right_target = right_bar_x - bar_width * bar_ratio
 
-        left_limit  = fish_x - half_zone
-        right_limit = fish_x + half_zone
-
-        if fish_x < left_limit:
-            return left_limit
-        elif fish_x > right_limit:
-            return right_limit
+        if fish_x < left_target:
+            return left_target
+        elif fish_x > right_target:
+            return right_target
         else:
-            return None
+            return None  # inside safe zone
 
     # === MINIGAME WINDOW (instance methods) ===
     def init_minigame_window(self):
@@ -1452,10 +1420,6 @@ class App(CTk):
             fish_center = self._find_color_center(img, fish_hex, fish_tol)
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
-            if left_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
-            elif right_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
 
             # ---- FISH NOT FOUND ----
             if not fish_center:
@@ -1508,11 +1472,10 @@ class App(CTk):
                     self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
 
                 # PID calculation
-                error = bar_center - fish_x
-                control = self._pid_control(error, bar_center)
+                error = fish_x - bar_center
+                control = self._pid_control(error)
                 
                 # Map PID output to mouse clicks using hysteresis
-                control = self._pid_control(error, bar_center)
                 control = max(-100, min(100, control))
                 
                 # Hysteresis thresholds for smooth control
@@ -1538,13 +1501,17 @@ class App(CTk):
             elif arrow_center:
                 # Use arrow to estimate bar center (IRUS 675 logic)
                 capture_width = fish_right - fish_left
-                arrow_indicator_x = self._find_arrow_indicator_x( img, arrow_hex, arrow_tol, mouse_down )
+                arrow_centroid_x = self._find_arrow_centroid(img, arrow_hex, arrow_tol)
                 if self.vars["fish_overlay"].get() == "on":
                     self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
 
-                if arrow_indicator_x is not None:
+                if arrow_centroid_x is not None:
                     # Estimate bar center using arrow-based logic
-                    estimated_bar_center = self._update_arrow_box_estimation( arrow_indicator_x, mouse_down, capture_width )
+                    estimated_bar_center = self._update_arrow_box_estimation(
+                        arrow_centroid_x, 
+                        mouse_down,  # is_holding
+                        capture_width
+                    )
                     
                     if estimated_bar_center is not None:
                         if self.vars["fish_overlay"].get() == "on":
@@ -1554,11 +1521,10 @@ class App(CTk):
                         bar_center = int(estimated_bar_center + fish_left)
                         
                         # PID calculation with estimated bar
-                        error = bar_center - fish_x
-                        self._pid_control(error, bar_center)
+                        error = fish_x - bar_center
+                        control = self._pid_control(error)
                         
                         # Map PID output to mouse clicks using hysteresis
-                        control = self._pid_control(error, bar_center)
                         control = max(-100, min(100, control))
                         
                         on_thresh = 10

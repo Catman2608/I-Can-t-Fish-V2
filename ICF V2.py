@@ -154,21 +154,6 @@ class App(CTk):
                                      variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
 
-        CTkLabel(automation, text="Capture Mode:").grid(
-            row=3, column=0, padx=12, pady=6, sticky="w"
-        )
-
-        capture_var = StringVar(value="DXCAM")
-        self.vars["capture_mode"] = capture_var
-        capture_cb = CTkComboBox(
-            automation,
-            values=["DXCAM", "MSS"],
-            variable=capture_var,
-            command=lambda v: self.set_status(f"Capture mode: {v}")
-        )
-        capture_cb.grid(row=3, column=1, padx=12, pady=6, sticky="w")
-        self.comboboxes["capture_mode"] = capture_cb
-
         #  Configs 
         configs = CTkFrame(
             parent, fg_color="#222222",
@@ -251,22 +236,6 @@ class App(CTk):
         )
         casting_delay_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
 
-
-        # ---- Perfect cast tolerance ----
-        CTkLabel(casting, text="Perfect Cast Tolerance:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
-
-        perfect_cast_tolerance_var = StringVar(value="5")
-        self.vars["perfect_cast_tolerance"] = perfect_cast_tolerance_var
-
-        perfect_cast_tolerance_entry = CTkEntry(
-            casting,
-            width=120,
-            textvariable=perfect_cast_tolerance_var
-        )
-        perfect_cast_tolerance_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
         support = CTkFrame(
             parent, fg_color="#222222",
             border_color="#4a90e2", border_width=2
@@ -283,12 +252,109 @@ class App(CTk):
         )
     # MISC SETTINGS TAB
     def build_misc_tab(self, parent):
-        # Auto Select Rod Settings 
-        auto_select_rod = CTkFrame(
+        # Capture Mode Settings 
+        capture_settings = CTkFrame(
             parent, fg_color="#222222",
             border_color="#50e3c2", border_width=2
         )
-        auto_select_rod.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        capture_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+
+        CTkLabel(capture_settings, text="Capture Mode:").grid(
+            row=0, column=0, padx=12, pady=6, sticky="w"
+        )
+
+        capture_var = StringVar(value="DXCAM")
+        self.vars["capture_mode"] = capture_var
+        capture_cb = CTkComboBox(
+            capture_settings,
+            values=["DXCAM", "MSS"],
+            variable=capture_var,
+            command=lambda v: self.set_status(f"Capture mode: {v}")
+        )
+        capture_cb.grid(row=0, column=1, padx=12, pady=6, sticky="w")
+        self.comboboxes["capture_mode"] = capture_cb
+
+        # Fish Overlay Settings 
+        overlay_settings = CTkFrame(
+            parent, fg_color="#222222",
+            border_color="#50e3c2", border_width=2
+        )
+        overlay_settings.grid(row=0, column=1, padx=20, pady=20, sticky="nw")
+
+        bar_size_var = StringVar(value="off")
+        self.vars["bar_size"] = bar_size_var
+        bar_size_cb = CTkCheckBox(overlay_settings, text="Show Bar Size", 
+                                     variable=bar_size_var, onvalue="on", offvalue="off")
+        bar_size_cb.grid(row=0, column=0, padx=12, pady=8, sticky="w")
+
+        bar_ratio2_var = StringVar(value="off")
+        self.vars["bar_ratio2"] = bar_ratio2_var
+        bar_ratio2_cb = CTkCheckBox(overlay_settings, text="Show Bar Ratio", 
+                                     variable=bar_ratio2_var, onvalue="on", offvalue="off")
+        bar_ratio2_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+
+        # Perfect Cast Settings 
+        pfc1_settings = CTkFrame(
+            parent, fg_color="#222222",
+            border_color="#50e3c2", border_width=2
+        )
+        pfc1_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        # ---- Perfect cast tolerance ----
+        CTkLabel(pfc1_settings, text="Green (Perfect Cast) Tolerance:").grid(
+            row=0, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        perfect_cast_tolerance_var = StringVar(value="18")
+        self.vars["perfect_cast_tolerance"] = perfect_cast_tolerance_var
+
+        perfect_cast_tolerance_entry = CTkEntry(
+            pfc1_settings,
+            width=120,
+            textvariable=perfect_cast_tolerance_var
+        )
+        perfect_cast_tolerance_entry.grid(row=0, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(pfc1_settings, text="White (Perfect Cast) Tolerance:").grid(
+            row=1, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        perfect_cast2_tolerance_var = StringVar(value="16")
+        self.vars["perfect_cast2_tolerance"] = perfect_cast2_tolerance_var
+
+        perfect_cast2_tolerance_entry = CTkEntry(
+            pfc1_settings,
+            width=120,
+            textvariable=perfect_cast2_tolerance_var
+        )
+        perfect_cast2_tolerance_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(pfc1_settings, text="Perfect Cast Reaction Time:").grid(
+            row=2, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        reaction_time_var = StringVar(value="0.01")
+        self.vars["reaction_time"] = reaction_time_var
+
+        reaction_time_entry = CTkEntry(
+            pfc1_settings,
+            width=120,
+            textvariable=reaction_time_var
+        )
+        reaction_time_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(pfc1_settings, text="Perfect Cast Scan FPS:").grid(
+            row=3, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        cast_scan_delay_var = StringVar(value="0.05")
+        self.vars["cast_scan_delay"] = cast_scan_delay_var
+
+        cast_scan_delay_entry = CTkEntry(
+            pfc1_settings,
+            width=120,
+            textvariable=cast_scan_delay_var
+        )
+        cast_scan_delay_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         frame = CTkFrame(
@@ -1171,6 +1237,76 @@ class App(CTk):
         bx1 = left_edge - canvas_offset
         bx2 = right_edge - canvas_offset
         self.draw_box(bx1, bar_y1, bx2, bar_y2, fill="#000000", outline=color)
+    def _find_white_below_green(self, frame, green_y, left_x, right_x, tolerance):
+        """
+        Find the white indicator below the green bar.
+        Returns (x, y) or None
+        """
+
+        h, w, _ = frame.shape
+
+        # Clamp bounds
+        left_x = max(0, int(left_x))
+        right_x = min(w - 1, int(right_x))
+        start_y = min(h - 1, int(green_y + 2))
+
+        best = None
+        best_y = h
+
+        tol = int(tolerance)
+
+        for y in range(start_y, h):
+            row = frame[y, left_x:right_x]
+
+            # White ≈ high RGB, low variance
+            mask = (
+                (row[:, 0] > 255 - tol) &
+                (row[:, 1] > 255 - tol) &
+                (row[:, 2] > 255 - tol)
+            )
+
+            if mask.any():
+                x = left_x + int(mask.argmax())
+                best = (x, y)
+                break
+
+        return best
+    def _calculate_speed_and_predict(self, positions, timestamps):
+        """
+        Calculate vertical speed of the white indicator using prediction mode.
+        Returns speed in pixels per second, or None if unstable.
+        """
+
+        if len(positions) < 3:
+            return None
+
+        # Use last N samples (Comet uses small window)
+        N = min(5, len(positions))
+        pos = positions[-N:]
+        time = timestamps[-N:]
+
+        # Extract Y only (white moves vertically)
+        ys = [p[1] for p in pos]
+
+        # Compute deltas
+        dy = ys[-1] - ys[0]
+        dt = time[-1] - time[0]
+
+        # Safety guards
+        if dt <= 0:
+            return None
+
+        # Ignore tiny jitter (noise filter)
+        if abs(dy) < 2:
+            return None
+
+        speed = dy / dt  # pixels per second
+
+        # Clamp insane speeds (helps on lag spikes)
+        max_speed = 8000
+        speed = max(-max_speed, min(max_speed, speed))
+
+        return speed
 
     def start_macro(self):
         # 434 705 1029 794
@@ -1212,7 +1348,7 @@ class App(CTk):
             # 2️⃣ Cast
             self.set_status("Casting")
             if self.vars["perfect_cast"].get() == "on":
-                pass  # future perfect cast
+                self._execute_cast_perfect()
             else:
                 self._execute_cast_normal()
 
@@ -1241,6 +1377,67 @@ class App(CTk):
             self._enter_minigame()
 
             # ⬅️ When minigame ends, loop repeats from Select Rod
+    def _execute_cast_perfect(self):
+        # Hold mouse to start cast
+        mouse_controller.press(Button.left)
+
+        # Reset tracking buffers
+        white_positions = []
+        white_timestamps = []
+
+        last_green_mid = None
+        last_green_y = None
+
+        start_time = time.time()
+
+        while self.running:
+            frame = self._capture_cast_region()
+
+            # 1. Detect green bar
+            green = self._find_green(frame, last_green_mid, last_green_y)
+            if not green:
+                continue
+
+            green_mid_x, green_y, left_x, right_x = green
+            last_green_mid = green_mid_x
+            last_green_y = green_y
+
+            # 2. Detect white indicator BELOW green
+            white = self.find_white_below_green(
+                frame,
+                green_y,
+                left_x,
+                right_x,
+                int(self.vars["perfect_cast2_tolerance"].get())
+            )
+
+            if white:
+                white_positions.append(white)
+                white_timestamps.append(time.time())
+
+                if len(white_positions) > 5:
+                    white_positions.pop(0)
+                    white_timestamps.pop(0)
+
+            # 3. Predict & release
+            speed = self._calculate_speed_and_predict(
+                white_positions,
+                white_timestamps
+            )
+
+            if speed is not None:
+                reaction = float(self.vars["reaction_time"].get())
+                predicted_y = white[1] + speed * reaction
+
+                if predicted_y >= green_y:
+                    mouse_controller.release(Button.left)
+                    return
+
+            # Safety timeout
+            if time.time() - start_time > 3.5:
+                mouse_controller.release(Button.left)
+                return
+            time.sleep(float(self.vars["cast_scan_delay"].get()))
 
     def _execute_cast_normal(self):
         # Basic cast: hold left click briefly
@@ -1466,8 +1663,10 @@ class App(CTk):
             fish_x = fish_center[0] + fish_left
             if bars_found and left_bar_center is not None and right_bar_center is not None:
                 bar_center = int((left_bar_center + right_bar_center) / 2 + fish_left)
-                max_left = fish_left + 240
-                max_right = fish_right - 240
+                bar_size = abs(right_bar_center - left_bar_center)
+                deadzone = bar_size * bar_ratio
+                max_left = fish_left + deadzone
+                max_right = fish_right - deadzone
                 pid_found = 0 # 0: PID 1: Release 2: Hold 3: Do nothing
             else:
                 bar_center = None

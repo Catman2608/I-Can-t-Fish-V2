@@ -149,22 +149,6 @@ class App(CTk):
         fish_overlay_cb = CTkCheckBox(automation, text="Fish Overlay", 
                                      variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
-
-        CTkLabel(automation, text="Capture Mode:").grid(
-            row=3, column=0, padx=12, pady=6, sticky="w"
-        )
-
-        capture_var = StringVar(value="DXCAM")
-        self.vars["capture_mode"] = capture_var
-        capture_cb = CTkComboBox(
-            automation,
-            values=["DXCAM", "MSS"],
-            variable=capture_var,
-            command=lambda v: self.set_status(f"Capture mode: {v}")
-        )
-        capture_cb.grid(row=3, column=1, padx=12, pady=6, sticky="w")
-        self.comboboxes["capture_mode"] = capture_cb
-
         #  Configs 
         configs = CTkFrame(
             parent, fg_color="#222222",
@@ -279,12 +263,54 @@ class App(CTk):
         )
     # MISC SETTINGS TAB
     def build_misc_tab(self, parent):
-        # Auto Select Rod Settings 
-        auto_select_rod = CTkFrame(
+        # Capture Mode Settings 
+        capture_settings = CTkFrame(
             parent, fg_color="#222222",
             border_color="#50e3c2", border_width=2
         )
-        auto_select_rod.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        capture_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+
+        CTkLabel(capture_settings, text="Capture Mode:").grid(
+            row=0, column=0, padx=12, pady=6, sticky="w"
+        )
+
+        capture_var = StringVar(value="DXCAM")
+        self.vars["capture_mode"] = capture_var
+        capture_cb = CTkComboBox(
+            capture_settings,
+            values=["DXCAM", "MSS"],
+            variable=capture_var,
+            command=lambda v: self.set_status(f"Capture mode: {v}")
+        )
+        capture_cb.grid(row=0, column=1, padx=12, pady=6, sticky="w")
+        self.comboboxes["capture_mode"] = capture_cb
+
+        # Fish Overlay Settings 
+        overlay_settings = CTkFrame(
+            parent, fg_color="#222222",
+            border_color="#50e3c2", border_width=2
+        )
+        overlay_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+
+        bar_size_var = StringVar(value="off")
+        self.vars["bar_size"] = bar_size_var
+        bar_size_cb = CTkCheckBox(overlay_settings, text="Show Bar Size", 
+                                     variable=bar_size_var, onvalue="on", offvalue="off")
+        bar_size_cb.grid(row=0, column=0, padx=12, pady=8, sticky="w")
+
+        bar_ratio2_var = StringVar(value="off")
+        self.vars["bar_ratio2"] = bar_ratio2_var
+        bar_ratio2_cb = CTkCheckBox(overlay_settings, text="Show Bar Ratio", 
+                                     variable=bar_ratio2_var, onvalue="on", offvalue="off")
+        bar_ratio2_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+
+        # Perfect Cast Settings 
+        pfc1_settings = CTkFrame(
+            parent, fg_color="#222222",
+            border_color="#50e3c2", border_width=2
+        )
+        pfc1_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         frame = CTkFrame(
@@ -1196,7 +1222,7 @@ class App(CTk):
             # 2️⃣ Cast
             self.set_status("Casting")
             if self.vars["perfect_cast"].get() == "on":
-                pass  # future perfect cast
+                self._execute_cast_perfect()
             else:
                 self._execute_cast_normal()
 
@@ -1233,6 +1259,63 @@ class App(CTk):
         time.sleep(duration)  # adjust cast strength
         mouse_controller.release(Button.left)
         time.sleep(0.2)
+
+    def _execute_cast_perfect(self):
+        # Hold mouse to start cast
+        mouse_controller.press(Button.left)
+
+        # Reset tracking buffers
+        white_positions = []
+        white_timestamps = []
+
+        last_green_mid = None
+        last_green_y = None
+
+        start_time = time.time()
+
+        while self.running:
+            frame = self._capture_cast_region()
+
+            # 1. Detect green bar
+            green = self._find_green(frame, last_green_mid, last_green_y)
+            if not green:
+                continue
+
+            green_mid_x, green_y, left_x, right_x = green
+            last_green_mid = green_mid_x
+            last_green_y = green_y
+
+            # 2. Detect white indicator BELOW green
+            white = find_white_below_green(
+                frame,
+                green_y,
+                left_x,
+                right_x,
+                self.vars["white_tolerance"].get()
+            )
+
+            if white:
+                white_positions.append(white)
+                white_timestamps.append(time.time())
+
+                if len(white_positions) > 5:
+                    white_positions.pop(0)
+                    white_timestamps.pop(0)
+
+            # 3. Predict & release
+            speed = calculate_speed_and_predict(white_positions, white_timestamps)
+
+            if speed is not None:
+                predicted_y = white[1] + speed * self.vars["perfect_cast_reaction_time"].get()
+
+                if predicted_y >= green_y:
+                    mouse_controller.release(Button.left)
+                    return
+
+            # Safety timeout
+            if time.time() - start_time > 3.5:
+                mouse_controller.release(Button.left)
+                return
 
     def _execute_shake_click(self):
         self.set_status("Shake Mode: Click")

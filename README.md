@@ -13,5 +13,6 @@ Discord display name: Catman2608
 Discord username: catman2608
 
 ## Current Task
-1. Add dual bar color system (if bar color 1 is not found then use bar color 2)
-2. Add perfect cast from comet reference.py (currently IRUS comet only runs on Windows and not macOS for some reason)
+1. Fixing PID control (it's broken on Roblox rn but working on Scratch version)
+2. Adding the Misc tab (fish overlay settings, capture settings, etc)
+3. Add dual bar color system (if bar color 1 is not found then use bar color 2)

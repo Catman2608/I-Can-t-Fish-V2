@@ -58,6 +58,7 @@ class App(CTk):
         self.last_time = None
         self.prev_measurement = None
         self.filtered_derivative = 0.0
+        self.last_bar_size = None
 
         # Arrow-based box estimation variables
         self.last_indicator_x = None
@@ -787,8 +788,8 @@ class App(CTk):
         frame,
         left_hex,
         right_hex,
-        tolerance=8,
-        tolerance2=8,
+        tolerance=15,
+        tolerance2=15,
         scan_height_ratio=0.55
     ):
         if frame is None:
@@ -797,33 +798,25 @@ class App(CTk):
         h, w, _ = frame.shape
         y = int(h * scan_height_ratio)
 
-        left_bgr = self._hex_to_bgr(left_hex)
-        right_bgr = self._hex_to_bgr(right_hex)
-
-        if left_bgr is None or right_bgr is None:
-            return None, None
-
-        tolerance = int(np.clip(tolerance, 0, 255))
+        left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
+        right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
 
         line = frame[y].astype(np.int16)
 
-        left_mask = np.all(
-            np.abs(line - left_bgr) <= tolerance,
-            axis=1
-        )
+        tol_l = int(np.clip(tolerance, 0, 255))
+        tol_r = int(np.clip(tolerance2, 0, 255))
 
-        right_mask = np.all(
-            np.abs(line - right_bgr) <= tolerance2,
-            axis=1
-        )
+        # V1-style threshold comparison
+        left_mask = np.all(line >= (left_bgr - tol_l), axis=1)
+        right_mask = np.all(line >= (right_bgr - tol_r), axis=1)
 
         left_indices = np.where(left_mask)[0]
         right_indices = np.where(right_mask)[0]
 
-        if left_indices.size == 0 or right_indices.size == 0:
-            return None, None
+        left_edge = int(left_indices[0]) if left_indices.size else None
+        right_edge = int(right_indices[-1]) if right_indices.size else None
 
-        return int(left_indices[0]), int(right_indices[-1])
+        return left_edge, right_edge
 
     def _find_color_bounds(self, frame, target_color_hex, tolerance=10):
         pixels = self._pixel_search(frame, target_color_hex, tolerance)
@@ -905,48 +898,38 @@ class App(CTk):
         
         return kp, kd, ki
     
-    def _pid_control(self, error, measurement):
+    def _pid_control(self, error):
         now = time.perf_counter()
 
-        if self.last_time is None:
-            self.last_time = now
-            self.prev_measurement = measurement
+        if self.pid_last_time is None:
+            self.pid_last_time = now
+            self.pid_prev_error = error
             return 0.0
 
-        dt = now - self.last_time
+        dt = now - self.pid_last_time
         if dt <= 0:
             return 0.0
 
         kp, kd, ki = self._get_pid_gains()
 
-        # Deadzone
-        if abs(error) < 2:
-            return 0.0
-
-        # --- Derivative on measurement ---
-        raw_derivative = (measurement - self.prev_measurement) / dt
-
-        alpha = 1.0 / float(self.vars["velocity_smoothing"].get() or 6)
-        self.filtered_derivative += alpha * (raw_derivative - self.filtered_derivative)
-
-        # --- Integral (optional) ---
+        # Integral (anti-windup)
         self.pid_integral += error * dt
-        self.pid_integral = max(-50, min(50, self.pid_integral))
+        self.pid_integral = max(-100, min(100, self.pid_integral))
+
+        # Derivative
+        derivative = (error - self.pid_prev_error) / dt
 
         output = (
-            kp * error
-            - kd * self.filtered_derivative   # NOTE the minus
-            + ki * self.pid_integral
+            kp * error +
+            ki * self.pid_integral +
+            kd * derivative
         )
 
-        output = max(-50, min(50, output))
-
-        self.prev_measurement = measurement
-        self.last_time = now
+        self.pid_prev_error = error
+        self.pid_last_time = now
 
         return output
 
-    
     def _reset_pid_state(self):
         """Reset PID control state variables."""
         self.pid_integral = 0.0
@@ -1172,13 +1155,14 @@ class App(CTk):
     ):
         """
         Draws:
-        - Fishing bar
+        - Square box with size
         """
 
         # Guard against missing center
         if bar_center is None:
             return
-
+        
+        box_size = int(box_size / 2)
         # Calculate bar edges
         left_edge = bar_center - box_size
         right_edge = bar_center + box_size
@@ -1402,9 +1386,9 @@ class App(CTk):
 
     def _enter_minigame(self):
         # macOS-safe coordinates
-        fish_left = int(self.SCREEN_WIDTH / 3.3684)
+        fish_left = int(self.SCREEN_WIDTH / 3.3622)
         fish_top = int(self.SCREEN_HEIGHT / 1.2766)
-        fish_right = int(self.SCREEN_WIDTH / 1.42)
+        fish_right = int(self.SCREEN_WIDTH / 1.3973)
         fish_bottom = int(self.SCREEN_HEIGHT / 1.1335)
 
         fish_hex = self.vars["fish_color"].get()
@@ -1427,6 +1411,10 @@ class App(CTk):
         mouse_down = False
         fish_miss_count = 0
         MAX_FISH_MISSES = 20
+
+        self.pid_prev_error = 0.0
+        self.pid_integral = 0.0
+        self.pid_last_time = None
 
         def hold_mouse():
             nonlocal mouse_down
@@ -1471,70 +1459,42 @@ class App(CTk):
                 continue
             else:
                 fish_miss_count = 0
-
+            # ---- CLEAR MINIGAME ----
+            self.clear_minigame()
             # ---- BARS NOT FOUND ----
             bars_found = left_bar_center is not None and right_bar_center is not None
-
             fish_x = fish_center[0] + fish_left
-            self.clear_minigame()
-
-            # Bar Logic
-            if left_bar_center is not None and right_bar_center is not None:
+            if bars_found and left_bar_center is not None and right_bar_center is not None:
                 bar_center = int((left_bar_center + right_bar_center) / 2 + fish_left)
-
-                bar_size = abs(right_bar_center - left_bar_center)
-                deadzone = bar_size * bar_ratio
-
-                max_left = fish_left + deadzone
-                max_right = fish_right - deadzone
+                max_left = fish_left + 240
+                max_right = fish_right - 240
+                pid_found = 0 # 0: PID 1: Release 2: Hold 3: Do nothing
             else:
                 bar_center = None
-                max_left = fish_left
-                max_right = fish_right
-
-            # Max left and right is added back
-            if fish_x < max_left or fish_x > max_right:
-                if fish_x < max_left:
-                    self.draw_bar_minigame(bar_center=max_left, box_size=7, color="lightblue", canvas_offset=fish_left)
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
-                    release_mouse()
-                else:
-                    hold_mouse()
-                    self.draw_bar_minigame(bar_center=max_right, box_size=7, color="lightblue", canvas_offset=fish_left)
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
-            elif left_bar_center and right_bar_center:
-                if bars_found and self.vars["fish_overlay"].get() == "on":
-                    self.draw_bar_minigame(bar_center=bar_center, box_size=20, color="green", canvas_offset=fish_left)
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
-
-                # PID calculation
-                error = bar_center - fish_x
-                control = self._pid_control(error, bar_center)
+                max_left = None
+                max_right = None
+                pid_found = 3
+            if bars_found is not None:
+                if max_left is not None and fish_x <= max_left:
+                    if self.vars["fish_overlay"].get() == "on":
+                        self.draw_bar_minigame(bar_center=max_left, box_size=7, color="lightblue", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                    pid_found = 1
                 
-                # Map PID output to mouse clicks using hysteresis
-                control = self._pid_control(error, bar_center)
-                control = max(-100, min(100, control))
-                
-                # Hysteresis thresholds for smooth control
-                on_thresh = thresh  # threshold to start holding
-                off_thresh = int(thresh / 2)  # threshold to release
-
-                if control > on_thresh:
-                    if bars_found and self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=bar_center + 50, box_size=5, color="green", canvas_offset=fish_left)
-                    hold_mouse()
-                elif control < -on_thresh:
-                    if bars_found and self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=bar_center - 50, box_size=5, color="green", canvas_offset=fish_left)
-                    release_mouse()
+                elif max_right is not None and fish_x >= max_right:
+                    if self.vars["fish_overlay"].get() == "on":
+                        self.draw_bar_minigame(bar_center=max_right, box_size=7, color="lightblue", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                    pid_found = 2
                 else:
-                    # Within deadzone
-                    if abs(control) < off_thresh:
-                        if bars_found and self.vars["fish_overlay"].get() == "on":
-                            self.draw_bar_minigame(bar_center=bar_center - 50, box_size=5, color="green", canvas_offset=fish_left)
-                        release_mouse()
-
-            # ---- ARROW FALLBACK (IRUS-style box estimation) ----
+                    if self.vars["fish_overlay"].get() == "on":
+                        # Main code
+                        self.draw_bar_minigame(bar_center=bar_center, box_size=20, color="green", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                        # Debugging code
+                        self.draw_bar_minigame(bar_center=max_left, box_size=7, color="lightblue", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=max_right, box_size=7, color="lightblue", canvas_offset=fish_left)
+                    pid_found = 0
             elif arrow_center:
                 # Use arrow to estimate bar center (IRUS 675 logic)
                 capture_width = fish_right - fish_left
@@ -1552,43 +1512,40 @@ class App(CTk):
                             self.draw_bar_minigame(bar_center=arrow_center, box_size=20, color="yellow", canvas_offset=fish_left)
                         # Convert from relative to screen coordinates
                         bar_center = int(estimated_bar_center + fish_left)
-                        
-                        # PID calculation with estimated bar
-                        error = bar_center - fish_x
-                        self._pid_control(error, bar_center)
-                        
-                        # Map PID output to mouse clicks using hysteresis
-                        control = self._pid_control(error, bar_center)
-                        control = max(-100, min(100, control))
-                        
-                        on_thresh = 10
-                        off_thresh = 5
-                        
-                        if control > on_thresh:
-                            if self.vars["fish_overlay"].get() == "on":
-                                self.draw_bar_minigame(bar_center=arrow_center + 50, box_size=5, color="yellow", canvas_offset=fish_left)
-                            hold_mouse()
-                        elif control < -on_thresh:
-                            if self.vars["fish_overlay"].get() == "on":
-                                self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
-                            release_mouse()
-                        else:
-                            if abs(control) < off_thresh:
-                                if self.vars["fish_overlay"].get() == "on":
-                                    self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
-                                release_mouse()
+                        pid_found = 0
                     else:
                         if self.vars["fish_overlay"].get() == "on":
                             self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
-                        release_mouse()
+                        pid_found = 1
                 else:
                     if self.vars["fish_overlay"].get() == "on":
                         self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
-                    release_mouse()
-            # ---- NOTHING FOUND ----
             else:
-                release_mouse()
+                pid_found = 1
+            # PID calculation
+            if pid_found == 0 and bar_center is not None:
+                error = fish_x - bar_center
+                control = self._pid_control(error)
 
+                # Map PID output to mouse clicks using hysteresis to avoid jitter/oscillation
+                control = max(-100, min(100, control))
+
+                # Hysteresis thresholds (tune if necessary)
+                on_thresh = thresh
+                off_thresh = thresh * 0.5
+
+                if control > on_thresh:
+                    hold_mouse()
+                elif control < -on_thresh:
+                    release_mouse()
+                else:
+                    # Action 0: Within deadzone
+                    if abs(control) < off_thresh:
+                        release_mouse()
+            elif pid_found == 1:
+                release_mouse()
+            elif pid_found == 2:
+                hold_mouse()
             time.sleep(0.01)
     def stop_macro(self):
         if not self.macro_running:

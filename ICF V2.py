@@ -31,7 +31,8 @@ mouse_controller = MouseController()
 # Set appearance
 set_default_color_theme("blue")
 set_appearance_mode("dark")
-
+# macOS specific imports
+from AppKit import NSEvent
 class App(CTk):
     def __init__(self):
         super().__init__()
@@ -81,27 +82,21 @@ class App(CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        try:
-            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-            logo_image = CTkImage(
-                light_image=Image.open(os.path.join(BASE_DIR, "icf_light.png")),
-                dark_image=Image.open(os.path.join(BASE_DIR, "icf_dark.png")),
-                size=(256, 54)
-            )
-            self.logo_image = logo_image
-
-            logo_label = CTkLabel(self, image=self.logo_image, text="")
-            logo_label.grid(row=0, column=0, columnspan=6, pady=10)
-        except:
-            logo_label = CTkLabel(self, text="[I CANT FISH V2] BY LONGEST")
-            logo_label.grid(row=0, column=0, columnspan=6, pady=10)
+        # Logo Label
+        logo_label = CTkLabel(
+            self, 
+            text="I CAN'T FISH V2",
+            font=CTkFont(size=16, weight="bold")
+        )
+        logo_label.grid(row=0, column=0, columnspan=6, pady=5, padx=20, sticky="w")
+        
         # Status Label 
         self.status_label = CTkLabel(self, text="Macro status: Idle") 
-        self.status_label.grid( row=0, column=0, columnspan=6, pady=15, padx=20, sticky="w")
+        self.status_label.grid(row=1, column=0, columnspan=6, pady=5, padx=20, sticky="w")
         # Tabs 
         self.tabs = CTkTabview(self)
         self.tabs.grid(
-            row=1, column=0, columnspan=6,
+            row=2, column=0, columnspan=6,
             padx=20, pady=10, sticky="nsew"
         )
 
@@ -177,15 +172,28 @@ class App(CTk):
         config_cb.grid(row=0, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
 
+        CTkButton(
+            configs,
+            text="Create Config",
+            corner_radius=32,
+            command=lambda: self.set_status("Press a key to rebind...")
+        ).grid(row=1, column=0, padx=12, pady=12, sticky="w")
+        CTkButton(
+            configs,
+            text="Delete Config",
+            corner_radius=32,
+            command=lambda: self.set_status("Press a key to rebind...")
+        ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
+
         CTkLabel(configs, text="F5: Start | F7: Stop").grid(
-            row=1, column=0, padx=12, pady=6, sticky="w"
+            row=2, column=0, padx=12, pady=6, sticky="w"
         )
         CTkButton(
             configs,
             text="Rebind Hotkeys",
             corner_radius=32,
             command=lambda: self.set_status("Press a key to rebind...")
-        ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
+        ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
 
         #  Casting 
         casting = CTkFrame(
@@ -747,6 +755,9 @@ class App(CTk):
             elif key == Key.f7:
                 self.stop_macro()
 
+            elif key == Key.f8:
+                loc = NSEvent.mouseLocation()
+                print(f"Mouse position: ({int(loc.x)}, {int(self._get_screen_size()[1] - loc.y)})")
         except Exception as e:
             print("Hotkey error:", e)
             
@@ -1456,12 +1467,12 @@ class App(CTk):
         shake_right = int(self.SCREEN_WIDTH / 1.28)
         shake_bottom = int(self.SCREEN_HEIGHT / 1.35)
 
-        # 434 705 1029 794
+        # 411 756 1028 791
         # macOS-safe coordinates
-        fish_left = int(self.SCREEN_WIDTH / 3.3684)
-        fish_top = int(self.SCREEN_HEIGHT / 1.2766)
-        fish_right = int(self.SCREEN_WIDTH / 1.42)
-        fish_bottom = int(self.SCREEN_HEIGHT / 1.1335)
+        fish_left = int(self.SCREEN_WIDTH / 3.4063)
+        fish_top = int(self.SCREEN_HEIGHT / 1.1904)
+        fish_right = int(self.SCREEN_WIDTH / 1.3618)
+        fish_bottom = int(self.SCREEN_HEIGHT / 1.1378)
 
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
@@ -1526,11 +1537,12 @@ class App(CTk):
 
         # --- Regions ---
         width, height = self._get_screen_size()
+        # 411 756 1028 791
         # macOS-safe coordinates
-        fish_left = int(self.SCREEN_WIDTH / 3.3684)
-        fish_top = int(self.SCREEN_HEIGHT / 1.2766)
-        fish_right = int(self.SCREEN_WIDTH / 1.42)
-        fish_bottom = int(self.SCREEN_HEIGHT / 1.1335)
+        fish_left = int(self.SCREEN_WIDTH / 3.4063)
+        fish_top = int(self.SCREEN_HEIGHT / 1.1904)
+        fish_right = int(self.SCREEN_WIDTH / 1.3618)
+        fish_bottom = int(self.SCREEN_HEIGHT / 1.1378)
 
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
@@ -1582,11 +1594,12 @@ class App(CTk):
             time.sleep(scan_delay)
 
     def _enter_minigame(self):
+        # 411 756 1028 791
         # macOS-safe coordinates
-        fish_left = int(self.SCREEN_WIDTH / 3.3622)
-        fish_top = int(self.SCREEN_HEIGHT / 1.2766)
-        fish_right = int(self.SCREEN_WIDTH / 1.3973)
-        fish_bottom = int(self.SCREEN_HEIGHT / 1.1335)
+        fish_left = int(self.SCREEN_WIDTH / 3.4063)
+        fish_top = int(self.SCREEN_HEIGHT / 1.1904)
+        fish_right = int(self.SCREEN_WIDTH / 1.3618)
+        fish_bottom = int(self.SCREEN_HEIGHT / 1.1378)
 
         fish_hex = self.vars["fish_color"].get()
         arrow_hex = self.vars["arrow_color"].get()

@@ -1,9 +1,5 @@
-from PIL import ImageGrab
-import pyautogui
+from AppKit import NSEvent
 
-screen_w, screen_h = pyautogui.size()
-shot = ImageGrab.grab()
-img_w, img_h = shot.size
-
-pixel_scale = img_w / screen_w
-print(pixel_scale)
+loc = NSEvent.mouseLocation()
+# Get X and Y coordinates
+print("x:", loc.x, "y:", loc.y)

@@ -13,7 +13,7 @@
     "perfect_cast2_tolerance": "16",
     "reaction_time": "0.01",
     "cast_scan_delay": "0.05",
-    "shake_mode": "Navigation",
+    "shake_mode": "Click",
     "shake_tolerance": "5",
     "shake_scan_delay": "0.1",
     "shake_failsafe": "20",
@@ -24,7 +24,7 @@
     "left_tolerance": "8",
     "right_tolerance": "8",
     "arrow_tolerance": "8",
-    "fish_tolerance": "0",
+    "fish_tolerance": "2",
     "bar_ratio": "0.7",
     "minigame_scan_delay": "0.01",
     "restart_delay": "1",
@@ -35,5 +35,5 @@
     "user_id": "",
     "combobox_active_config": "default.json",
     "combobox_capture_mode": "MSS",
-    "combobox_shake_mode": "Navigation"
+    "combobox_shake_mode": "Click"
 }

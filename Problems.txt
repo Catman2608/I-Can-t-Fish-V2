@@ -1,2 +1,2 @@
 Problems:
-Load Settings not loading
+Max left calculations not working

@@ -1540,17 +1540,17 @@ class App(CTk):
             # Max left and right is added back
             if fish_x < max_left or fish_x > max_right:
                 if fish_x < max_left:
-                    self.draw_bar_minigame(bar_center=max_left, box_size=7, color="lightblue", canvas_offset=fish_left)
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                    self.draw_bar_minigame(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
+                    self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     release_mouse()
                 else:
                     hold_mouse()
-                    self.draw_bar_minigame(bar_center=max_right, box_size=7, color="lightblue", canvas_offset=fish_left)
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                    self.draw_bar_minigame(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
+                    self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
             elif left_bar_center and right_bar_center:
                 if bars_found and self.vars["fish_overlay"].get() == "on":
-                    self.draw_bar_minigame(bar_center=bar_center, box_size=20, color="green", canvas_offset=fish_left)
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                    self.draw_bar_minigame(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                    self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
 
                 # PID calculation
                 error = fish_x - bar_center
@@ -1565,17 +1565,17 @@ class App(CTk):
 
                 if control > on_thresh:
                     if bars_found and self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=bar_center + 50, box_size=5, color="green", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=bar_center + 50, box_size=10, color="green", canvas_offset=fish_left)
                     hold_mouse()
                 elif control < -on_thresh:
                     if bars_found and self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=bar_center - 50, box_size=5, color="green", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=bar_center - 50, box_size=10, color="green", canvas_offset=fish_left)
                     release_mouse()
                 else:
                     # Within deadzone
                     if abs(control) < off_thresh:
                         if bars_found and self.vars["fish_overlay"].get() == "on":
-                            self.draw_bar_minigame(bar_center=bar_center - 50, box_size=5, color="green", canvas_offset=fish_left)
+                            self.draw_bar_minigame(bar_center=bar_center - 50, box_size=10, color="green", canvas_offset=fish_left)
                         release_mouse()
 
             # ---- ARROW FALLBACK (IRUS-style box estimation) ----
@@ -1584,7 +1584,7 @@ class App(CTk):
                 capture_width = fish_right - fish_left
                 arrow_centroid_x = self._find_arrow_centroid(img, arrow_hex, arrow_tol)
                 if self.vars["fish_overlay"].get() == "on":
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                    self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
 
                 if arrow_centroid_x is not None:
                     # Estimate bar center using arrow-based logic
@@ -1597,7 +1597,7 @@ class App(CTk):
                     if estimated_bar_center is not None:
                         if self.vars["fish_overlay"].get() == "on":
                             arrow_center = estimated_bar_center + fish_left
-                            self.draw_bar_minigame(bar_center=arrow_center, box_size=20, color="yellow", canvas_offset=fish_left)
+                            self.draw_bar_minigame(bar_center=arrow_center,box_size=40, color="yellow", canvas_offset=fish_left)
                         # Convert from relative to screen coordinates
                         bar_center = int(estimated_bar_center + fish_left)
                         
@@ -1613,24 +1613,24 @@ class App(CTk):
                         
                         if control > on_thresh:
                             if self.vars["fish_overlay"].get() == "on":
-                                self.draw_bar_minigame(bar_center=arrow_center + 50, box_size=5, color="yellow", canvas_offset=fish_left)
+                                self.draw_bar_minigame(bar_center=arrow_center + 50, box_size=10, color="yellow", canvas_offset=fish_left)
                             hold_mouse()
                         elif control < -on_thresh:
                             if self.vars["fish_overlay"].get() == "on":
-                                self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
+                                self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
                             release_mouse()
                         else:
                             if abs(control) < off_thresh:
                                 if self.vars["fish_overlay"].get() == "on":
-                                    self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
+                                    self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
                                 release_mouse()
                     else:
                         if self.vars["fish_overlay"].get() == "on":
-                            self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
+                            self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
                         release_mouse()
                 else:
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
                     release_mouse()
             # ---- NOTHING FOUND ----
             else:

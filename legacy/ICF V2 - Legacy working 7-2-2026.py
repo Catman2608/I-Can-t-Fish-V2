@@ -1252,7 +1252,6 @@ class App(CTk):
 
     def _execute_shake_click(self):
         self.set_status("Shake Mode: Click")
-        width, height = self._get_screen_size()
 
         shake_left = int(self.SCREEN_WIDTH / 4.8)
         shake_top = int(self.SCREEN_HEIGHT / 6.1714)
@@ -1328,7 +1327,6 @@ class App(CTk):
         self.set_status("Shake Mode: Navigation")
 
         # --- Regions ---
-        width, height = self._get_screen_size()
         # macOS-safe coordinates
         fish_left = int(self.SCREEN_WIDTH / 3.3684)
         fish_top = int(self.SCREEN_HEIGHT / 1.2766)

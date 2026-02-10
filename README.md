@@ -11,7 +11,6 @@ Reference file (old version) ICF V1.1 reference.py
 You see IRUS 675 reference.py or comet reference.py or idiotproof reference.py so I can remove it (because it's copyrighted)
 Discord display name: Catman2608
 Discord username: catman2608
-
 ## Current Task
 1. Fixing PID control (it's broken on Roblox rn but working on Scratch version)
 2. Adding the Misc tab (fish overlay settings, capture settings, etc)

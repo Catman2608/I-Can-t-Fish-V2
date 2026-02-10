@@ -269,7 +269,7 @@ def find_green_full_scan(frame, target_rgb, tolerance):
     # Return LOCAL coordinates: (midpoint_x, y, left_x, right_x)
     return (midpoint_local_x, green_local_y, leftmost_local_x, rightmost_local_x)
 
-def find_green_tracking_box(frame, last_midpoint_x, last_green_y, target_rgb, tolerance, box_size=20, box_width_multiplier=2.0):
+def find_green_tracking_box(frame, last_midpoint_x, last_green_y, target_rgb, tolerance,box_size=40, box_width_multiplier=2.0):
     """
     TRACKING BOX SCAN: Ultra-fast scan in small box around last known position
     box_width_multiplier: Makes box wider horizontally (e.g., 2.0 = 2x wider than tall)

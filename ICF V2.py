@@ -532,7 +532,8 @@ class App(CTk):
         self.grid_rowconfigure(2, weight=1)  # Tabs take remaining space
 
         last = self.load_last_config_name()
-        self.load_misc_settings(last)
+        self.bar_areas = {"fish": None, "shake": None}
+        self.load_misc_settings()
         self.load_settings(last or "default.json")
         self.init_minigame_window()
         self.show_minigame()
@@ -771,6 +772,31 @@ class App(CTk):
             textvariable=cast_scan_delay_var
         )
         cast_scan_delay_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pfc1_settings, text="Green Y Lock Tolerance:").grid(
+            row=4, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        green_y_tol_var = StringVar(value="3")
+        self.vars["perfect_cast_green_y_tol"] = green_y_tol_var
+
+        CTkEntry(
+            pfc1_settings,
+            width=120,
+            textvariable=green_y_tol_var
+        ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pfc1_settings, text="Min White Samples:").grid(
+            row=5, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        min_white_var = StringVar(value="3")
+        self.vars["perfect_cast_min_white"] = min_white_var
+
+        CTkEntry(
+            pfc1_settings,
+            width=120,
+            textvariable=min_white_var
+        ).grid(row=5, column=1, padx=12, pady=10, sticky="w")
+
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         frame = CTkFrame(
@@ -1156,7 +1182,7 @@ class App(CTk):
         
         self.save_last_config_name(name)
         self.set_status(f"Loaded Config: {name}")
-    def load_misc_settings(self, name):
+    def load_misc_settings(self):
         """Load miscellaneous settings from last_config.json."""
         try:
             if os.path.exists("last_config.json"):
@@ -1216,8 +1242,17 @@ class App(CTk):
                 "height": 150
             }
 
-        shake_area = self.bar_areas.get("shake") or default_area()
-        fish_area  = self.bar_areas.get("fish")  or default_area()
+        shake_area = (
+            self.bar_areas.get("shake")
+            if isinstance(self.bar_areas.get("shake"), dict)
+            else default_area()
+        )
+
+        fish_area = (
+            self.bar_areas.get("fish")
+            if isinstance(self.bar_areas.get("fish"), dict)
+            else default_area()
+        )
 
         def on_done(shake, fish):
             self.bar_areas = {
@@ -1225,9 +1260,7 @@ class App(CTk):
                 "fish": fish
             }
 
-            self.last_config["last_rod"] = self.current_rod_name
-
-            self.save_last_config(self.last_config)
+            self.save_misc_settings()
 
             self.area_selector = None
             self.set_status("Bar areas saved")
@@ -1874,11 +1907,141 @@ class App(CTk):
             self._enter_minigame()
 
             # ⬅️ When minigame ends, loop repeats from Select Rod
+    
+    def _capture_cast_region(self):
+        shake = self.bar_areas.get("shake")
+
+        if isinstance(shake, dict):
+            left   = shake["x"]
+            top    = shake["y"]
+            right  = shake["x"] + shake["width"]
+            bottom = shake["y"] + shake["height"]
+        else:
+            return None
+
+        return self._grab_screen_region(left, top, right, bottom)
+    
+    def _find_green(self, frame, last_green_mid, last_green_y):
+        """
+        Find the green bar in the frame using tracking box first, then full scan.
+        Mirrors the Comet reference implementation.
+        
+        Args:
+            frame: BGR numpy array from capture
+            last_green_mid: Last known X coordinate of green center (or None)
+            last_green_y: Last known Y coordinate of green bar (or None)
+        
+        Returns:
+            (green_mid_x, green_y, left_x, right_x) in local frame coordinates, or None
+        """
+        if frame is None:
+            return None
+        
+        # Green color for detection (BGR format, from Comet: [76, 160, 100])
+        green_bgr = np.array([76, 160, 100], dtype=np.uint8)
+        try:
+            tolerance = int(self.vars["perfect_cast_tolerance"].get() or 18)
+        except:
+            tolerance = 18
+        
+        # Try tracking box first if we have previous position
+        if last_green_mid is not None and last_green_y is not None:
+            tracking_box_size = 40
+            box_width_multiplier = 2.0
+            
+            h, w = frame.shape[:2]
+            box_width = int(tracking_box_size * box_width_multiplier)
+            box_x1 = max(0, last_green_mid - box_width)
+            box_x2 = min(w, last_green_mid + box_width)
+            box_y1 = max(0, last_green_y - tracking_box_size)
+            box_y2 = min(h, last_green_y + tracking_box_size)
+                
+            if box_x1 < box_x2 and box_y1 < box_y2:
+                tracking_box = frame[box_y1:box_y2, box_x1:box_x2]
+                
+                # Look for green in tracking box
+                diff = np.abs(tracking_box.astype(np.int16) - green_bgr.astype(np.int16))
+                max_diff = np.max(diff, axis=2)
+                mask = max_diff <= tolerance
+                
+                if np.any(mask):
+                    box_y_coords, box_x_coords = np.where(mask)
+                    leftmost_box_x = np.min(box_x_coords)
+                    rightmost_box_x = np.max(box_x_coords)
+                    green_box_y = np.min(box_y_coords)
+                    
+                    midpoint_box_x = (leftmost_box_x + rightmost_box_x) // 2
+                    
+                    # Convert back to frame coordinates
+                    final_local_x = box_x1 + midpoint_box_x
+                    final_local_y = box_y1 + green_box_y
+                    final_leftmost_x = box_x1 + leftmost_box_x
+                    final_rightmost_x = box_x1 + rightmost_box_x
+                    
+                    return (int(final_local_x), int(final_local_y), int(final_leftmost_x), int(final_rightmost_x))
+        
+        # Fallback to full scan
+        h, w = frame.shape[:2]
+        diff = np.abs(frame.astype(np.int16) - green_bgr.astype(np.int16))
+        max_diff = np.max(diff, axis=2)
+        mask = max_diff <= tolerance
+        
+        if not np.any(mask):
+            return None
+        
+        y_coords, x_coords = np.where(mask)
+        
+        leftmost_x = np.min(x_coords)
+        rightmost_x = np.max(x_coords)
+        green_y = np.min(y_coords)
+        
+        midpoint_x = (leftmost_x + rightmost_x) // 2
+        
+        return (int(midpoint_x), int(green_y), int(leftmost_x), int(rightmost_x))
+    def find_white_below_green(self, frame, green_y, left_x, right_x, tolerance):
+        """
+        Find the white indicator below the green bar.
+        Scans from green_y downward across the green bar's width.
+        """
+        if frame is None:
+            return None
+
+        h, w = frame.shape[:2]
+
+        left_x  = max(0, int(left_x))
+        right_x = min(w - 1, int(right_x))
+        start_y = min(h - 1, int(green_y + 2))
+
+        tol = int(tolerance)
+
+        for y in range(start_y, h):
+            row = frame[y, left_x:right_x]
+
+            if row.size == 0:
+                continue
+
+            # BGR channels
+            b = row[:, 0].astype(np.int16)
+            g = row[:, 1].astype(np.int16)
+            r = row[:, 2].astype(np.int16)
+
+            mask = (
+                (np.abs(r - g) <= tol) &
+                (np.abs(r - b) <= tol) &
+                (np.abs(g - b) <= tol) &
+                (r > 200) & (g > 200) & (b > 200)
+            )
+
+            if mask.any():
+                x = left_x + int(mask.argmax())
+                return (int(x), int(y))
+
+        return None
+
+
     def _execute_cast_perfect(self):
-        # Hold mouse to start cast
         mouse_controller.press(Button.left)
 
-        # Reset tracking buffers
         white_positions = []
         white_timestamps = []
 
@@ -1887,19 +2050,21 @@ class App(CTk):
 
         start_time = time.time()
 
-        while self.running:
+        while self.macro_running:
             frame = self._capture_cast_region()
 
-            # 1. Detect green bar
             green = self._find_green(frame, last_green_mid, last_green_y)
             if not green:
+                time.sleep(float(self.vars["cast_scan_delay"].get()))
+                if time.time() - start_time > 3.5:
+                    mouse_controller.release(Button.left)
+                    return
                 continue
 
             green_mid_x, green_y, left_x, right_x = green
             last_green_mid = green_mid_x
             last_green_y = green_y
 
-            # 2. Detect white indicator BELOW green
             white = self.find_white_below_green(
                 frame,
                 green_y,
@@ -1916,7 +2081,10 @@ class App(CTk):
                     white_positions.pop(0)
                     white_timestamps.pop(0)
 
-            # 3. Predict & release
+            if len(white_positions) < int(self.vars["perfect_cast_min_white"].get()):
+                time.sleep(float(self.vars["cast_scan_delay"].get()))
+                continue
+
             speed = self._calculate_speed_and_predict(
                 white_positions,
                 white_timestamps
@@ -1924,16 +2092,17 @@ class App(CTk):
 
             if speed is not None:
                 reaction = float(self.vars["reaction_time"].get())
-                predicted_y = white[1] + speed * reaction
+                last_white = white_positions[-1]
+                predicted_y = last_white[1] + speed * reaction
 
-                if predicted_y >= green_y:
+                if predicted_y >= green_y - 2:
                     mouse_controller.release(Button.left)
                     return
 
-            # Safety timeout
             if time.time() - start_time > 3.5:
                 mouse_controller.release(Button.left)
                 return
+
             time.sleep(float(self.vars["cast_scan_delay"].get()))
 
     def _execute_cast_normal(self):
@@ -1943,23 +2112,35 @@ class App(CTk):
         time.sleep(duration)  # adjust cast strength
         mouse_controller.release(Button.left)
         time.sleep(0.2)
-
     def _execute_shake_click(self):
         self.set_status("Shake Mode: Click")
+        # --- SHAKE AREA ---
+        shake = self.bar_areas.get("shake")
+        if isinstance(shake, dict):
+            shake_left   = shake["x"]
+            shake_top    = shake["y"]
+            shake_right  = shake["x"] + shake["width"]
+            shake_bottom = shake["y"] + shake["height"]
+        else:
+            # fallback (old ratio logic)
+            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
+            shake_top    = int(self.SCREEN_HEIGHT * 0.162)
+            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
+            shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
 
-        shake_left = int(self.SCREEN_WIDTH * 0.2083)
-        shake_top = int(self.SCREEN_HEIGHT * 0.162)
-        shake_right = int(self.SCREEN_WIDTH * 0.7813)
-        shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
+        # --- FISH AREA ---
+        fish = self.bar_areas.get("fish")
+        if isinstance(fish, dict):
+            fish_left   = fish["x"]
+            fish_top    = fish["y"]
+            fish_right  = fish["x"] + fish["width"]
+            fish_bottom = fish["y"] + fish["height"]
+        else:
+            fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
+            fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
+            fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
+            fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
 
-        # 411 756 1028 791
-        # macOS-safe coordinates
-        # 546 863 1373 904
-        # Windows-safe coordinates
-        fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
-        fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
-        fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
-        fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
 
         shake_area = self.bar_areas["shake"]
         print(shake_area)
@@ -2025,15 +2206,18 @@ class App(CTk):
 
     def _execute_shake_navigation(self):
         self.set_status("Shake Mode: Navigation")
-
-        # 411 756 1028 791
-        # macOS-safe coordinates
-        # 546 863 1373 904
-        # Windows-safe coordinates
-        fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
-        fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
-        fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
-        fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
+        # --- FISH AREA ---
+        fish = self.bar_areas.get("fish")
+        if isinstance(fish, dict):
+            fish_left   = fish["x"]
+            fish_top    = fish["y"]
+            fish_right  = fish["x"] + fish["width"]
+            fish_bottom = fish["y"] + fish["height"]
+        else:
+            fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
+            fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
+            fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
+            fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
 
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
@@ -2085,14 +2269,18 @@ class App(CTk):
             time.sleep(scan_delay)
 
     def _enter_minigame(self):
-        # 411 756 1028 791
-        # macOS-safe coordinates
-        # 546 863 1373 904
-        # Windows-safe coordinates
-        fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
-        fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
-        fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
-        fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
+        # --- FISH AREA ---
+        fish = self.bar_areas.get("fish")
+        if isinstance(fish, dict):
+            fish_left   = fish["x"]
+            fish_top    = fish["y"]
+            fish_right  = fish["x"] + fish["width"]
+            fish_bottom = fish["y"] + fish["height"]
+        else:
+            fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
+            fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
+            fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
+            fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
 
         fish_hex = self.vars["fish_color"].get()
         arrow_hex = self.vars["arrow_color"].get()
@@ -2181,33 +2369,41 @@ class App(CTk):
                 max_left = None
                 max_right = None
                 pid_found = 3
-            if bars_found is not None:
+            if bars_found and bar_center is not None:
                 if max_left is not None and fish_x <= max_left:
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=max_left, box_size=7, color="lightblue", canvas_offset=fish_left)
-                        self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
+                        if self.vars["bar_size"].get() == "on":
+                            self.draw_bar_minigame(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                        else:
+                            self.draw_bar_minigame(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 1
                 
                 elif max_right is not None and fish_x >= max_right:
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=max_right, box_size=7, color="lightblue", canvas_offset=fish_left)
-                        self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
+                        if self.vars["bar_size"].get() == "on":
+                            self.draw_bar_minigame(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                        else:
+                            self.draw_bar_minigame(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 2
                 else:
                     if self.vars["fish_overlay"].get() == "on":
                         # Main code
-                        self.draw_bar_minigame(bar_center=bar_center, box_size=20, color="green", canvas_offset=fish_left)
-                        self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
-                        # Debugging code
-                        self.draw_bar_minigame(bar_center=max_left, box_size=7, color="lightblue", canvas_offset=fish_left)
-                        self.draw_bar_minigame(bar_center=max_right, box_size=7, color="lightblue", canvas_offset=fish_left)
+                        if self.vars["bar_size"].get() == "on":
+                            self.draw_bar_minigame(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                        else:
+                            self.draw_bar_minigame(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 0
             elif arrow_center:
                 # Use arrow to estimate bar center (IRUS 675 logic)
                 capture_width = fish_right - fish_left
-                arrow_indicator_x = self._find_arrow_indicator_x( img, arrow_hex, arrow_tol, mouse_down )
+                arrow_indicator_x = self._find_arrow_indicator_x( img, arrow_hex, arrow_tol, mouse_down)
                 if self.vars["fish_overlay"].get() == "on":
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=5, color="red", canvas_offset=fish_left)
+                    self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
 
                 if arrow_indicator_x is not None:
                     # Estimate bar center using arrow-based logic
@@ -2216,17 +2412,18 @@ class App(CTk):
                     if estimated_bar_center is not None:
                         if self.vars["fish_overlay"].get() == "on":
                             arrow_center = estimated_bar_center + fish_left
-                            self.draw_bar_minigame(bar_center=arrow_center, box_size=20, color="yellow", canvas_offset=fish_left)
+                            self.draw_bar_minigame(bar_center=arrow_center,box_size=40, color="yellow", canvas_offset=fish_left)
                         # Convert from relative to screen coordinates
                         bar_center = int(estimated_bar_center + fish_left)
                         pid_found = 0
                     else:
                         if self.vars["fish_overlay"].get() == "on":
-                            self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
+                            self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
                         pid_found = 1
                 else:
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=5, color="yellow", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
+                        pid_found = 1
             else:
                 pid_found = 1
             # PID calculation

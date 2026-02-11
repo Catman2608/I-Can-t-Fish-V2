@@ -86,7 +86,7 @@ class DualAreaSelector:
         shake_label_x = self.shake_x1 + (self.shake_x2 - self.shake_x1) // 2
         self.shake_label = self.canvas.create_text(
             shake_label_x, self.shake_y1 - 20, text="Shake Area",
-            font=("Arial", 12, "bold"), fill='#f44336'
+            font=("Segoe UI", 12, "bold"), fill='#f44336'
         )
 
         # Create Fish Box (Blue)
@@ -97,7 +97,7 @@ class DualAreaSelector:
         fish_label_x = self.fish_x1 + (self.fish_x2 - self.fish_x1) // 2
         self.fish_label = self.canvas.create_text(
             fish_label_x, self.fish_y1 - 20, text="Fish Area",
-            font=("Arial", 12, "bold"), fill='#2196F3'
+            font=("Segoe UI", 12, "bold"), fill='#2196F3'
         )
 
         # Corner handles
@@ -373,11 +373,11 @@ class DualAreaSelector:
 
         self.zoom_canvas.create_text(
             10, self.zoom_window_size + 15,
-            text=pos_text, anchor="w", fill="white", font=("Arial", 9)
+            text=pos_text, anchor="w", fill="white", font=("Segoe UI", 9)
         )
         self.zoom_canvas.create_text(
             10, self.zoom_window_size + 35,
-            text=color_text, anchor="w", fill="white", font=("Arial", 9)
+            text=color_text, anchor="w", fill="white", font=("Segoe UI", 9)
         )
 
         # Move zoom window near cursor

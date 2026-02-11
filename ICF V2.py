@@ -537,6 +537,10 @@ class App(CTk):
         self.load_settings(last or "default.json")
         self.init_minigame_window()
         self.show_minigame()
+        # Arrow / memory variables
+        self.last_arrow_x = None
+        self.last_arrow_time = None
+        self.arrow_velocity = 0
         # Utility variables
         self.area_selector = None
     # BASIC SETTINGS TAB
@@ -884,7 +888,7 @@ class App(CTk):
         )
         left_color_var = StringVar(value="#F1F1F1")
         self.vars["left_color"] = left_color_var
-        CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=left_color_var).grid(row=0, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#F1F1F1", width=120, textvariable=left_color_var).grid(row=0, column=1, padx=12, pady=10, sticky="w")
 
         CTkLabel(frame, text="Right Bar Color (#RRGGBB):").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
@@ -905,7 +909,14 @@ class App(CTk):
         )
         fish_color_var = StringVar(value="#434B5B")
         self.vars["fish_color"] = fish_color_var
-        CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=fish_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#434B5B", width=120, textvariable=fish_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        
+        CTkLabel(frame, text="Fish Color 2 (#RRGGBB):").grid(
+            row=4, column=0, padx=12, pady=10, sticky="w"
+        )
+        fish2_color_var = StringVar(value="#434B5B")
+        self.vars["fish2_color"] = fish2_color_var
+        CTkEntry(frame, placeholder_text="#434B5B", width=120, textvariable=fish2_color_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
         
         left_tolerance_var = StringVar(value="8")
         self.vars["left_tolerance"] = left_tolerance_var
@@ -936,7 +947,7 @@ class App(CTk):
             row=3, column=2, padx=12, pady=10, sticky="w"
         )
 
-        fish_tolerance_var = StringVar(value="5")
+        fish_tolerance_var = StringVar(value="0")
         self.vars["fish_tolerance"] = fish_tolerance_var
 
         CTkEntry(
@@ -944,6 +955,19 @@ class App(CTk):
             width=120,
             textvariable=fish_tolerance_var
         ).grid(row=3, column=3, padx=12, pady=10, sticky="w")
+        
+        CTkLabel(frame, text="Tolerance:").grid(
+            row=4, column=2, padx=12, pady=10, sticky="w"
+        )
+
+        fish2_tolerance_var = StringVar(value="0")
+        self.vars["fish2_tolerance"] = fish2_tolerance_var
+
+        CTkEntry(
+            frame,
+            width=120,
+            textvariable=fish2_tolerance_var
+        ).grid(row=4, column=3, padx=12, pady=10, sticky="w")
         
         frame2 = CTkFrame(
             scroll,
@@ -1345,7 +1369,7 @@ class App(CTk):
         time.sleep(0.01)
 
         # micro-jitter
-        mouse_controller.position = (x + 1, y)
+        mouse_controller.position = (x + 3, y + 3)
         mouse_controller.position = (x, y)
 
         mouse_controller.press(Button.left)
@@ -1540,46 +1564,6 @@ class App(CTk):
         self.last_left_x = None
         self.last_right_x = None
         self.last_known_box_center_x = None
-    
-    def _find_arrow_centroid_legacy(self, frame, arrow_hex, tolerance):
-        """
-        Find the centroid (center point) of the arrow indicator using contour detection.
-        
-        Args:
-            frame: BGR numpy array
-            arrow_hex: Hex color of arrow
-            tolerance: Color tolerance
-        
-        Returns:
-            X coordinate of arrow centroid, or None if not found
-        """
-        pixels = self._pixel_search(frame, arrow_hex, tolerance)
-        if not pixels:
-            return None
-        
-        # Create a mask from pixels
-        mask = np.zeros((frame.shape[0], frame.shape[1]), dtype=np.uint8)
-        for x, y in pixels:
-            mask[y, x] = 255
-        
-        # Find contours
-        try:
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            if not contours:
-                return None
-            
-            # Get largest contour
-            largest_contour = max(contours, key=cv2.contourArea)
-            
-            # Calculate centroid
-            M = cv2.moments(largest_contour)
-            if M["m00"] != 0:
-                centroid_x = int(M["m10"] / M["m00"])
-                return centroid_x
-        except:
-            return None
-        
-        return None
     
     def _find_arrow_indicator_x(self, frame, arrow_hex, tolerance, is_holding):
         """
@@ -2283,6 +2267,7 @@ class App(CTk):
             fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
 
         fish_hex = self.vars["fish_color"].get()
+        fish2_hex = self.vars["fish_color"].get()
         arrow_hex = self.vars["arrow_color"].get()
         left_bar_hex = self.vars["left_color"].get()
         right_bar_hex = self.vars["right_color"].get()
@@ -2331,6 +2316,7 @@ class App(CTk):
                 continue
 
             fish_center = self._find_color_center(img, fish_hex, fish_tol)
+            fish2_center = self._find_color_center(img, fish2_hex, fish_tol)
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
             if left_bar_center is None:
@@ -2339,7 +2325,15 @@ class App(CTk):
                 left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
 
             # ---- FISH NOT FOUND ----
-            if not fish_center:
+            if fish_center is not None:
+                fish_miss_count = 0
+
+            elif fish2_center is not None:
+                fish_center = fish2_center
+                fish_miss_count = 0
+
+            else:
+                # Neither fish color found
                 fish_miss_count += 1
                 release_mouse()
 
@@ -2350,8 +2344,6 @@ class App(CTk):
 
                 time.sleep(0.02)
                 continue
-            else:
-                fish_miss_count = 0
             # ---- CLEAR MINIGAME ----
             self.clear_minigame()
             # ---- BARS NOT FOUND ----
@@ -2397,6 +2389,9 @@ class App(CTk):
                         else:
                             self.draw_bar_minigame(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
                         self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
+                        # Debug code
+                        self.draw_bar_minigame(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
+                        self.draw_bar_minigame(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                     pid_found = 0
             elif arrow_center:
                 # Use arrow to estimate bar center (IRUS 675 logic)
@@ -2423,7 +2418,6 @@ class App(CTk):
                 else:
                     if self.vars["fish_overlay"].get() == "on":
                         self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
-                        pid_found = 1
             else:
                 pid_found = 1
             # PID calculation

@@ -1,2 +1,0 @@
-2026-02-05 19:42:32 | INFO | MainThread | Debug output enabled - logging to Debug.txt
-2026-02-05 19:42:32 | INFO | MainThread | Configuration saved to Config.txt.

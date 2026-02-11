@@ -11,5 +11,9 @@ Reference file (old version) ICF V1.1 reference.py
 You see IRUS 675 reference.py or comet reference.py or idiotproof reference.py so I can remove it (because it's copyrighted)
 Discord display name: Catman2608
 Discord username: catman2608
-## Current Task
-1. Add line mode (for Ruinous Oath)
+## How to edit source code safely
+Above the green code button, find the Fork button.
+## How to compile macOS DMG file without a Mac
+Above the green code button, find the Actions button.
+Then, find build macOS DMG file.
+Then, click Run Workflow.

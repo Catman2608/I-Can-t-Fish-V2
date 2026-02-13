@@ -31,7 +31,6 @@ keyboard_controller = KeyboardController()
 mouse_controller = MouseController()
 # Set appearance
 set_default_color_theme("blue")
-set_appearance_mode("dark")
 # from AppKit import NSEvent
 # Area Selector
 LAST_CONFIG_PATH = "last_config.json"
@@ -455,7 +454,7 @@ class App(CTk):
 
         # Window 
         self.geometry("800x550")
-        self.title("I Can't Fish V2")
+        self.title("I Can't Fish V2.1")
 
         # Macro state
         self.macro_running = False
@@ -481,6 +480,12 @@ class App(CTk):
         self.minigame_canvas = None
         self.pid_source = None  # "bar" or "arrow"
 
+        # Hotkey variables
+        self.hotkey_start = Key.f5
+        self.hotkey_stop = Key.f7
+        self.hotkey_reserved = Key.f8
+        self.hotkey_labels = {}  # Store label widgets for dynamic updates
+
         # Start hotkey listener
         self.key_listener = KeyListener(on_press=self.on_key_press)
         self.key_listener.daemon = True
@@ -493,14 +498,45 @@ class App(CTk):
         # Logo Label
         logo_label = CTkLabel(
             self, 
-            text="I CAN'T FISH V2",
+            text="I CAN'T FISH V2.1",
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, columnspan=6, pady=5, padx=20, sticky="w")
-        
-        # Status Label 
-        self.status_label = CTkLabel(self, text="Macro status: Idle") 
-        self.status_label.grid(row=1, column=0, columnspan=6, pady=5, padx=20, sticky="w")
+        # Top Bar Frame (Status + Buttons)
+        top_bar = CTkFrame(self, fg_color="transparent")
+        top_bar.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
+
+        top_bar.grid_columnconfigure(0, weight=1)
+
+        # Status label (left side)
+        self.status_label = CTkLabel(top_bar, text="Macro status: Idle")
+        self.status_label.grid(row=0, column=0, sticky="w")
+
+        # Buttons frame (right side)
+        button_frame = CTkFrame(top_bar, fg_color="transparent")
+        button_frame.grid(row=0, column=1, sticky="e")
+
+        CTkButton(
+            button_frame,
+            text="Website & Forums",
+            corner_radius=32,
+            command=self.open_link("https://sites.google.com/view/icf-automation-network/")
+        ).pack(side="left", padx=6)
+
+        CTkButton(
+            button_frame,
+            text="YouTube Channel",
+            corner_radius=32,
+            command=self.open_link("https://www.youtube.com/@HexaTitanGaming")
+        ).pack(side="left", padx=6)
+
+        CTkButton(
+            button_frame,
+            text="Settings Guide",
+            corner_radius=32,
+            command=self.open_link("https://docs.google.com/document/d/...")
+        ).pack(side="left", padx=6)
+
         # Tabs 
         self.tabs = CTkTabview(
             self,
@@ -517,14 +553,14 @@ class App(CTk):
         self.tabs.add("Misc")
         self.tabs.add("Shake")
         self.tabs.add("Minigame")
-        self.tabs.add("Support")
+        self.tabs.add("Advanced")
 
         # Build tabs
         self.build_basic_tab(self.tabs.tab("Basic"))
         self.build_misc_tab(self.tabs.tab("Misc"))
         self.build_shake_tab(self.tabs.tab("Shake"))
         self.build_minigame_tab(self.tabs.tab("Minigame"))
-        self.build_support_tab(self.tabs.tab("Support"))
+        self.build_advanced_tab(self.tabs.tab("Advanced"))
 
         # Grid behavior
         self.grid_columnconfigure(0, weight=1)
@@ -554,8 +590,8 @@ class App(CTk):
         #  Configs 
         configs = CTkFrame(scroll, border_width=2)
         configs.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(configs, text="Config Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(configs, text="Active Configuration:").grid(
+        CTkLabel(configs, text="Basic Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(configs, text="Rod Type:").grid(
             row=1, column=0, padx=12, pady=6, sticky="w"
         )
 
@@ -571,15 +607,32 @@ class App(CTk):
         config_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
 
-        CTkLabel(configs, text="F5: Start | F7: Stop").grid(
+        CTkLabel(configs, text="Start Key").grid(
             row=2, column=0, padx=12, pady=6, sticky="w"
+        )
+        CTkLabel(configs, text="Stop Key").grid(
+            row=3, column=0, padx=12, pady=6, sticky="w"
+        )
+        self.hotkey_labels["start"] = CTkLabel(configs, text=self._get_key_name(self.hotkey_start))
+        self.hotkey_labels["start"].grid(
+            row=2, column=1, padx=12, pady=6, sticky="w"
+        )
+        self.hotkey_labels["stop"] = CTkLabel(configs, text=self._get_key_name(self.hotkey_stop))
+        self.hotkey_labels["stop"].grid(
+            row=3, column=1, padx=12, pady=6, sticky="w"
         )
         CTkButton(
             configs,
             text="Change Bar Areas",
             corner_radius=32,
             command=self.open_dual_area_selector
-        ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
+        ).grid(row=4, column=0, padx=12, pady=12, sticky="w")
+        CTkButton(
+            configs,
+            text="Rebind Hotkeys",
+            corner_radius=32,
+            command=self.rebind_hotkeys
+        ).grid(row=4, column=1, padx=12, pady=12, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
         automation.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
@@ -679,30 +732,62 @@ class App(CTk):
         )
         capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["capture_mode"] = capture_cb
-
-        # Perfect Cast Settings 
+        # Perfect Cast Settings
         pfc1_settings = CTkFrame(
             scroll,
             border_width=2
         )
         pfc1_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        
-        # ---- Perfect cast tolerance ----
-        CTkLabel(pfc1_settings, text="Green (Perfect Cast) Tolerance:").grid(
+        CTkLabel(pfc1_settings, text="Perfect Cast Sequence", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+
+        CTkLabel(pfc1_settings, text="Zoom Amount:").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
-        CTkLabel(pfc1_settings, text="Perfect Cast Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        perfect_cast_zoom_var = StringVar(value="4")
+        self.vars["perfect_cast_zoom"] = perfect_cast_zoom_var
+
+        perfect_cast_zoom_entry = CTkEntry(
+            pfc1_settings,
+            width=120,
+            textvariable=perfect_cast_zoom_var
+        )
+        perfect_cast_zoom_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(pfc1_settings, text="Look Down Amount (pixels):").grid(
+            row=2, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        perfect_cast_lookdown_var = StringVar(value="1200")
+        self.vars["perfect_cast_lookdown"] = perfect_cast_lookdown_var
+
+        perfect_cast_lookdown_entry = CTkEntry(
+            pfc1_settings,
+            width=120,
+            textvariable=perfect_cast_lookdown_var
+        )
+        perfect_cast_lookdown_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        # Perfect Cast Release Settings 
+        pfc2_settings = CTkFrame(
+            scroll,
+            border_width=2
+        )
+        pfc2_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        # ---- Perfect cast tolerance ----
+        CTkLabel(pfc2_settings, text="Perfect Cast Release Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(pfc2_settings, text="Green (Perfect Cast) Tolerance:").grid(
+            row=1, column=0, padx=12, pady=10, sticky="w"
+        )
         perfect_cast_tolerance_var = StringVar(value="18")
         self.vars["perfect_cast_tolerance"] = perfect_cast_tolerance_var
 
         perfect_cast_tolerance_entry = CTkEntry(
-            pfc1_settings,
+            pfc2_settings,
             width=120,
             textvariable=perfect_cast_tolerance_var
         )
         perfect_cast_tolerance_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(pfc1_settings, text="White (Perfect Cast) Tolerance:").grid(
+        CTkLabel(pfc2_settings, text="White (Perfect Cast) Tolerance:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
 
@@ -710,70 +795,32 @@ class App(CTk):
         self.vars["perfect_cast2_tolerance"] = perfect_cast2_tolerance_var
 
         perfect_cast2_tolerance_entry = CTkEntry(
-            pfc1_settings,
+            pfc2_settings,
             width=120,
             textvariable=perfect_cast2_tolerance_var
         )
         perfect_cast2_tolerance_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(pfc1_settings, text="Perfect Cast Reaction Time:").grid(
+        CTkLabel(pfc2_settings, text="Perfect Cast Scan FPS:").grid(
             row=3, column=0, padx=12, pady=10, sticky="w"
-        )
-
-        reaction_time_var = StringVar(value="0.01")
-        self.vars["reaction_time"] = reaction_time_var
-
-        reaction_time_entry = CTkEntry(
-            pfc1_settings,
-            width=120,
-            textvariable=reaction_time_var
-        )
-        reaction_time_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(pfc1_settings, text="Perfect Cast Scan FPS:").grid(
-            row=4, column=0, padx=12, pady=10, sticky="w"
         )
 
         cast_scan_delay_var = StringVar(value="0.05")
         self.vars["cast_scan_delay"] = cast_scan_delay_var
 
         cast_scan_delay_entry = CTkEntry(
-            pfc1_settings,
+            pfc2_settings,
             width=120,
             textvariable=cast_scan_delay_var
         )
-        cast_scan_delay_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc1_settings, text="Green Y Lock Tolerance:").grid(
-            row=5, column=0, padx=12, pady=10, sticky="w"
-        )
-
-        green_y_tol_var = StringVar(value="3")
-        self.vars["perfect_cast_green_y_tol"] = green_y_tol_var
-
-        CTkEntry(
-            pfc1_settings,
-            width=120,
-            textvariable=green_y_tol_var
-        ).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc1_settings, text="Min White Samples:").grid(
-            row=6, column=0, padx=12, pady=10, sticky="w"
-        )
-
-        min_white_var = StringVar(value="3")
-        self.vars["perfect_cast_min_white"] = min_white_var
-
-        CTkEntry(
-            pfc1_settings,
-            width=120,
-            textvariable=min_white_var
-        ).grid(row=6, column=1, padx=12, pady=10, sticky="w")
+        cast_scan_delay_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
         # Fish Overlay Settings 
         overlay_settings = CTkFrame(
             scroll,
             border_width=2
         )
-        overlay_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        overlay_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_settings, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         bar_size_var = StringVar(value="off")
         self.vars["bar_size"] = bar_size_var
@@ -837,7 +884,6 @@ class App(CTk):
         CTkLabel(shake_configuration, text="Shake Failsafe (attempts):").grid(
             row=4, column=0, padx=12, pady=10, sticky="w"
         )
-
         shake_failsafe_var = StringVar(value="20")
         self.vars["shake_failsafe"] = shake_failsafe_var
 
@@ -846,6 +892,17 @@ class App(CTk):
             width=120,
             textvariable=shake_failsafe_var
         ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        # Notes
+        notes1 = CTkFrame(
+            parent,
+            border_width=2
+        )
+        notes1.grid(row=0, column=1, padx=20, pady=20, sticky="nw")
+        CTkLabel(notes1, text="Notes", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(notes1, text="Click for mouse clicks | Navigation for keyboard spam").grid(row=1, column=0, padx=12, pady=10, sticky="w")
+        CTkLabel(notes1, text="Determines the tolerance to detect the shaking text").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        CTkLabel(notes1, text="Adjust delay values for your latency").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        CTkLabel(notes1, text="The amount of failed attempts before restarting the macro").grid(row=4, column=0, padx=12, pady=10, sticky="w")
 
     # MINIGAME SETTINGS TAB
     def build_minigame_tab(self, parent):
@@ -859,69 +916,82 @@ class App(CTk):
             border_width=2
         )
         frame.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(frame, text="Bar Colors (#RRGGBB)", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(frame, text="Bar Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(frame, text="#RRGGBB", font=CTkFont(size=14, weight="bold")).grid(row=0, column=1, padx=12, pady=8, sticky="w")
+        CTkButton(
+            frame,
+            text="Take Screenshot",
+            corner_radius=32,
+            command=print("Not implemented yet")
+        ).grid(row=1, column=0, padx=12, pady=12, sticky="w")
+        CTkButton(
+            frame,
+            text="Pick Colors",
+            corner_radius=32,
+            command=print("Not implemented yet")
+        ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
         CTkLabel(frame, text="Left Bar Color:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
+            row=2, column=0, padx=12, pady=10, sticky="w"
         )
         left_color_var = StringVar(value="#F1F1F1")
         self.vars["left_color"] = left_color_var
-        CTkEntry(frame, placeholder_text="#F1F1F1", width=120, textvariable=left_color_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#F1F1F1", width=120, textvariable=left_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
         CTkLabel(frame, text="Right Bar Color:").grid(
-            row=2, column=0, padx=12, pady=10, sticky="w"
+            row=3, column=0, padx=12, pady=10, sticky="w"
         )
         right_color_var = StringVar(value="#FFFFFF")
         self.vars["right_color"] = right_color_var
-        CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=right_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=right_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         
         CTkLabel(frame, text="Arrow Color:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
+            row=4, column=0, padx=12, pady=10, sticky="w"
         )
         arrow_color_var = StringVar(value="#848587")
         self.vars["arrow_color"] = arrow_color_var
-        CTkEntry(frame, placeholder_text="#848587", width=120, textvariable=arrow_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#848587", width=120, textvariable=arrow_color_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
         
         CTkLabel(frame, text="Fish Color:").grid(
-            row=4, column=0, padx=12, pady=10, sticky="w"
+            row=5, column=0, padx=12, pady=10, sticky="w"
         )
         fish_color_var = StringVar(value="#434B5B")
         self.vars["fish_color"] = fish_color_var
-        CTkEntry(frame, placeholder_text="#434B5B", width=120, textvariable=fish_color_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#434B5B", width=120, textvariable=fish_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
         
         CTkLabel(frame, text="Fish Color 2:").grid(
-            row=5, column=0, padx=12, pady=10, sticky="w"
+            row=6, column=0, padx=12, pady=10, sticky="w"
         )
         fish2_color_var = StringVar(value="#434B5B")
         self.vars["fish2_color"] = fish2_color_var
-        CTkEntry(frame, placeholder_text="#434B5B", width=120, textvariable=fish2_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#434B5B", width=120, textvariable=fish2_color_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
         
         left_tolerance_var = StringVar(value="8")
         self.vars["left_tolerance"] = left_tolerance_var
         CTkLabel(frame, text="Tolerance:").grid(
-            row=1, column=2, padx=12, pady=10, sticky="w"
+            row=2, column=2, padx=12, pady=10, sticky="w"
         )
         left_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=left_tolerance_var)
-        left_tolerance_entry.grid(row=1, column=3, padx=12, pady=10, sticky="w")
+        left_tolerance_entry.grid(row=2, column=3, padx=12, pady=10, sticky="w")
         
         right_tolerance_var = StringVar(value="8")
         self.vars["right_tolerance"] = right_tolerance_var
         CTkLabel(frame, text="Tolerance:").grid(
-            row=2, column=2, padx=12, pady=10, sticky="w"
+            row=3, column=2, padx=12, pady=10, sticky="w"
         )
         right_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=right_tolerance_var)
-        right_tolerance_entry.grid(row=2, column=3, padx=12, pady=10, sticky="w")
+        right_tolerance_entry.grid(row=3, column=3, padx=12, pady=10, sticky="w")
         
         CTkLabel(frame, text="Tolerance:").grid(
-            row=3, column=2, padx=12, pady=10, sticky="w"
+            row=4, column=2, padx=12, pady=10, sticky="w"
         )
 
         arrow_tolerance_var = StringVar(value="8")
         self.vars["arrow_tolerance"] = arrow_tolerance_var
         arrow_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=arrow_tolerance_var)
-        arrow_tolerance_entry.grid(row=3, column=3, padx=12, pady=10, sticky="w")
+        arrow_tolerance_entry.grid(row=4, column=3, padx=12, pady=10, sticky="w")
         
         CTkLabel(frame, text="Tolerance:").grid(
-            row=4, column=2, padx=12, pady=10, sticky="w"
+            row=5, column=2, padx=12, pady=10, sticky="w"
         )
 
         fish_tolerance_var = StringVar(value="0")
@@ -931,10 +1001,10 @@ class App(CTk):
             frame,
             width=120,
             textvariable=fish_tolerance_var
-        ).grid(row=4, column=3, padx=12, pady=10, sticky="w")
+        ).grid(row=5, column=3, padx=12, pady=10, sticky="w")
         
         CTkLabel(frame, text="Tolerance:").grid(
-            row=5, column=2, padx=12, pady=10, sticky="w"
+            row=6, column=2, padx=12, pady=10, sticky="w"
         )
 
         fish2_tolerance_var = StringVar(value="0")
@@ -944,7 +1014,7 @@ class App(CTk):
             frame,
             width=120,
             textvariable=fish2_tolerance_var
-        ).grid(row=5, column=3, padx=12, pady=10, sticky="w")
+        ).grid(row=6, column=3, padx=12, pady=10, sticky="w")
         
         frame2 = CTkFrame(
             scroll,
@@ -1028,26 +1098,40 @@ class App(CTk):
             textvariable=velocity_smoothing_var
         ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
     # SUPPORT SETTINGS TAB
-    def build_support_tab(self, parent):
-        # Support Button
-        support_frame = CTkFrame(
+    def build_advanced_tab(self, parent):
+        # Shake Colors
+        advanced_colors = CTkFrame(
             parent,
             border_width=2
         )
-        support_frame.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(support_frame, text="Support & Community", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")    
-        CTkButton(
-            support_frame,
-            text="Join Discord Server",
-            corner_radius=32,
-            command=self.open_link("https://bit.ly/4r3b2EM")
-        ).grid(row=1, column=0, padx=12, pady=12, sticky="w")
-        CTkButton(
-            support_frame,
-            text="YouTube Channel",
-            corner_radius=32,
-            command=self.open_link("https://www.youtube.com/@HexaTitanGaming")
-        ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
+        advanced_colors.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(advanced_colors, text="Advanced Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")   
+        CTkLabel(advanced_colors, text="#RRGGBB", font=CTkFont(size=14, weight="bold")).grid(row=0, column=1, padx=12, pady=8, sticky="w")
+        CTkLabel(advanced_colors, text="Shake Color:").grid(
+            row=1, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        shake_color_var = StringVar(value="#FFFFFF")
+        self.vars["shake_color"] = shake_color_var
+
+        CTkEntry(
+            advanced_colors,
+            width=120,
+            textvariable=shake_color_var
+        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(advanced_colors, text="Perfect Cast Color:").grid(
+            row=2, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        perfect_color_var = StringVar(value="#5FA84B")
+        self.vars["perfect_color"] = perfect_color_var
+
+        CTkEntry(
+            advanced_colors,
+            width=120,
+            textvariable=perfect_color_var
+        ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
@@ -1128,6 +1212,13 @@ class App(CTk):
         except Exception as e:
             print(f"Error saving comboboxes: {e}")
         
+        # Save hotkeys
+        try:
+            data["hotkey_start"] = self._get_key_name(self.hotkey_start)
+            data["hotkey_stop"] = self._get_key_name(self.hotkey_stop)
+        except Exception as e:
+            print(f"Error saving hotkeys: {e}")
+        
         # Write to file
         path = os.path.join(config_dir, name)
         try:
@@ -1180,6 +1271,20 @@ class App(CTk):
         except Exception as e:
             print(f"Error loading comboboxes: {e}")
         
+        # Load hotkeys
+        try:
+            if "hotkey_start" in data:
+                self.hotkey_start = self._key_name_to_key(data["hotkey_start"])
+            if "hotkey_stop" in data:
+                self.hotkey_stop = self._key_name_to_key(data["hotkey_stop"])
+            # Update labels if they exist
+            if "start" in self.hotkey_labels:
+                self.hotkey_labels["start"].configure(text=self._get_key_name(self.hotkey_start))
+            if "stop" in self.hotkey_labels:
+                self.hotkey_labels["stop"].configure(text=self._get_key_name(self.hotkey_stop))
+        except Exception as e:
+            print(f"Error loading hotkeys: {e}")
+        
         self.save_last_config_name(name)
         self.set_status(f"Loaded Config: {name}")
     def load_misc_settings(self):
@@ -1202,7 +1307,7 @@ class App(CTk):
     # Macro functions
     def on_key_press(self, key):
         try:
-            if key == Key.f5 and not self.macro_running:
+            if key == self.hotkey_start and not self.macro_running:
                 # Save settings before starting
                 config_name = self.vars["active_config"].get()
                 self.save_settings(config_name)
@@ -1211,10 +1316,10 @@ class App(CTk):
                 self.after(0, self.withdraw)
                 threading.Thread(target=self.start_macro, daemon=True).start()
 
-            elif key == Key.f7:
+            elif key == self.hotkey_stop:
                 self.stop_macro()
 
-            elif key == Key.f8:
+            elif key == self.hotkey_reserved:
                 # self.close()
                 pass  # Reserved for future use
         except Exception as e:
@@ -1222,6 +1327,115 @@ class App(CTk):
             
     def set_status(self, text, key=None):
         self.status_label.configure(text=text)
+    
+    def _get_key_name(self, key):
+        """Convert a pynput Key object to a readable string name."""
+        if isinstance(key, Key):
+            return key.name.upper()
+        else:
+            return str(key).replace("'", "")
+    
+    def _key_name_to_key(self, key_name):
+        """Convert a string key name back to a pynput Key object."""
+        key_name = key_name.lower()
+        try:
+            return Key[key_name]
+        except KeyError:
+            # If it's not a special key, return the string as is
+            return key_name
+    
+    def rebind_hotkeys(self):
+        """Open dialog to rebind hotkeys."""
+        dialog = CTkToplevel(self)
+        dialog.title("Rebind Hotkeys")
+        dialog.geometry("400x300")
+        dialog.resizable(False, False)
+        
+        # Make it stay on top
+        dialog.attributes('-topmost', True)
+        
+        # Center the dialog
+        dialog.transient(self)
+        dialog.grab_set()
+        
+        # Title
+        CTkLabel(dialog, text="Press the key you want to bind", font=CTkFont(size=14, weight="bold")).pack(pady=10)
+        
+        # Start key rebinding
+        CTkLabel(dialog, text="Start Macro Key", font=CTkFont(size=12)).pack(pady=5)
+        start_info = CTkLabel(dialog, text=f"Current: {self._get_key_name(self.hotkey_start)}", text_color="gray")
+        start_info.pack(pady=2)
+        
+        def bind_start_key():
+            dialog.withdraw()
+            self.set_status("Press START key (20 sec timeout)...")
+            
+            captured_key = [None]
+            
+            def listen_for_start(key):
+                if captured_key[0] is None:
+                    captured_key[0] = key
+                    return False  # Stop listener
+            
+            listener = KeyListener(on_press=listen_for_start)
+            listener.start()
+            listener.join(timeout=20)  # Wait max 20 seconds
+            
+            if captured_key[0] is not None:
+                self.hotkey_start = captured_key[0]
+                start_info.configure(text=f"Current: {self._get_key_name(self.hotkey_start)}")
+                if "start" in self.hotkey_labels:
+                    self.hotkey_labels["start"].configure(text=self._get_key_name(self.hotkey_start))
+                self.set_status(f"Start key bound to {self._get_key_name(self.hotkey_start)}")
+            else:
+                self.set_status("Start key binding cancelled")
+            
+            dialog.deiconify()
+        
+        CTkButton(dialog, text="Bind Start Key", command=bind_start_key, corner_radius=8).pack(pady=10)
+        
+        # Stop key rebinding
+        CTkLabel(dialog, text="Stop Macro Key", font=CTkFont(size=12)).pack(pady=5)
+        stop_info = CTkLabel(dialog, text=f"Current: {self._get_key_name(self.hotkey_stop)}", text_color="gray")
+        stop_info.pack(pady=2)
+        
+        def bind_stop_key():
+            dialog.withdraw()
+            self.set_status("Press STOP key (20 sec timeout)...")
+            
+            captured_key = [None]
+            
+            def listen_for_stop(key):
+                if captured_key[0] is None:
+                    captured_key[0] = key
+                    return False  # Stop listener
+            
+            listener = KeyListener(on_press=listen_for_stop)
+            listener.start()
+            listener.join(timeout=20)  # Wait max 20 seconds
+            
+            if captured_key[0] is not None:
+                self.hotkey_stop = captured_key[0]
+                stop_info.configure(text=f"Current: {self._get_key_name(self.hotkey_stop)}")
+                if "stop" in self.hotkey_labels:
+                    self.hotkey_labels["stop"].configure(text=self._get_key_name(self.hotkey_stop))
+                self.set_status(f"Stop key bound to {self._get_key_name(self.hotkey_stop)}")
+            else:
+                self.set_status("Stop key binding cancelled")
+            
+            dialog.deiconify()
+        
+        CTkButton(dialog, text="Bind Stop Key", command=bind_stop_key, corner_radius=8).pack(pady=10)
+        
+        # Save button
+        def save_and_close():
+            config_name = self.vars["active_config"].get()
+            self.save_settings(config_name)
+            self.set_status("Hotkeys saved!")
+            dialog.destroy()
+        
+        CTkButton(dialog, text="Save & Close", command=save_and_close, corner_radius=8, fg_color="green").pack(pady=15)
+    
     # Utility functions
     def open_link(self, url):
         """Open a URL in the default web browser."""

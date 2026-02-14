@@ -34,410 +34,64 @@ set_default_color_theme("blue")
 # from AppKit import NSEvent
 # Area Selector
 LAST_CONFIG_PATH = "last_config.json"
-class DualAreaSelector:
-    """Full-screen overlay for selecting both Fish Box and Shake Box simultaneously"""
+class ShakeAreaSelector(CTkToplevel):
+    def __init__(self, parent, area, callback):
+        super().__init__(parent)
 
-    def __init__(self, parent, screenshot, shake_area, fish_area, callback):
         self.callback = callback
-        self.screenshot = screenshot
 
-        # Create fullscreen window
-        self.window = tk.Toplevel(parent)
-        self.window = tk.Toplevel(parent)
-        self.window.overrideredirect(True)   # borderless
-        self.window.attributes('-topmost', True)
-        self.window.geometry(
-            f"{self.window.winfo_screenwidth()}x{self.window.winfo_screenheight()}+0+0"
-        )
-        self.window.configure(cursor="cross")
-        self.window.attributes('-topmost', True)
-        self.window.configure(cursor='cross')
+        self.title("Shake Area Selector")
 
-        # Get screen dimensions
-        self.screen_width = self.window.winfo_screenwidth()
-        self.screen_height = self.window.winfo_screenheight()
+        # Apply saved geometry
+        geometry_string = f"{area['width']}x{area['height']}+{area['x']}+{area['y']}"
+        self.geometry(geometry_string)
 
-        # Create canvas
-        self.canvas = tk.Canvas(self.window, width=self.screen_width, height=self.screen_height, highlightthickness=0)
-        self.canvas.pack()
-        
-        # Display screenshot (always frozen mode)
-        self.photo = ImageTk.PhotoImage(screenshot)
-        self.canvas.create_image(0, 0, image=self.photo, anchor='nw')
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
 
-        # Initialize box coordinates
-        self.shake_x1, self.shake_y1 = shake_area["x"], shake_area["y"]
-        self.shake_x2, self.shake_y2 = self.shake_x1 + shake_area["width"], self.shake_y1 + shake_area["height"]
-        self.fish_x1, self.fish_y1 = fish_area["x"], fish_area["y"]
-        self.fish_x2, self.fish_y2 = self.fish_x1 + fish_area["width"], self.fish_y1 + fish_area["height"]
+        CTkLabel(self, text="Select SHAKE area").pack(pady=20)
 
-        # Drawing state
-        self.dragging = False
-        self.active_box = None
-        self.drag_corner = None
-        self.resize_threshold = 10
+    def on_close(self):
+        # Force geometry update
+        self.update_idletasks()
 
-        # Create Shake Box (Red)
-        self.shake_rect = self.canvas.create_rectangle(
-            self.shake_x1, self.shake_y1, self.shake_x2, self.shake_y2,
-            outline='#f44336', width=2, fill='#f44336', stipple='gray50'
-        )
-        shake_label_x = self.shake_x1 + (self.shake_x2 - self.shake_x1) // 2
-        self.shake_label = self.canvas.create_text(
-            shake_label_x, self.shake_y1 - 20, text="Shake Area",
-            font=("Segoe UI", 12, "bold"), fill='#f44336'
-        )
+        area_data = {
+            "x": self.winfo_x(),
+            "y": self.winfo_y(),
+            "width": self.winfo_width(),
+            "height": self.winfo_height()
+        }
 
-        # Create Fish Box (Blue)
-        self.fish_rect = self.canvas.create_rectangle(
-            self.fish_x1, self.fish_y1, self.fish_x2, self.fish_y2,
-            outline='#2196F3', width=2, fill='#2196F3', stipple='gray50'
-        )
-        fish_label_x = self.fish_x1 + (self.fish_x2 - self.fish_x1) // 2
-        self.fish_label = self.canvas.create_text(
-            fish_label_x, self.fish_y1 - 20, text="Fish Area",
-            font=("Segoe UI", 12, "bold"), fill='#2196F3'
-        )
+        self.callback(area_data)
+        self.destroy()
 
-        # Corner handles
-        self.fish_handles = []
-        self.shake_handles = []
-        self.create_all_handles()
+class FishAreaSelector(CTkToplevel):
+    def __init__(self, parent, area, callback):
+        super().__init__(parent)
 
-        # Zoom window (using OpenCV for better performance)
-        self.zoom_window_size = 200
-        self.zoom_factor = 4
-        self.zoom_capture_size = self.zoom_window_size // self.zoom_factor
-        self.info_height = 50
-        self.zoom_window_name = 'Zoom View'
-        self.zoom_window_created = False
-        self.zoom_hwnd = None
-        self.zoom_update_job = None  # For scheduled updates
-        
-        # Track current cursor to avoid unnecessary changes
-        self.current_cursor = 'cross'
+        self.callback = callback
 
-        # Bind events (canvas only, not window)
-        self.canvas.bind('<Button-1>', self.on_mouse_down)
-        self.canvas.bind('<B1-Motion>', self.on_mouse_drag)
-        self.canvas.bind('<ButtonRelease-1>', self.on_mouse_up)
-        self.canvas.bind('<Motion>', self.on_mouse_move)
-        
-        # Close on Escape key
-        self.window.bind('<Escape>', lambda e: self.window.destroy())
-        
-        # Save / Cancel controls
-        try:
-            btn_frame = tk.Frame(self.window, bg='')
-            save_btn = tk.Button(btn_frame, text="Save Areas", command=self._on_save, bg="#333", fg="white")
-            cancel_btn = tk.Button(btn_frame, text="Cancel", command=self.close, bg="#333", fg="white")
-            save_btn.pack(side="left", padx=4)
-            cancel_btn.pack(side="left", padx=4)
-            # place at top-right
-            self.canvas.create_window(self.screen_width - 20, 20, window=btn_frame, anchor='ne')
-        except Exception:
-            pass
+        self.title("Fish Area Selector")
 
-        # Start zoom window
-        self.show_zoom()
+        geometry_string = f"{area['width']}x{area['height']}+{area['x']}+{area['y']}"
+        self.geometry(geometry_string)
 
-    def create_all_handles(self):
-        """Create corner handles for both boxes"""
-        self.create_handles_for_box('fish')
-        self.create_handles_for_box('shake')
+        self.protocol("WM_DELETE_WINDOW", self.on_close)
 
-    def create_handles_for_box(self, box_type):
-        """Create corner handles for a specific box"""
-        handle_size = 12
-        corner_marker_size = 3
+        CTkLabel(self, text="Select FISH area").pack(pady=20)
 
-        if box_type == 'fish':
-            x1, y1, x2, y2 = self.fish_x1, self.fish_y1, self.fish_x2, self.fish_y2
-            color = '#2196F3'
-            handles_list = self.fish_handles
-        else:
-            x1, y1, x2, y2 = self.shake_x1, self.shake_y1, self.shake_x2, self.shake_y2
-            color = '#f44336'
-            handles_list = self.shake_handles
+    def on_close(self):
+        # Force geometry update
+        self.update_idletasks()
 
-        for handle in handles_list:
-            self.canvas.delete(handle)
-        handles_list.clear()
+        area_data = {
+            "x": self.winfo_x(),
+            "y": self.winfo_y(),
+            "width": self.winfo_width(),
+            "height": self.winfo_height()
+        }
 
-        corners = [(x1, y1, 'nw'), (x2, y1, 'ne'), (x1, y2, 'sw'), (x2, y2, 'se')]
-
-        for x, y, corner in corners:
-            # Outer handle
-            handle = self.canvas.create_rectangle(
-                x - handle_size, y - handle_size,
-                x + handle_size, y + handle_size,
-                fill='', outline=color, width=2
-            )
-            handles_list.append(handle)
-
-            # Corner marker
-            corner_marker = self.canvas.create_rectangle(
-                x - corner_marker_size, y - corner_marker_size,
-                x + corner_marker_size, y + corner_marker_size,
-                fill='red', outline='white', width=1
-            )
-            handles_list.append(corner_marker)
-
-            # Crosshair
-            line1 = self.canvas.create_line(x - handle_size, y, x + handle_size, y, fill='yellow', width=1)
-            line2 = self.canvas.create_line(x, y - handle_size, x, y + handle_size, fill='yellow', width=1)
-            handles_list.append(line1)
-            handles_list.append(line2)
-
-    def get_corner_at_position(self, x, y, box_type):
-        """Determine which corner is near the cursor"""
-        if box_type == 'fish':
-            x1, y1, x2, y2 = self.fish_x1, self.fish_y1, self.fish_x2, self.fish_y2
-        else:
-            x1, y1, x2, y2 = self.shake_x1, self.shake_y1, self.shake_x2, self.shake_y2
-
-        corners = {'nw': (x1, y1), 'ne': (x2, y1), 'sw': (x1, y2), 'se': (x2, y2)}
-        
-        for corner, (cx, cy) in corners.items():
-            if abs(x - cx) < self.resize_threshold and abs(y - cy) < self.resize_threshold:
-                return corner
-        return None
-
-    def is_inside_box(self, x, y, box_type):
-        """Check if point is inside a specific box"""
-        if box_type == 'fish':
-            return self.fish_x1 < x < self.fish_x2 and self.fish_y1 < y < self.fish_y2
-        else:
-            return self.shake_x1 < x < self.shake_x2 and self.shake_y1 < y < self.shake_y2
-
-    def on_mouse_down(self, event):
-        """Handle mouse button press"""
-        self.drag_start_x = event.x
-        self.drag_start_y = event.y
-
-        for box in ['fish', 'shake']:
-            corner = self.get_corner_at_position(event.x, event.y, box)
-            if corner:
-                self.dragging = True
-                self.active_box = box
-                self.drag_corner = corner
-                return
-
-            if self.is_inside_box(event.x, event.y, box):
-                self.dragging = True
-                self.active_box = box
-                self.drag_corner = 'move'
-                return
-
-    def on_mouse_drag(self, event):
-        """Handle mouse drag"""
-        if not self.dragging or not self.active_box:
-            return
-
-        dx = event.x - self.drag_start_x
-        dy = event.y - self.drag_start_y
-
-        if self.active_box == 'fish':
-            if self.drag_corner == 'move':
-                self.fish_x1 += dx
-                self.fish_y1 += dy
-                self.fish_x2 += dx
-                self.fish_y2 += dy
-            elif self.drag_corner == 'nw':
-                self.fish_x1, self.fish_y1 = event.x, event.y
-            elif self.drag_corner == 'ne':
-                self.fish_x2, self.fish_y1 = event.x, event.y
-            elif self.drag_corner == 'sw':
-                self.fish_x1, self.fish_y2 = event.x, event.y
-            elif self.drag_corner == 'se':
-                self.fish_x2, self.fish_y2 = event.x, event.y
-
-            if self.fish_x1 > self.fish_x2:
-                self.fish_x1, self.fish_x2 = self.fish_x2, self.fish_x1
-            if self.fish_y1 > self.fish_y2:
-                self.fish_y1, self.fish_y2 = self.fish_y2, self.fish_y1
-        else:
-            if self.drag_corner == 'move':
-                self.shake_x1 += dx
-                self.shake_y1 += dy
-                self.shake_x2 += dx
-                self.shake_y2 += dy
-            elif self.drag_corner == 'nw':
-                self.shake_x1, self.shake_y1 = event.x, event.y
-            elif self.drag_corner == 'ne':
-                self.shake_x2, self.shake_y1 = event.x, event.y
-            elif self.drag_corner == 'sw':
-                self.shake_x1, self.shake_y2 = event.x, event.y
-            elif self.drag_corner == 'se':
-                self.shake_x2, self.shake_y2 = event.x, event.y
-
-            if self.shake_x1 > self.shake_x2:
-                self.shake_x1, self.shake_x2 = self.shake_x2, self.shake_x1
-            if self.shake_y1 > self.shake_y2:
-                self.shake_y1, self.shake_y2 = self.shake_y2, self.shake_y1
-
-        self.update_boxes()
-        self.drag_start_x = event.x
-        self.drag_start_y = event.y
-
-    def on_mouse_up(self, event):
-        """Handle mouse button release"""
-        self.dragging = False
-        self.active_box = None
-        self.drag_corner = None
-
-    def on_mouse_move(self, event):
-        """Handle mouse movement"""
-        fish_corner = self.get_corner_at_position(event.x, event.y, 'fish')
-        shake_corner = self.get_corner_at_position(event.x, event.y, 'shake')
-
-        # Determine what cursor should be shown
-        new_cursor = 'cross'
-        if fish_corner or shake_corner:
-            corner = fish_corner or shake_corner
-            cursors = {'nw': 'top_left_corner', 'ne': 'top_right_corner',
-                      'sw': 'bottom_left_corner', 'se': 'bottom_right_corner'}
-            new_cursor = cursors.get(corner, 'cross')
-        elif self.is_inside_box(event.x, event.y, 'fish') or self.is_inside_box(event.x, event.y, 'shake'):
-            new_cursor = 'fleur'
-        
-        # Only update cursor if it actually changed
-        if new_cursor != self.current_cursor:
-            self.window.configure(cursor=new_cursor)
-            self.current_cursor = new_cursor
-
-    def show_zoom(self):
-        """Create Tk-based zoom window (cross-platform)"""
-        if hasattr(self, "zoom_window"):
-            return
-
-        self.zoom_window = tk.Toplevel(self.window)
-        self.zoom_window.overrideredirect(True)
-        self.zoom_window.attributes("-topmost", True)
-
-        size = self.zoom_window_size
-        self.zoom_canvas = tk.Canvas(
-            self.zoom_window,
-            width=size,
-            height=size + self.info_height,
-            highlightthickness=0,
-            bg="#2b2b2b"
-        )
-        self.zoom_canvas.pack()
-
-        self._update_zoom_loop()
-
-    def _update_zoom_loop(self):
-        if not self.window.winfo_exists():
-            return
-
-        # Get cursor position (cross-platform)
-        cursor_x = self.window.winfo_pointerx()
-        cursor_y = self.window.winfo_pointery()
-
-        half = self.zoom_capture_size // 2
-        left = max(0, cursor_x - half)
-        top = max(0, cursor_y - half)
-
-        if left + self.zoom_capture_size > self.screen_width:
-            left = self.screen_width - self.zoom_capture_size
-        if top + self.zoom_capture_size > self.screen_height:
-            top = self.screen_height - self.zoom_capture_size
-
-        # Crop frozen screenshot
-        cropped = self.screenshot.crop(
-            (left, top, left + self.zoom_capture_size, top + self.zoom_capture_size)
-        )
-
-        # Resize (nearest neighbor)
-        zoomed = cropped.resize(
-            (self.zoom_window_size, self.zoom_window_size),
-            Image.NEAREST
-        )
-
-        self.zoom_photo = ImageTk.PhotoImage(zoomed)
-
-        self.zoom_canvas.delete("all")
-        self.zoom_canvas.create_image(0, 0, image=self.zoom_photo, anchor="nw")
-
-        # Crosshair
-        c = self.zoom_window_size // 2
-        self.zoom_canvas.create_line(c - 10, c, c + 10, c, fill="red", width=2)
-        self.zoom_canvas.create_line(c, c - 10, c, c + 10, fill="red", width=2)
-
-        # Color info
-        px = zoomed.getpixel((c, c))
-        color_text = f"RGB: {px}"
-        pos_text = f"Pos: ({cursor_x}, {cursor_y})"
-
-        self.zoom_canvas.create_text(
-            10, self.zoom_window_size + 15,
-            text=pos_text, anchor="w", fill="white", font=("Segoe UI", 9)
-        )
-        self.zoom_canvas.create_text(
-            10, self.zoom_window_size + 35,
-            text=color_text, anchor="w", fill="white", font=("Segoe UI", 9)
-        )
-
-        # Move zoom window near cursor
-        offset = 30
-        zx = cursor_x + offset
-        zy = cursor_y + offset
-
-        if zx + self.zoom_window_size > self.screen_width:
-            zx = cursor_x - self.zoom_window_size - offset
-        if zy + self.zoom_window_size > self.screen_height:
-            zy = cursor_y - self.zoom_window_size - offset
-
-        self.zoom_window.geometry(f"+{zx}+{zy}")
-
-        self.window.after(33, self._update_zoom_loop)
-
-    def update_boxes(self):
-        """Update both boxes and their labels"""
-        self.canvas.coords(self.shake_rect, self.shake_x1, self.shake_y1, self.shake_x2, self.shake_y2)
-        self.canvas.coords(self.shake_label, self.shake_x1 + (self.shake_x2 - self.shake_x1) // 2, self.shake_y1 - 20)
-
-        self.canvas.coords(self.fish_rect, self.fish_x1, self.fish_y1, self.fish_x2, self.fish_y2)
-        self.canvas.coords(self.fish_label, self.fish_x1 + (self.fish_x2 - self.fish_x1) // 2, self.fish_y1 - 20)
-
-        self.create_all_handles()
-    def _on_save(self):
-        """Collect current areas and invoke callback, then close."""
-        try:
-            shake = {
-                "x": int(self.shake_x1),
-                "y": int(self.shake_y1),
-                "width": int(self.shake_x2 - self.shake_x1),
-                "height": int(self.shake_y2 - self.shake_y1)
-            }
-
-            fish = {
-                "x": int(self.fish_x1),
-                "y": int(self.fish_y1),
-                "width": int(self.fish_x2 - self.fish_x1),
-                "height": int(self.fish_y2 - self.fish_y1)
-            }
-
-            if callable(self.callback):
-                try:
-                    self.callback(shake, fish)
-                except Exception:
-                    pass
-        finally:
-            try:
-                self.close()
-            except:
-                pass
-    def close(self):
-        try:
-            if self.zoom_window and self.zoom_window.winfo_exists():
-                self.zoom_window.destroy()
-        except:
-            pass
-
-        if self.window.winfo_exists():
-            self.window.destroy()
+        self.callback(area_data)
+        self.destroy()
 
 # Main app
 class App(CTk):
@@ -502,6 +156,10 @@ class App(CTk):
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, columnspan=6, pady=5, padx=20, sticky="w")
+        # Bar Areas Variables
+        self.shake_selector = None
+        self.fish_selector = None
+
         # Top Bar Frame (Status + Buttons)
         top_bar = CTkFrame(self, fg_color="transparent")
         top_bar.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
@@ -827,6 +485,16 @@ class App(CTk):
         bar_size_cb = CTkCheckBox(overlay_settings, text="Show Bar Size", 
                                      variable=bar_size_var, onvalue="on", offvalue="off")
         bar_size_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        # Arrow Tracking Settings
+        arrow_settings = CTkFrame(
+            scroll,
+            border_width=2
+        )
+        arrow_settings.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
+        centroid_tracking_var = StringVar(value="off")
+        self.vars["auto_select_rod"] = centroid_tracking_var
+        centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Use Centroid Tracking", variable=centroid_tracking_var, onvalue="on", offvalue="off")
+        centroid_tracking_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         shake_configuration = CTkFrame(
@@ -1171,15 +839,33 @@ class App(CTk):
     def save_misc_settings(self):
         """Save miscellaneous settings to last_config.json."""
         try:
+            clean_bar_areas = {}
+
+            for key in ["shake", "fish"]:
+                area = self.bar_areas.get(key)
+
+                if isinstance(area, dict):
+                    clean_bar_areas[key] = {
+                        "x": int(area.get("x", 0)),
+                        "y": int(area.get("y", 0)),
+                        "width": int(area.get("width", 0)),
+                        "height": int(area.get("height", 0))
+                    }
+                else:
+                    clean_bar_areas[key] = None
+
             data = {
                 "last_rod": self.current_rod_name,
-                "bar_areas": self.bar_areas
+                "bar_areas": clean_bar_areas
             }
+
             with open("last_config.json", "w") as f:
                 json.dump(data, f, indent=4)
+
         except Exception as e:
-            print(f"Error saving misc settings: {e}")
-    
+            import traceback
+            traceback.print_exc()
+
     def save_settings(self, name):
         """Save all settings to a JSON config file."""
         config_dir = "configs"
@@ -1294,10 +980,7 @@ class App(CTk):
                 with open("last_config.json", "r") as f:
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
-                    self.bar_areas = data.get("bar_areas", {
-                        "fish": None,
-                        "shake": None
-                    })
+                    self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
             else:
                 self.current_rod_name = "Basic Rod"
                 self.bar_areas = {"fish": None, "shake": None}
@@ -1317,6 +1000,7 @@ class App(CTk):
                 threading.Thread(target=self.start_macro, daemon=True).start()
 
             elif key == self.hotkey_stop:
+                print(self.bar_areas)
                 self.stop_macro()
 
             elif key == self.hotkey_reserved:
@@ -1442,10 +1126,16 @@ class App(CTk):
         return lambda: webbrowser.open(url)
     
     def open_dual_area_selector(self):
-        # Toggle OFF if already open
-        if self.area_selector and self.area_selector.window.winfo_exists():
-            self.area_selector.close()
-            self.area_selector = None
+        self.update_idletasks()
+        # If already open → close both
+        if self.shake_selector or self.fish_selector:
+            if self.shake_selector and self.shake_selector.winfo_exists():
+                self.shake_selector.on_close()
+            if self.fish_selector and self.fish_selector.winfo_exists():
+                self.fish_selector.on_close()
+
+            self.shake_selector = None
+            self.fish_selector = None
             self.set_status("Area selector closed")
             return
 
@@ -1472,29 +1162,30 @@ class App(CTk):
             else default_area()
         )
 
-        def on_done(shake, fish):
-            self.bar_areas = {
-                "shake": shake,
-                "fish": fish
-            }
+        def on_shake_done(shake):
+            self.bar_areas["shake"] = shake
 
+        def on_fish_done(fish):
+            self.bar_areas["fish"] = fish
             self.save_misc_settings()
-
-            self.area_selector = None
             self.set_status("Bar areas saved")
 
-        # Take screenshot
+        # Screenshot
         with mss.mss() as sct:
             monitor = sct.monitors[1]
             shot = sct.grab(monitor)
             screenshot = Image.frombytes("RGB", shot.size, shot.rgb)
 
-        self.area_selector = DualAreaSelector(
+        self.shake_selector = ShakeAreaSelector(
             parent=self,
-            screenshot=screenshot,
-            shake_area=shake_area,
-            fish_area=fish_area,
-            callback=on_done
+            area=shake_area,
+            callback=on_shake_done
+        )
+
+        self.fish_selector = FishAreaSelector(
+            parent=self,
+            area=fish_area,
+            callback=on_fish_done
         )
 
         self.set_status("Area selector opened (ESC or click button again to close)")
@@ -2340,9 +2031,11 @@ class App(CTk):
         scan_delay = float(self.vars["minigame_scan_delay"].get() or 0.1)
 
         try:
-            thresh = float(self.vars["velocity_smoothing"].get() or 10)
+            thresh = float(self.vars["velocity_smoothing"].get() or 8)
+            use_centroid = self.vars["centroid_tracking"].get()
         except:
-            thresh = 10
+            thresh = 8
+            use_centroid = False
 
         DEADZONE = 8
         mouse_down = False
@@ -2454,40 +2147,59 @@ class App(CTk):
                         self.draw_bar_minigame(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
                         self.draw_bar_minigame(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                     pid_found = 0
-            elif arrow_center: # Arrow found
-                # Find arrow position
+            elif arrow_center:
+
                 capture_width = fish_right - fish_left
                 arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
+
                 if self.vars["fish_overlay"].get() == "on":
                     self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
-                # Calculate distance between arrow and fish
-                distance = abs((arrow_center[0] + fish_left) - fish_x)
-                threshold = self.initial_bar_size if self.initial_bar_size else 300
-                if distance < threshold: # Check if distance is below initial_bar_size to use bar center logic.
-                    if arrow_indicator_x is not None:
-                        # Estimate bar center using arrow-based logic
-                        estimated_bar_center = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
-                        
-                        if estimated_bar_center is not None:
-                            if self.vars["fish_overlay"].get() == "on":
-                                arrow_center = estimated_bar_center + fish_left
-                                self.draw_bar_minigame(bar_center=arrow_center,box_size=40, color="yellow", canvas_offset=fish_left)
-                            # Convert from relative to screen coordinates
-                            bar_center = int(estimated_bar_center + fish_left)
-                            pid_found = 0
-                        else:
-                            if self.vars["fish_overlay"].get() == "on":
-                                self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
-                            pid_found = 1
-                    else:
+
+                if arrow_indicator_x is None:
+                    pid_found = 1
+                    return
+
+                arrow_screen_x = arrow_indicator_x + fish_left
+
+                if use_centroid:
+                    estimated_bar_center = self._update_arrow_box_estimation(
+                        arrow_indicator_x,
+                        mouse_down,
+                        capture_width
+                    )
+
+                    if estimated_bar_center is not None:
+                        bar_center = int(estimated_bar_center + fish_left)
+                        pid_found = 0
+
                         if self.vars["fish_overlay"].get() == "on":
-                            self.draw_bar_minigame(bar_center=arrow_center - 50, box_size=10, color="yellow", canvas_offset=fish_left)
+                            self.draw_bar_minigame(
+                                bar_center=bar_center,
+                                box_size=40,
+                                color="yellow",
+                                canvas_offset=fish_left
+                            )
+                    else:
+                        pid_found = 1
+
                 else:
-                    if distance < 0: # Fish is left of arrow
+                    distance = arrow_screen_x - fish_x
+
+                    if abs(distance) < 15:
+                        pid_found = 0
+                    elif distance < 0:
                         pid_found = 2
                     else:
                         pid_found = 1
-                    self.draw_bar_minigame(bar_center=arrow_center[0],box_size=20, color="yellow", canvas_offset=fish_left)
+
+                    if self.vars["fish_overlay"].get() == "on":
+                        self.draw_bar_minigame(
+                            bar_center=arrow_screen_x,
+                            box_size=20,
+                            color="yellow",
+                            canvas_offset=fish_left
+                        )
+
             else: # No arrow / bar found
                 pid_found = 1
             # PID calculation

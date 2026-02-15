@@ -492,7 +492,7 @@ class App(CTk):
         )
         arrow_settings.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
         centroid_tracking_var = StringVar(value="off")
-        self.vars["auto_select_rod"] = centroid_tracking_var
+        self.vars["centroid_tracking"] = centroid_tracking_var
         centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Use Centroid Tracking", variable=centroid_tracking_var, onvalue="on", offvalue="off")
         centroid_tracking_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # SHAKE SETTINGS TAB

@@ -14,26 +14,26 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller
-          pyinstaller --windowed FischV14.py
+          pyinstaller --windowed v2.py
 
       - name: Create DMG
         run: |
           hdiutil create \
-            -volname "LongestFisching" \
+            -volname "v2" \
             -srcfolder dist \
             -ov \
             -format UDZO \
-            LongestFisching.dmg
-          ls -lh LongestFisching.dmg
+            v2.dmg
+          ls -lh v2.dmg
 
       - name: Upload DMG artifact
         uses: actions/upload-artifact@v4
         with:
           name: macOS-DMG
-          path: LongestFisching.dmg
+          path: v2.dmg

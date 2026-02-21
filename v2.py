@@ -1210,18 +1210,14 @@ class App(CTk):
     def _find_template(self, frame, template, confidence=0.85):
         if template is None or frame is None:
             return None
-
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
         result = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-        print(template.shape, ": ", max_val)
-
         if max_val >= confidence:
             h, w = template.shape
             return max_loc[0] + w // 2   # X relative to frame
-
         return None
     def _prepare_templates(self):
         """Convert templates to grayscale once."""
@@ -1765,7 +1761,39 @@ class App(CTk):
         speed = max(-max_speed, min(max_speed, speed))
 
         return speed
+    # Image processing and interaction functions related to minigame
+    def _do_image_search(self, img, img_h):
+        fish_template = self.templates["fish"]
+        bar_template  = self.templates["left_bar"]
 
+        fish_template_h = fish_template.shape[0]
+        bar_template_h  = bar_template.shape[0]
+
+        # ---- Fish region (remove bottom bar part) ----
+        fish_region = img[:img_h - bar_template_h - 10, :]
+        fish_x = self._find_template(fish_region, fish_template, 0.8)
+
+        # ---- Bar region (remove top fish part) ----
+        bar_region = img[fish_template_h + 10:, :]
+        left_x = self._find_template(bar_region, bar_template, 0.8)
+        right_x = self._find_template(bar_region, self.templates["right_bar"], 0.8)
+        return fish_x, left_x, right_x
+    def _do_pixel_search(self, img):
+        fish_hex = self.vars["fish_color"].get()
+        left_bar_hex = self.vars["left_color"].get()
+        right_bar_hex = self.vars["right_color"].get()
+
+        left_tol = int(self.vars["left_tolerance"].get() or 8)
+        right_tol = int(self.vars["right_tolerance"].get() or 8)
+        fish_tol = int(self.vars["fish_tolerance"].get() or 1)
+        fish_center = self._find_color_center(img, fish_hex, fish_tol)
+        left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+        if left_bar_center is None:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+        elif right_bar_center is None:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+        return fish_center, left_bar_center, right_bar_center
+    # Start macro and main loop
     def start_macro(self):
         # 434 705 1029 794
         self.macro_running = True
@@ -2126,21 +2154,15 @@ class App(CTk):
                 return
 
             img_h = img.shape[0]
+            mode = self.vars["fishing_mode"].get()
 
-            fish_template = self.templates["fish"]
-            bar_template  = self.templates["left_bar"]
-
-            fish_template_h = fish_template.shape[0]
-            bar_template_h  = bar_template.shape[0]
-
-            # ---- Fish region (remove bottom bar part) ----
-            fish_region = img[:img_h - bar_template_h - 10, :]
-            fish_x = self._find_template(fish_region, fish_template, 0.8)
-
-            # ---- Bar region (remove top fish part) ----
-            bar_region = img[fish_template_h + 10:, :]
-            left_x = self._find_template(bar_region, bar_template, 0.8)
-            right_x = self._find_template(bar_region, self.templates["right_bar"], 0.8)
+            if mode == "Image":
+                try:
+                    fish_x, left_x, right_x = self._do_image_search(img, img_h)
+                except:
+                    fish_x, left_x, right_x = self._do_pixel_search(img)
+            else:
+                fish_x, left_x, right_x = self._do_pixel_search(img)
 
             # ---- Arrow ----
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
@@ -2214,7 +2236,7 @@ class App(CTk):
             elif arrow_center:
 
                 capture_width = fish_right - fish_left
-                arrow_indicator_x = self._find_arrow_indicator_x(bar_region, arrow_hex, arrow_tol, mouse_down)
+                arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
 
                 if self.vars["fish_overlay"].get() == "on":
                     self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)

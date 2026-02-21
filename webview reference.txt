@@ -1,0 +1,71 @@
+Your friend is likely referring to **pywebview**, a popular and lightweight Python library that allows you to wrap web content (HTML, CSS, and JS) into a native desktop window. Think of it as a "lightweight Electron" for Python.
+
+### Is it compatible?
+
+Yes, **pywebview is cross-platform** and works on Windows, macOS, and Linux. However, since it uses the operating system's native web renderer rather than bundling its own (like Chrome), there are some platform-specific requirements:
+
+| Platform | Native Renderer Used | Requirements |
+| --- | --- | --- |
+| **Windows** | WebView2 (Edge/Chromium) or MSHTML | Requires `WebView2 Runtime` (standard on modern Windows) and `pythonnet`. |
+| **macOS** | Cocoa / WebKit | Requires `PyObjC` (usually pre-installed with system Python). |
+| **Linux** | GTK or Qt | Requires `PyGObject` (for GTK) or `PyQt` / `PySide`. |
+
+---
+
+### How to use it
+
+1. **Installation**
+Open your terminal and run:
+```bash
+pip install pywebview
+
+```
+
+
+2. **Basic Example**
+This script creates a simple window that loads a website:
+```python
+import webview
+
+# 1. Create a window (Title, URL or local HTML file)
+window = webview.create_window('My Desktop App', 'https://www.google.com')
+
+# 2. Start the engine
+webview.start()
+
+```
+
+
+3. **Loading Local HTML**
+If you want to build your own UI from scratch, you can load HTML strings directly:
+```python
+import webview
+
+html = """
+<!DOCTYPE html>
+<html>
+    <head><style>body { font-family: sans-serif; text-align: center; padding: 50px; }</style></head>
+    <body>
+        <h1>Hello from Python!</h1>
+        <p>This is a native window running HTML.</p>
+    </body>
+</html>
+"""
+
+webview.create_window('Local App', html=html)
+webview.start()
+
+```
+
+
+
+### Why use it?
+
+* **Tiny Executables:** Since it doesn't bundle a whole browser, your final app size is much smaller than Electron.
+* **Easy Communication:** You can call Python functions from JavaScript and vice versa.
+* **Native Feel:** It uses native window frames, menus, and file dialogs.
+
+[Turn Your HTML/CSS/JS Skills into Desktop Apps!](https://www.youtube.com/watch?v=g2_wXP8c9dI)
+This video provides a practical walkthrough on how to bridge your web development skills with Python to create functional desktop applications.
+
+**Would you like me to show you how to call a Python function from a button click in the HTML UI?**

@@ -33,7 +33,6 @@ mouse_controller = MouseController()
 set_default_color_theme("blue")
 # from AppKit import NSEvent
 # Area Selector
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
 LAST_CONFIG_PATH = "last_config.json"
 class ShakeAreaSelector(CTkToplevel):
     def __init__(self, parent, area, callback):
@@ -184,23 +183,23 @@ class App(CTk):
 
         CTkButton(
             button_frame,
-            text="Website",
+            text="Website & Forums",
             corner_radius=32,
             command=self.open_link("https://sites.google.com/view/icf-automation-network/")
         ).pack(side="left", padx=6)
 
         CTkButton(
             button_frame,
-            text="YouTube",
+            text="YouTube Channel",
             corner_radius=32,
             command=self.open_link("https://www.youtube.com/@HexaTitanGaming")
         ).pack(side="left", padx=6)
 
         CTkButton(
             button_frame,
-            text="Tutorial",
+            text="Settings Guide",
             corner_radius=32,
-            command=self.open_link("https://docs.google.com/document/d/1qjhgcONxpZZbSAEYiSCXoUXGjQwd7Jghf4EysWC4Cps/edit?usp=drive_link")
+            command=self.open_link("https://docs.google.com/document/d/...")
         ).pack(side="left", padx=6)
 
         # Tabs 
@@ -245,6 +244,7 @@ class App(CTk):
         self.initial_bar_size = None
         # Utility variables
         self.area_selector = None
+        self.rebinding_target = None  # "start" or "stop"
     # BASIC SETTINGS TAB
     def build_basic_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -272,55 +272,33 @@ class App(CTk):
         )
         config_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
-        # Start key
+
         CTkLabel(configs, text="Start Key").grid(
             row=2, column=0, padx=12, pady=6, sticky="w"
         )
-        CTkLabel(configs, text="Screenshot Key").grid(
+        CTkLabel(configs, text="Stop Key").grid(
             row=3, column=0, padx=12, pady=6, sticky="w"
         )
-        CTkLabel(configs, text="Stop Key").grid(
-            row=4, column=0, padx=12, pady=6, sticky="w"
+        self.hotkey_labels["start"] = CTkLabel(configs, text=self._get_key_name(self.hotkey_start))
+        self.hotkey_labels["start"].grid(
+            row=2, column=1, padx=12, pady=6, sticky="w"
         )
-        # Start, screenshot and stop key changer
-        start_key_var = StringVar(value="F5")
-        self.vars["start_key"] = start_key_var
-        start_key_entry = CTkEntry(
-            configs,
-            width=120,
-            textvariable=start_key_var
+        self.hotkey_labels["stop"] = CTkLabel(configs, text=self._get_key_name(self.hotkey_stop))
+        self.hotkey_labels["stop"].grid(
+            row=3, column=1, padx=12, pady=6, sticky="w"
         )
-        start_key_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        screenshot_key_var = StringVar(value="F8")
-        self.vars["screenshot_key"] = screenshot_key_var
-        screenshot_key_entry = CTkEntry(
-            configs,
-            width=120,
-            textvariable=screenshot_key_var
-        )
-        screenshot_key_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
-        stop_key_var = StringVar(value="F7")
-        self.vars["stop_key"] = stop_key_var
-        stop_key_entry = CTkEntry(
-            configs,
-            width=120,
-            textvariable=stop_key_var
-        )
-        stop_key_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
         CTkButton(
             configs,
             text="Change Bar Areas",
             corner_radius=32,
             command=self.open_dual_area_selector
-        ).grid(row=5, column=0, padx=12, pady=12, sticky="w")
+        ).grid(row=4, column=0, padx=12, pady=12, sticky="w")
         CTkButton(
             configs,
-            text="Save Misc Settings",
+            text="Rebind Hotkeys",
             corner_radius=32,
-            command=self.save_misc_settings
-        ).grid(row=5, column=1, padx=12, pady=12, sticky="w")
+            command=self.rebind_hotkeys
+        ).grid(row=4, column=1, padx=12, pady=12, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
         automation.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
@@ -620,13 +598,13 @@ class App(CTk):
             frame,
             text="Take Screenshot",
             corner_radius=32,
-            command=self._take_debug_screenshot
+            command=print("Not implemented yet")
         ).grid(row=1, column=0, padx=12, pady=12, sticky="w")
         CTkButton(
             frame,
             text="Pick Colors",
             corner_radius=32,
-            command=self._pick_colors
+            command=print("Not implemented yet")
         ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
         CTkLabel(frame, text="Left Bar Color:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
@@ -888,19 +866,12 @@ class App(CTk):
 
             data = {
                 "last_rod": self.current_rod_name,
-                "bar_areas": clean_bar_areas,
-
-                # 🔥 Save hotkeys
-                "start_key": self.vars["start_key"].get(),
-                "screenshot_key": self.vars["screenshot_key"].get(),
-                "stop_key": self.vars["stop_key"].get()
+                "bar_areas": clean_bar_areas
             }
+
             with open("last_config.json", "w") as f:
                 json.dump(data, f, indent=4)
-            # 🔥 Immediately update active hotkeys
-            self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
-            self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
-            self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
+
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -936,7 +907,14 @@ class App(CTk):
                 data[f"combobox_{key}"] = combobox.get()
         except Exception as e:
             print(f"Error saving comboboxes: {e}")
-
+        
+        # Save hotkeys
+        try:
+            data["hotkey_start"] = self._get_key_name(self.hotkey_start)
+            data["hotkey_stop"] = self._get_key_name(self.hotkey_stop)
+        except Exception as e:
+            print(f"Error saving hotkeys: {e}")
+        
         # Get rod folder based on config name
         rod_folder = os.path.join(config_dir, name.replace(".json", ""))
         os.makedirs(rod_folder, exist_ok=True)
@@ -1002,6 +980,20 @@ class App(CTk):
                     cb.set(data[key])
         except Exception as e:
             print(f"Error loading comboboxes: {e}")
+        
+        # Load hotkeys
+        try:
+            if "hotkey_start" in data:
+                self.hotkey_start = self._key_name_to_key(data["hotkey_start"])
+            if "hotkey_stop" in data:
+                self.hotkey_stop = self._key_name_to_key(data["hotkey_stop"])
+            # Update labels if they exist
+            if "start" in self.hotkey_labels:
+                self.hotkey_labels["start"].configure(text=self._get_key_name(self.hotkey_start))
+            if "stop" in self.hotkey_labels:
+                self.hotkey_labels["stop"].configure(text=self._get_key_name(self.hotkey_stop))
+        except Exception as e:
+            print(f"Error loading hotkeys: {e}")
 
         self.save_last_config_name(name)
         self.set_status(f"Loaded Config: {name}")
@@ -1013,19 +1005,6 @@ class App(CTk):
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
                     self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
-                    # 🔥 Load hotkeys if present
-                    start_key = data.get("start_key", "F5")
-                    screenshot_key = data.get("screenshot_key", "F8")
-                    stop_key = data.get("stop_key", "F7")
-
-                    self.vars["start_key"].set(start_key)
-                    self.vars["screenshot_key"].set(screenshot_key)
-                    self.vars["stop_key"].set(stop_key)
-
-                    # Convert to pynput keys
-                    self.hotkey_start = self._string_to_key(start_key)
-                    self.hotkey_screenshot = self._string_to_key(screenshot_key)
-                    self.hotkey_stop = self._string_to_key(stop_key)
             else:
                 self.current_rod_name = "Basic Rod"
                 self.bar_areas = {"fish": None, "shake": None}
@@ -1033,15 +1012,31 @@ class App(CTk):
             self.current_rod_name = "Basic Rod"
             self.bar_areas = {"fish": None, "shake": None}
     # Macro functions
-    def _string_to_key(self, key_string):
-        key_string = key_string.strip().lower()
-
-        try:
-            return Key[key_string]
-        except KeyError:
-            return key_string  # normal character keys
     def on_key_press(self, key):
         try:
+            # If we are rebinding, capture key and exit
+            if self.rebinding_target:
+                key_name = self._get_key_name(key)
+
+                if key_name == self._get_key_name(self.hotkey_start) and not self.macro_running:
+                    config_name = self.vars["active_config"].get()
+                    self.save_settings(config_name)
+
+                    self.macro_running = True
+                    self.after(0, self.withdraw)
+                    threading.Thread(target=self.start_macro, daemon=True).start()
+
+                elif key_name == self._get_key_name(self.hotkey_stop):
+                    self.stop_macro()
+
+                self.set_status(
+                    f"{self.rebinding_target.capitalize()} key set to {self._get_key_name(key)}"
+                )
+
+                self.rebinding_target = None
+                return
+
+            # Normal hotkey behavior
             if key == self.hotkey_start and not self.macro_running:
                 config_name = self.vars["active_config"].get()
                 self.save_settings(config_name)
@@ -1050,21 +1045,105 @@ class App(CTk):
                 self.after(0, self.withdraw)
                 threading.Thread(target=self.start_macro, daemon=True).start()
 
-            elif key == self.hotkey_screenshot:
-                self._take_debug_screenshot()
-
             elif key == self.hotkey_stop:
                 self.stop_macro()
 
         except Exception as e:
             print("Hotkey error:", e)
+
     def set_status(self, text, key=None):
         self.status_label.configure(text=text)
+    
+    def _get_key_name(self, key):
+        """Convert a pynput Key object to a readable string name."""
+        if isinstance(key, Key):
+            return key.name.upper()
+        else:
+            return str(key).replace("'", "")
+    
+    def _key_name_to_key(self, key_name):
+        """Convert a string key name back to a pynput Key object."""
+        key_name = key_name.lower()
+        try:
+            return Key[key_name]
+        except KeyError:
+            # If it's not a special key, return the string as is
+            return key_name
+    def rebind_hotkeys(self):
+        dialog = CTkToplevel(self)
+        dialog.title("Rebind Hotkeys")
+        dialog.geometry("400x300")
+        dialog.resizable(False, False)
+
+        dialog.attributes('-topmost', True)
+        dialog.transient(self)
+        dialog.grab_set()
+
+        CTkLabel(
+            dialog,
+            text="Press the key you want to bind",
+            font=CTkFont(size=14, weight="bold")
+        ).pack(pady=10)
+
+        # Start Key
+        CTkLabel(dialog, text="Start Macro Key", font=CTkFont(size=12)).pack(pady=5)
+
+        start_info = CTkLabel(
+            dialog,
+            text=f"Current: {self._get_key_name(self.hotkey_start)}",
+            text_color="gray"
+        )
+        start_info.pack(pady=2)
+
+        def bind_start_key():
+            self.rebinding_target = "start"
+            self.rebind_label = start_info
+            self.set_status("Press new START key...")
+
+        CTkButton(
+            dialog,
+            text="Bind Start Key",
+            command=bind_start_key,
+            corner_radius=8
+        ).pack(pady=10)
+
+        # Stop Key
+        CTkLabel(dialog, text="Stop Macro Key", font=CTkFont(size=12)).pack(pady=5)
+
+        stop_info = CTkLabel(
+            dialog,
+            text=f"Current: {self._get_key_name(self.hotkey_stop)}",
+            text_color="gray"
+        )
+        stop_info.pack(pady=2)
+
+        def bind_stop_key():
+            self.rebinding_target = "stop"
+            self.rebind_label = stop_info
+            self.set_status("Press new STOP key...")
+
+        CTkButton(
+            dialog,
+            text="Bind Stop Key",
+            command=bind_stop_key,
+            corner_radius=8
+        ).pack(pady=10)
+
+        def save_and_close():
+            config_name = self.vars["active_config"].get()
+            self.save_settings(config_name)
+            self.set_status("Hotkeys saved!")
+            dialog.destroy()
+
+        CTkButton(
+            dialog,
+            text="Save & Close",
+            command=save_and_close,
+            corner_radius=8,
+            fg_color="green"
+        ).pack(pady=15)
+
     # Utility functions
-    def _take_debug_screenshot(self):
-        print("Not implemented yet")
-    def _pick_colors(self):
-        print("Not implemented yet")
     def open_link(self, url):
         """Open a URL in the default web browser."""
         return lambda: webbrowser.open(url)
@@ -1134,109 +1213,53 @@ class App(CTk):
 
         self.set_status("Area selector opened (ESC or click button again to close)")
     # Image processing and interaction functions
-    def _find_template_edges(self, frame, template, confidence=0.75):
-        if template is None or frame is None:
-            return None
-
-        # Convert frame to grayscale
-        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-        # Edge detection (much more stable for UI)
-        edges_frame = cv2.Canny(gray_frame, 50, 150)
-        edges_template_base = cv2.Canny(template, 50, 150)
-
-        best_val = 0
-        best_loc = None
-        best_w = None
-
-        # Small multi-scale search (prevents scale mismatch)
-        for scale in np.linspace(0.95, 1.05, 11):
-            resized = cv2.resize(
-                edges_template_base,
-                None,
-                fx=scale,
-                fy=scale,
-                interpolation=cv2.INTER_AREA
-            )
-
-            h, w = resized.shape
-
-            # Skip if template becomes larger than frame
-            if h > edges_frame.shape[0] or w > edges_frame.shape[1]:
-                continue
-
-            result = cv2.matchTemplate(
-                edges_frame,
-                resized,
-                cv2.TM_CCOEFF_NORMED
-            )
-
-            _, max_val, _, max_loc = cv2.minMaxLoc(result)
-
-            if max_val > best_val:
-                best_val = max_val
-                best_loc = max_loc
-                best_w = w
-
-        print(template.shape, ":", best_val)
-
-        if best_val >= confidence and best_loc is not None:
-            return best_loc[0] + best_w // 2
-
-        return None
-    def _find_template_gray(self, frame, template, confidence=0.6):
+    def _find_template(self, frame, template, confidence=0.85):
         if template is None or frame is None:
             return None
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        best_val = 0
-        best_loc = None
-        best_w = None
+        result = cv2.matchTemplate(
+            gray_frame,
+            template,
+            cv2.TM_CCOEFF_NORMED
+        )
 
-        for scale in np.linspace(0.95, 1.05, 11):
-            resized = cv2.resize(
-                template,
-                None,
-                fx=scale,
-                fy=scale,
-                interpolation=cv2.INTER_AREA
-            )
+        _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-            h, w = resized.shape
-            if h > gray_frame.shape[0] or w > gray_frame.shape[1]:
-                continue
+        print("Confidence:", max_val)
 
-            result = cv2.matchTemplate(
-                gray_frame,
-                resized,
-                cv2.TM_CCOEFF_NORMED
-            )
-
-            _, max_val, _, max_loc = cv2.minMaxLoc(result)
-
-            if max_val > best_val:
-                best_val = max_val
-                best_loc = max_loc
-                best_w = w
-
-        print("Fish confidence:", best_val)
-
-        if best_val >= confidence:
-            return best_loc[0] + best_w // 2
+        if max_val >= confidence:
+            h, w = template.shape
+            return max_loc[0] + w // 2
 
         return None
+
     def _prepare_templates(self):
-        """Convert templates to grayscale once."""
+        """Convert templates to grayscale and resize to match in-game size."""
         for key in self.templates:
             if self.templates[key] is None:
                 continue
 
-            if len(self.templates[key].shape) == 3:
-                self.templates[key] = cv2.cvtColor(
-                    self.templates[key],
-                    cv2.COLOR_BGR2GRAY
-                )
+            # Convert to grayscale once
+            self.templates[key] = cv2.cvtColor(
+                self.templates[key],
+                cv2.COLOR_BGR2GRAY
+            )
+
+        # ---- Resize to match real UI size ----
+        # Example scale (replace with your measured value)
+        scale = 0.89  
+
+        for key in ["fish", "left_bar", "right_bar"]:
+            self.templates[key] = cv2.resize(
+                self.templates[key],
+                None,
+                fx=scale,
+                fy=scale,
+                interpolation=cv2.INTER_AREA
+            )
+
     # Pixel Search Functions
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
         """
@@ -2088,6 +2111,19 @@ class App(CTk):
             # Convert to grayscale once
             if len(template.shape) == 3:
                 template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+
+            # Optional: resize to correct scale (adjust this value!)
+            scale = 1.08   # <-- change after measuring
+            template = cv2.resize(
+                template,
+                None,
+                fx=scale,
+                fy=scale,
+                interpolation=cv2.INTER_AREA
+            )
+
+            self.templates[key] = template
+
         arrow_hex = self.vars["arrow_color"].get()
         arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
         bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
@@ -2137,11 +2173,11 @@ class App(CTk):
             cv2.imwrite("debug_bar.png", bar_img)
 
             # ---- Fish region ----
-            fish_x = self._find_template_gray(fish_img, fish_template, 0.3)
+            fish_x = self._find_template(fish_img, fish_template, 0.4)
 
             # ---- Bar region ----
-            left_x = self._find_template_edges(bar_img, bar_template, 0.7)
-            right_x = self._find_template_edges(bar_img, self.templates["right_bar"], 0.7)
+            left_x = self._find_template(bar_img, bar_template, 0.7)
+            right_x = self._find_template(bar_img, self.templates["right_bar"], 0.7)
 
             # ---- Arrow ----
             arrow_center = self._find_color_center(bar_img, arrow_hex, arrow_tol)

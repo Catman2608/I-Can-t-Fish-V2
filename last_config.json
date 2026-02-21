@@ -1,17 +1,1 @@
-{
-    "last_rod": "Basic Rod",
-    "bar_areas": {
-        "shake": {
-            "x": 455,
-            "y": 112,
-            "width": 1006,
-            "height": 636
-        },
-        "fish": {
-            "x": 561,
-            "y": 845,
-            "width": 782,
-            "height": 38
-        }
-    }
-}
+{"last_config": "scratch"}

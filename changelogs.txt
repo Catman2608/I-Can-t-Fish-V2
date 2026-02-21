@@ -1,0 +1,5 @@
+## UPDATE LOG (2.2)
+* Bar colors now use image search for better accuracy
+* Add fish cache settings, and escaping the minigame requires fish position lost and bar position lost.
+* Add an eyedropper tool for color mode
+* It should have an option to track the fish icon instead of the line (this makes ICF V2.2 a beginner-friendly version of IRUS neural)

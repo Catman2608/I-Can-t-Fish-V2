@@ -1142,24 +1142,41 @@ class App(CTk):
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
 
-        def default_area():
+        # Failback areas (if you don't set bar areas it will failback to these values)
+        def default_shake_area():
+            left = int(screen_w * 0.2083)
+            top = int(screen_h * 0.162)
+            right = int(screen_w * 0.7813)
+            bottom = int(screen_h * 0.74)
             return {
-                "x": int(screen_w * 0.3),
-                "y": int(screen_h * 0.4),
-                "width": 200,
-                "height": 150
+                "x": left,
+                "y": top,
+                "width": right - left,
+                "height": bottom - top
+            }
+
+        def default_fish_area():
+            left = int(screen_w * 0.2844)
+            top = int(screen_h * 0.7981)
+            right = int(screen_w * 0.7141)
+            bottom = int(screen_h * 0.8370)
+            return {
+                "x": left,
+                "y": top,
+                "width": right - left,
+                "height": bottom - top
             }
 
         shake_area = (
             self.bar_areas.get("shake")
             if isinstance(self.bar_areas.get("shake"), dict)
-            else default_area()
+            else default_shake_area()
         )
 
         fish_area = (
             self.bar_areas.get("fish")
             if isinstance(self.bar_areas.get("fish"), dict)
-            else default_area()
+            else default_fish_area()
         )
 
         def on_shake_done(shake):

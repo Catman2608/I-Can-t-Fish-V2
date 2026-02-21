@@ -1,1 +1,20 @@
-{"last_config": "default.json"}
+{
+    "last_rod": "Basic Rod",
+    "bar_areas": {
+        "shake": {
+            "x": 399,
+            "y": 174,
+            "width": 1101,
+            "height": 625
+        },
+        "fish": {
+            "x": 546,
+            "y": 861,
+            "width": 825,
+            "height": 42
+        }
+    },
+    "start_key": "F5",
+    "screenshot_key": "F8",
+    "stop_key": "F7"
+}

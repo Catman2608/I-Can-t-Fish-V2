@@ -609,142 +609,86 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-        
-        bar_toggle_settings = CTkFrame(
+        frame = CTkFrame(
             scroll,
             border_width=2
         )
-        bar_toggle_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(bar_toggle_settings, text="Fish Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-
-        CTkLabel(bar_toggle_settings, text="Fish Method:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
-        )
-        fishing_mode_var = StringVar(value="Pixel")
-        self.vars["fishing_mode"] = fishing_mode_var
-
-        fishing_cb = CTkComboBox(
-            bar_toggle_settings,
-            values=["Image", "Pixel"],
-            variable=fishing_mode_var,
-            command=lambda v: self.set_status(f"fishing mode: {v}")
-        )
-        fishing_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        self.comboboxes["fishing_mode"] = fishing_cb
+        frame.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(frame, text="Bar Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(frame, text="#RRGGBB", font=CTkFont(size=14, weight="bold")).grid(row=0, column=1, padx=12, pady=8, sticky="w")
         CTkButton(
-            bar_toggle_settings,
+            frame,
+            text="Take Screenshot",
+            corner_radius=32,
+            command=self._take_debug_screenshot
+        ).grid(row=1, column=0, padx=12, pady=12, sticky="w")
+        CTkButton(
+            frame,
             text="Pick Colors",
             corner_radius=32,
             command=self._pick_colors
-        ).grid(row=0, column=1, padx=12, pady=12, sticky="w")
-        
-        image_settings = CTkFrame(
-            scroll,
-            border_width=2
-        )
-        image_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(image_settings, text="Image Search Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(image_settings, text="Left Bar Confidence:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
-        )
-
-        left_confidence_var = StringVar(value="0.5")
-        self.vars["left_confidence"] = left_confidence_var
-
-        CTkEntry(
-            image_settings,
-            width=120,
-            textvariable=left_confidence_var
-        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        
-        CTkLabel(image_settings, text="Right Bar Confidence:").grid(
-            row=2, column=0, padx=12, pady=10, sticky="w"
-        )
-        right_confidence_var = StringVar(value="0.01")
-        self.vars["right_confidence"] = right_confidence_var
-        right_confidence_entry = CTkEntry(image_settings, placeholder_text="0.01", width=120, textvariable=right_confidence_var)
-        right_confidence_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(image_settings, text="Fish Confidence:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
-
-        fish_confidence_var = StringVar(value="1")
-        self.vars["fish_confidence"] = fish_confidence_var
-
-        CTkEntry(
-            image_settings,
-            width=120,
-            textvariable=fish_confidence_var
-        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
-        pixel_settings = CTkFrame(
-            scroll,
-            border_width=2
-        )
-        pixel_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(pixel_settings, text="Bar Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pixel_settings, text="Left Bar Color:").grid(
+        ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
+        CTkLabel(frame, text="Left Bar Color:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
         left_color_var = StringVar(value="#F1F1F1")
         self.vars["left_color"] = left_color_var
-        CTkEntry(pixel_settings, placeholder_text="#F1F1F1", width=120, textvariable=left_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#F1F1F1", width=120, textvariable=left_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(pixel_settings, text="Right Bar Color:").grid(
+        CTkLabel(frame, text="Right Bar Color:").grid(
             row=3, column=0, padx=12, pady=10, sticky="w"
         )
         right_color_var = StringVar(value="#FFFFFF")
         self.vars["right_color"] = right_color_var
-        CTkEntry(pixel_settings, placeholder_text="#FFFFFF", width=120, textvariable=right_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#FFFFFF", width=120, textvariable=right_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         
-        CTkLabel(pixel_settings, text="Arrow Color:").grid(
+        CTkLabel(frame, text="Arrow Color:").grid(
             row=4, column=0, padx=12, pady=10, sticky="w"
         )
         arrow_color_var = StringVar(value="#848587")
         self.vars["arrow_color"] = arrow_color_var
-        CTkEntry(pixel_settings, placeholder_text="#848587", width=120, textvariable=arrow_color_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#848587", width=120, textvariable=arrow_color_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
         
-        CTkLabel(pixel_settings, text="Fish Color:").grid(
+        CTkLabel(frame, text="Fish Color:").grid(
             row=5, column=0, padx=12, pady=10, sticky="w"
         )
         fish_color_var = StringVar(value="#434B5B")
         self.vars["fish_color"] = fish_color_var
-        CTkEntry(pixel_settings, placeholder_text="#434B5B", width=120, textvariable=fish_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#434B5B", width=120, textvariable=fish_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
         
-        CTkLabel(pixel_settings, text="Fish Color 2:").grid(
+        CTkLabel(frame, text="Fish Color 2:").grid(
             row=6, column=0, padx=12, pady=10, sticky="w"
         )
         fish2_color_var = StringVar(value="#434B5B")
         self.vars["fish2_color"] = fish2_color_var
-        CTkEntry(pixel_settings, placeholder_text="#434B5B", width=120, textvariable=fish2_color_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(frame, placeholder_text="#434B5B", width=120, textvariable=fish2_color_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
         
         left_tolerance_var = StringVar(value="8")
         self.vars["left_tolerance"] = left_tolerance_var
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
+        CTkLabel(frame, text="Tolerance:").grid(
             row=2, column=2, padx=12, pady=10, sticky="w"
         )
-        left_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=left_tolerance_var)
+        left_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=left_tolerance_var)
         left_tolerance_entry.grid(row=2, column=3, padx=12, pady=10, sticky="w")
         
         right_tolerance_var = StringVar(value="8")
         self.vars["right_tolerance"] = right_tolerance_var
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
+        CTkLabel(frame, text="Tolerance:").grid(
             row=3, column=2, padx=12, pady=10, sticky="w"
         )
-        right_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=right_tolerance_var)
+        right_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=right_tolerance_var)
         right_tolerance_entry.grid(row=3, column=3, padx=12, pady=10, sticky="w")
         
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
+        CTkLabel(frame, text="Tolerance:").grid(
             row=4, column=2, padx=12, pady=10, sticky="w"
         )
 
         arrow_tolerance_var = StringVar(value="8")
         self.vars["arrow_tolerance"] = arrow_tolerance_var
-        arrow_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=arrow_tolerance_var)
+        arrow_tolerance_entry = CTkEntry(frame, placeholder_text="8", width=120, textvariable=arrow_tolerance_var)
         arrow_tolerance_entry.grid(row=4, column=3, padx=12, pady=10, sticky="w")
         
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
+        CTkLabel(frame, text="Tolerance:").grid(
             row=5, column=2, padx=12, pady=10, sticky="w"
         )
 
@@ -752,12 +696,12 @@ class App(CTk):
         self.vars["fish_tolerance"] = fish_tolerance_var
 
         CTkEntry(
-            pixel_settings,
+            frame,
             width=120,
             textvariable=fish_tolerance_var
         ).grid(row=5, column=3, padx=12, pady=10, sticky="w")
         
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
+        CTkLabel(frame, text="Tolerance:").grid(
             row=6, column=2, padx=12, pady=10, sticky="w"
         )
 
@@ -765,18 +709,18 @@ class App(CTk):
         self.vars["fish2_tolerance"] = fish2_tolerance_var
 
         CTkEntry(
-            pixel_settings,
+            frame,
             width=120,
             textvariable=fish2_tolerance_var
         ).grid(row=6, column=3, padx=12, pady=10, sticky="w")
         
-        ratio_settings = CTkFrame(
+        frame2 = CTkFrame(
             scroll,
             border_width=2
         )
-        ratio_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(ratio_settings, text="Minigame Timing & Limits", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(ratio_settings, text="Bar Ratio From Side:").grid(
+        frame2.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(frame2, text="Minigame Timing & Limits", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(frame2, text="Bar Ratio From Side:").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
 
@@ -784,20 +728,20 @@ class App(CTk):
         self.vars["bar_ratio"] = bar_ratio_var
 
         CTkEntry(
-            ratio_settings,
+            frame2,
             width=120,
             textvariable=bar_ratio_var
         ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
         
-        CTkLabel(ratio_settings, text="Scan delay (seconds):").grid(
+        CTkLabel(frame2, text="Scan delay (seconds):").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
         minigame_scan_delay_var = StringVar(value="0.01")
         self.vars["minigame_scan_delay"] = minigame_scan_delay_var
-        minigame_scan_delay_entry = CTkEntry(ratio_settings, placeholder_text="0.01", width=120, textvariable=minigame_scan_delay_var)
+        minigame_scan_delay_entry = CTkEntry(frame2, placeholder_text="0.01", width=120, textvariable=minigame_scan_delay_var)
         minigame_scan_delay_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(ratio_settings, text="Restart Delay:").grid(
+        CTkLabel(frame2, text="Restart Delay:").grid(
             row=3, column=0, padx=12, pady=10, sticky="w"
         )
 
@@ -805,18 +749,18 @@ class App(CTk):
         self.vars["restart_delay"] = restart_delay_var
 
         CTkEntry(
-            ratio_settings,
+            frame2,
             width=120,
             textvariable=restart_delay_var
         ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        pid_settings = CTkFrame(
+        frame3 = CTkFrame(
             scroll,
             border_width=2
         )
-        pid_settings.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(pid_settings, text="PID Controller Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pid_settings, text="Proportional gain:").grid(
+        frame3.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(frame3, text="PID Controller Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(frame3, text="Proportional gain:").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
 
@@ -824,22 +768,22 @@ class App(CTk):
         self.vars["proportional_gain"] = p_gain_var
 
         CTkEntry(
-            pid_settings,
+            frame3,
             width=120,
             textvariable=p_gain_var
         ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pid_settings, text="Derivative gain:").grid(
+        CTkLabel(frame3, text="Derivative gain:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
 
         d_gain_var = StringVar(value="0.01")
         self.vars["derivative_gain"] = d_gain_var
         CTkEntry(
-            pid_settings,
+            frame3,
             width=120,
             textvariable=d_gain_var
         ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pid_settings, text="Velocity Smoothing:").grid(
+        CTkLabel(frame3, text="Velocity Smoothing:").grid(
             row=3, column=0, padx=12, pady=10, sticky="w"
         )
 
@@ -847,7 +791,7 @@ class App(CTk):
         self.vars["velocity_smoothing"] = velocity_smoothing_var
 
         CTkEntry(
-            pid_settings,
+            frame3,
             width=120,
             textvariable=velocity_smoothing_var
         ).grid(row=3, column=1, padx=12, pady=10, sticky="w")

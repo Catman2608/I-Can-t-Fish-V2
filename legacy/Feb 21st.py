@@ -1134,20 +1134,97 @@ class App(CTk):
 
         self.set_status("Area selector opened (ESC or click button again to close)")
     # Image processing and interaction functions
-    def _find_template(self, frame, template, confidence=0.85):
+    def _find_template_edges(self, frame, template, confidence=0.75):
+        if template is None or frame is None:
+            return None
+
+        # Convert frame to grayscale
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+        # Edge detection (much more stable for UI)
+        edges_frame = cv2.Canny(gray_frame, 50, 150)
+        edges_template_base = cv2.Canny(template, 50, 150)
+
+        best_val = 0
+        best_loc = None
+        best_w = None
+
+        # Small multi-scale search (prevents scale mismatch)
+        for scale in np.linspace(0.85, 1.15, 21):
+            resized = cv2.resize(
+                edges_template_base,
+                None,
+                fx=scale,
+                fy=scale,
+                interpolation=cv2.INTER_AREA
+            )
+
+            h, w = resized.shape
+
+            # Skip if template becomes larger than frame
+            if h > edges_frame.shape[0] or w > edges_frame.shape[1]:
+                continue
+
+            result = cv2.matchTemplate(
+                edges_frame,
+                resized,
+                cv2.TM_CCOEFF_NORMED
+            )
+
+            _, max_val, _, max_loc = cv2.minMaxLoc(result)
+
+            if max_val > best_val:
+                best_val = max_val
+                best_loc = max_loc
+                best_w = w
+
+        print("Bar confidence:", best_val)
+
+        if best_val >= confidence and best_loc is not None:
+            return best_loc[0] + best_w // 2
+
+        return None
+    def _find_template_gray(self, frame, template, confidence=0.6):
         if template is None or frame is None:
             return None
 
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        gray_frame = cv2.equalizeHist(gray_frame)
+        template = cv2.equalizeHist(template)
+        best_val = 0
+        best_loc = None
+        best_w = None
 
-        result = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
-        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+        for scale in np.linspace(0.85, 1.15, 21):
+            resized = cv2.resize(
+                template,
+                None,
+                fx=scale,
+                fy=scale,
+                interpolation=cv2.INTER_AREA
+            )
 
-        print(template.shape, ": ", max_val)
+            h, w = resized.shape
+            if h > gray_frame.shape[0] or w > gray_frame.shape[1]:
+                continue
 
-        if max_val >= confidence:
-            h, w = template.shape
-            return max_loc[0] + w // 2   # X relative to frame
+            result = cv2.matchTemplate(
+                gray_frame,
+                resized,
+                cv2.TM_CCOEFF_NORMED
+            )
+
+            _, max_val, _, max_loc = cv2.minMaxLoc(result)
+
+            if max_val > best_val:
+                best_val = max_val
+                best_loc = max_loc
+                best_w = w
+
+        print("Fish confidence:", best_val)
+
+        if best_val >= confidence:
+            return best_loc[0] + best_w // 2
 
         return None
     def _prepare_templates(self):
@@ -2045,32 +2122,30 @@ class App(CTk):
                 mouse_controller.release(Button.left)
                 mouse_down = False
         while self.macro_running: # Main macro loop
-            img = self._grab_screen_region(
-                fish_left, fish_top, fish_right, fish_bottom
-            )
-
-            if img is None:
-                return
-
-            img_h = img.shape[0]
-
             fish_template = self.templates["fish"]
             bar_template  = self.templates["left_bar"]
 
-            fish_template_h = fish_template.shape[0]
-            bar_template_h  = bar_template.shape[0]
+            total_height = fish_bottom - fish_top
+            size = fish_top + int(total_height * 0.4)  # adjust 0.5–0.65
 
-            # ---- Fish region (remove bottom bar part) ----
-            fish_region = img[:img_h - bar_template_h - 10, :]
-            fish_x = self._find_template(fish_region, fish_template, 0.8)
+            fish_img = self._grab_screen_region(
+                fish_left, fish_top, fish_right, size
+            )
 
-            # ---- Bar region (remove top fish part) ----
-            bar_region = img[fish_template_h + 10:, :]
-            left_x = self._find_template(bar_region, bar_template, 0.8)
-            right_x = self._find_template(bar_region, self.templates["right_bar"], 0.8)
+            bar_img = self._grab_screen_region(
+                fish_left, size, fish_right, fish_bottom
+            )
+            cv2.imwrite("debug_bar.png", bar_img)
+
+            # ---- Fish region ----
+            fish_x = self._find_template_gray(fish_img, fish_template, 0.4)
+
+            # ---- Bar region ----
+            left_x = self._find_template_edges(bar_img, bar_template, 0.8)
+            right_x = self._find_template_edges(bar_img, self.templates["right_bar"], 0.8)
 
             # ---- Arrow ----
-            arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
+            arrow_center = self._find_color_center(bar_img, arrow_hex, arrow_tol)
 
             # ---- FISH NOT FOUND ----
             if fish_x is not None:
@@ -2141,7 +2216,7 @@ class App(CTk):
             elif arrow_center:
 
                 capture_width = fish_right - fish_left
-                arrow_indicator_x = self._find_arrow_indicator_x(bar_region, arrow_hex, arrow_tol, mouse_down)
+                arrow_indicator_x = self._find_arrow_indicator_x(bar_img, arrow_hex, arrow_tol, mouse_down)
 
                 if self.vars["fish_overlay"].get() == "on":
                     self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)

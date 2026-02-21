@@ -1,1 +1,20 @@
-{"last_config": "scratch"}
+{
+    "last_rod": "Basic Rod",
+    "bar_areas": {
+        "shake": {
+            "x": 997,
+            "y": 355,
+            "width": 200,
+            "height": 150
+        },
+        "fish": {
+            "x": 545,
+            "y": 719,
+            "width": 832,
+            "height": 197
+        }
+    },
+    "start_key": "F5",
+    "screenshot_key": "F8",
+    "stop_key": "F7"
+}

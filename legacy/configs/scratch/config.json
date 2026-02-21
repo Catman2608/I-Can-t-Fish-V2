@@ -1,7 +1,7 @@
 {
     "active_config": "scratch.json",
     "start_key": "F5",
-    "screenshot_key": "F8",
+    "screenshot_key": "F6",
     "stop_key": "F7",
     "auto_select_rod": "on",
     "auto_zoom_in": "off",

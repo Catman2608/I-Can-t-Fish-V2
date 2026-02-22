@@ -1,8 +1,5 @@
 {
     "active_config": "scratch.json",
-    "start_key": "F5",
-    "screenshot_key": "F6",
-    "stop_key": "F7",
     "auto_select_rod": "on",
     "auto_zoom_in": "off",
     "fish_overlay": "on",
@@ -41,5 +38,7 @@
     "perfect_color": "#5FA84B",
     "combobox_active_config": "scratch.json",
     "combobox_capture_mode": "MSS",
-    "combobox_shake_mode": "Navigation"
+    "combobox_shake_mode": "Navigation",
+    "hotkey_start": "F5",
+    "hotkey_stop": "F7"
 }

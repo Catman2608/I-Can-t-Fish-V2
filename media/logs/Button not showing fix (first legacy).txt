@@ -1,0 +1,496 @@
+You: In this Python code, the start button does not show up.
+from customtkinter import * # Based on IRUS Idiotproof design
+# from PIL import image
+# CTk not Ctk or CTK
+app = CTk() # initialize window
+app.geometry("800x550")
+set_appearance_mode("dark")
+# img = Image.open("start.png")
+# All parameters for CTk button: btn = CTkButton(master=app, text="Click Me", corner_radius=32, fg_color="#4158D0", hover_color="#C850C0" , border_color="#FFCC70", border_width=2, image= CTkImage(dark_image=img, light_image=img))
+btn = CTkButton(master = app, text = "Start", corner_radius = 32)
+lbl = CTkLabel(master = app, text = "General Settings", font = ("Inconsolata", 20), text_color = "#FFFFFF")
+btn.place(relx = 0.5, rely = 0.5, anchor = "center")
+lbl.place(relx = 0.5, rely = 0.5, anchor = "center")
+
+app.mainloop() # Show GUI
+ChatGPT responded:
+The button **is actually there**, but it’s being **covered by the label**.
+
+### What’s happening
+
+You place **both widgets at the exact same position**:
+
+```python
+btn.place(relx=0.5, rely=0.5, anchor="center")
+lbl.place(relx=0.5, rely=0.5, anchor="center")
+```
+
+Since `lbl` is created **after** `btn`, it sits **on top of the button**, hiding it.
+
+---
+
+### ✅ Simple Fix (move one of them)
+
+For example, move the label slightly up:
+
+```python
+btn.place(relx=0.5, rely=0.55, anchor="center")
+lbl.place(relx=0.5, rely=0.45, anchor="center")
+```
+
+---
+
+### ✅ Better Fix (recommended: use `grid`)
+
+`grid()` avoids overlapping issues and is cleaner:
+
+```python
+from customtkinter import *
+
+set_appearance_mode("dark")
+
+app = CTk()
+app.geometry("800x550")
+
+lbl = CTkLabel(app, text="General Settings", font=("Inconsolata", 20))
+lbl.grid(row=0, column=0, pady=20)
+
+btn = CTkButton(app, text="Start", corner_radius=32)
+btn.grid(row=1, column=0, pady=20)
+
+app.grid_columnconfigure(0, weight=1)
+
+app.mainloop()
+```
+
+---
+
+### Extra tip
+
+Always set appearance mode **before** creating widgets (you already did it right 👍).
+
+If you want, I can also:
+
+* Add a **command** to the Start button
+* Center everything perfectly
+* Style it like IRUS / Idiotproof UI
+
+Just tell me 🙂
+You: I added more buttons and labels examples but there are 2 problems:
+The text box is misaligned (I want everything to align to left)
+  File "e:\Code\Python\Longest Fisching V1.1\LF1.1.py", line 19
+    print(f"Entered value: {entry.get("0.0", "end")}")
+                                       ^^^
+SyntaxError: f-string: unmatched '('
+from customtkinter import *
+# from PIL import image
+# CTk not Ctk or CTK
+
+set_appearance_mode("dark")
+app = CTk()
+app.geometry("800x550")
+
+lbl = CTkLabel(app, text="General Settings", font=("Inconsolata", 20))
+lbl.grid(row=0, column=0, pady=20)
+# img = Image.open("start.png")
+
+# Button example
+# All parameters for CTk button: 
+# btn = CTkButton(master=app, text="Click Me", corner_radius=32, fg_color="#4158D0", hover_color="#C850C0" , border_color="#FFCC70", border_width=2, image= CTkImage(dark_image=img, light_image=img))
+# From foreground color can be applied to lbl and combo box
+def rebind():
+    print("Start key rebinded to F5")
+    print(f"Entered value: {entry.get("0.0", "end")}")
+def save_settings():
+    print("Settings saved")
+btn = CTkButton(app, text="Start", corner_radius=32, command=rebind)
+btn.grid(row=1, column=0, pady=20)
+# Combo box
+combobox = CTkComboBox(master=app, values = ["Click", "Navigation"], command=save_settings)
+combobox.grid(row=2, column=0, pady=20)
+
+# Debate: Checkbox or switch
+# Checkbox example
+checkbox = CTkCheckBox(master=app, text="Auto Select Rod", checkbox_height = 30, checkbox_width = 30, corner_radius = 2)
+checkbox.grid(row=3, column=0, pady=20)
+# Switch example
+switch = CTkSwitch(master=app, text="Perfect Cast")
+switch.grid(row=4, column=0, pady=20)
+
+# Slider example
+# All parameters for CTK Slider:
+# slider = CTkSlider(master=app, from_=0, to = 100 number_of_steps=5, button_color="#C850C0", progress_color= "#C850C0", orientation="vertical")
+slider = CTkSlider(master=app, from_ = 0, to=2, number_of_steps = 0.1)
+slider.grid(row=5, column=0, pady=20)
+
+# Text input example
+entry = CTkEntry(master=app, placeholder_text="255255255", width = 130, text_color = "#FFFFFF")
+entry.grid(row=6, column=0, pady=20)
+app.grid_columnconfigure(0, weight=1)
+
+# Textbox example (used in rhythm quiz)
+textbox = CTkTextbox(master=app, scrollbar_button_color = "#676767", corner_radius = 16, border_color = "#676767", border_width = 2)
+textbox.grid(row=0, column=1, pady=20)
+
+app.mainloop()
+ChatGPT responded:
+You’ve got **two separate issues**, and both are very common. Let’s fix them cleanly 👍
+
+---
+
+## ✅ Problem 1: `SyntaxError: f-string: unmatched '('`
+
+### What’s wrong
+
+This line:
+
+```python
+print(f"Entered value: {entry.get("0.0", "end")}")
+```
+
+You are using **double quotes inside a double-quoted f-string**, which breaks Python’s parsing.
+
+---
+
+### ✅ Fix (use single quotes inside)
+
+```python
+print(f"Entered value: {entry.get('0.0', 'end')}")
+```
+
+✔ This fixes the syntax error.
+
+> ⚠️ Note: `CTkEntry` does **not** use `"0.0", "end"` — that’s for `CTkTextbox`.
+
+So the **correct way** to read an entry is:
+
+```python
+print(f"Entered value: {entry.get()}")
+```
+
+👉 **Recommended final version**:
+
+```python
+def rebind():
+    print("Start key rebinded to F5")
+    print(f"Entered value: {entry.get()}")
+```
+
+---
+
+## ✅ Problem 2: Widgets not aligned to the left
+
+Right now, everything is centered because of this line:
+
+```python
+app.grid_columnconfigure(0, weight=1)
+```
+
+When a column has weight, widgets expand and center unless told otherwise.
+
+---
+
+## ✅ Correct way to left-align EVERYTHING
+
+You need **three things**:
+
+### 1️⃣ Remove column centering
+
+Change this:
+
+```python
+app.grid_columnconfigure(0, weight=1)
+```
+
+To this:
+
+```python
+app.grid_columnconfigure(0, weight=0)
+app.grid_columnconfigure(1, weight=0)
+```
+
+---
+
+### 2️⃣ Use `sticky="w"` (west = left)
+
+Apply this to **every widget** in the column:
+
+```python
+sticky="w"
+```
+
+---
+
+### 3️⃣ Add left padding for clean layout
+
+Use:
+
+```python
+padx=20
+```
+
+---
+
+## ✅ Example: Clean left-aligned layout (fixed)
+
+```python
+lbl.grid(row=0, column=0, pady=20, padx=20, sticky="w")
+
+btn.grid(row=1, column=0, pady=10, padx=20, sticky="w")
+
+combobox.grid(row=2, column=0, pady=10, padx=20, sticky="w")
+
+checkbox.grid(row=3, column=0, pady=10, padx=20, sticky="w")
+
+switch.grid(row=4, column=0, pady=10, padx=20, sticky="w")
+
+slider.grid(row=5, column=0, pady=10, padx=20, sticky="w")
+
+entry.grid(row=6, column=0, pady=10, padx=20, sticky="w")
+```
+
+---
+
+## ✅ Textbox alignment (right column)
+
+Your textbox is in column 1 but also centered vertically only.
+
+Make it align to top-left:
+
+```python
+textbox.grid(row=0, column=1, rowspan=7, padx=20, pady=20, sticky="nw")
+```
+
+---
+
+## ✅ Final result
+
+* ✅ No syntax error
+* ✅ All controls aligned left
+* ✅ Textbox properly placed on the right
+* ✅ Clean “settings panel” layout (perfect for LF1.1)
+
+If you want next:
+
+* Scrollable settings panel
+* Section headers
+* IRUS-style spacing system
+* Auto-resizing layout
+
+Just tell me 🔧✨
+You: Now, I added tabs and frames, but there is a new problem:
+Traceback (most recent call last):
+  File "e:\Code\Python\Longest Fisching V1.1\LF1.1.py", line 6, in <module>
+    set_default_color_theme("#FF0000")
+  File "C:\Users\NC\AppData\Local\Programs\Python\Python310\lib\site-packages\customtkinter\__init__.py", line 69, in set_default_color_theme
+    ThemeManager.load_theme(color_string)
+  File "C:\Users\NC\AppData\Local\Programs\Python\Python310\lib\site-packages\customtkinter\windows\widgets\theme\theme_manager.py", line 23, in load_theme
+    with open(theme_name_or_path, "r") as f:
+FileNotFoundError: [Errno 2] No such file or directory: '#FF0000'
+from customtkinter import *
+# from PIL import image
+# CTk not Ctk or CTK
+# Default themes
+set_appearance_mode("dark")
+set_default_color_theme("#FF0000")
+app = CTk()
+app.geometry("800x550")
+# App = outside of tabs, [tab name] = inside tabs
+lbl = CTkLabel(app, text="Settings", font=("Inconsolata", 20))
+lbl.grid(row=0, column=0, pady=20)
+# img = Image.open("start.png")
+tabview = CTkTabview(master=app, width=780, height=400)
+tabview.grid(row=1, column=0, pady=20, padx=20, sticky="nsew")
+tabview.add("General Settings")
+tabview.add("Shake Settings")
+tabview.add("Minigame Settings")
+# Button example
+# All parameters for CTk button: 
+# btn = CTkButton(master=app, text="Click Me", corner_radius=32, fg_color="#4158D0", hover_color="#C850C0" , border_color="#FFCC70", border_width=2, image= CTkImage(dark_image=img, light_image=img))
+# From foreground color can be applied to lbl and combo box
+def rebind():
+    print("Start key rebinded to F5")
+    print(f"Entered value: {entry.get('0.0', 'end')}")
+def save_settings():
+    print("Settings saved")
+# Scrollable frame example: 
+# frame = CTkScrollableFrame (master=app, fg_color="#8D6F3A", border_color="#FFCC70", border_width=2, orientation="vertical", scrollbar_button_color="#FFCC70")
+frame = CTkFrame(master=tabview.tab("General Settings"), fg_color = "#222222", border_color = "#00FF00", border_width = 2)
+btn = CTkButton(master=frame, text="Start", corner_radius=32, command=rebind)
+btn.grid(row=1, column=0, pady=20, padx=20, sticky="w")
+# Combo box
+combobox = CTkComboBox(master=frame, values = ["Click", "Navigation"], command=save_settings)
+combobox.grid(row=2, column=0, pady=20, padx=20, sticky="w")
+
+# Debate: Checkbox or switch
+# Checkbox example
+checkbox = CTkCheckBox(master=frame, text="Auto Select Rod", checkbox_height = 30, checkbox_width = 30, corner_radius = 2)
+checkbox.grid(row=3, column=0, pady=20, padx=20, sticky="w")
+# Switch example
+switch = CTkSwitch(master=frame, text="Perfect Cast")
+switch.grid(row=4, column=0, pady=20, padx=20, sticky="w")
+
+# Second frame
+frame2 = CTkFrame(master=tabview.tab("General Settings"), fg_color = "#222222", border_color = "#FFF000", border_width = 2)
+
+# Slider example
+# All parameters for CTK Slider:
+# slider = CTkSlider(master=app, from_=0, to = 100 number_of_steps=5, button_color="#C850C0", progress_color= "#C850C0", orientation="vertical")
+slider = CTkSlider(master=frame2, from_ = 0, to=2, number_of_steps = 0.1)
+slider.grid(row=0, column=0, pady=20, padx=20, sticky="w")
+
+# Text input example
+entry = CTkEntry(master=frame2, placeholder_text="255255255", width = 130, text_color = "#FFFFFF")
+entry.grid(row=1, column=0, pady=20, padx=20, sticky="w")
+
+# Textbox example (used in rhythm quiz)
+textbox = CTkTextbox(master=frame2, scrollbar_button_color = "#676767", corner_radius = 16, border_color = "#676767", border_width = 2)
+textbox.grid(row=2, column=0, rowspan=5, padx=20, pady=20, sticky="nw")
+
+frame.grid(row=0, column=0, pady=20, padx=20, sticky="nsew")
+frame2.grid(row=0, column=1, pady=20, padx=20, sticky="nsew")
+
+app.grid_rowconfigure(0, weight=0)
+app.grid_rowconfigure(1, weight=1)
+app.grid_columnconfigure(0, weight=1)
+
+app.mainloop()
+ChatGPT responded: Good news: **your tabs & frames are fine** 👍
+The crash is caused by **one specific misunderstanding of `customtkinter` themes**.
+
+---
+
+## ❌ The Problem (why it crashes)
+
+This line:
+
+```python
+set_default_color_theme("#FF0000")
+```
+
+`set_default_color_theme()` **does NOT accept hex colors**.
+
+Internally, CustomTkinter treats the argument as **a filename**, so it literally tries to open:
+
+```
+"#FF0000"
+```
+
+→ which obviously does not exist
+→ hence:
+
+```
+FileNotFoundError: No such file or directory: '#FF0000'
+```
+
+---
+
+## ✅ What `set_default_color_theme()` actually accepts
+
+Only **theme names** or **JSON theme files**:
+
+### Built-in themes
+
+```python
+set_default_color_theme("blue")
+set_default_color_theme("green")
+set_default_color_theme("dark-blue")
+```
+
+### OR a JSON file
+
+```python
+set_default_color_theme("my_theme.json")
+```
+
+---
+
+## ✅ Correct Fix (pick ONE)
+
+### ✔ Option 1 — Use a built-in theme (simplest)
+
+```python
+set_appearance_mode("dark")
+set_default_color_theme("dark-blue")
+```
+
+---
+
+### ✔ Option 2 — Keep your red color (correct way)
+
+You **do NOT** set colors via theme — you set them per widget:
+
+```python
+btn = CTkButton(
+    master=frame,
+    text="Start",
+    fg_color="#FF0000",
+    hover_color="#CC0000"
+)
+```
+
+Same for frames:
+
+```python
+frame = CTkFrame(
+    master=tabview.tab("General Settings"),
+    fg_color="#222222",
+    border_color="#FF0000",
+    border_width=2
+)
+```
+
+✅ This is the **correct CustomTkinter pattern**
+
+---
+
+## ⚠️ One more small bug you should fix now
+
+You still have this in `rebind()`:
+
+```python
+print(f"Entered value: {entry.get('0.0', 'end')}")
+```
+
+But `entry` is a **CTkEntry**, not a textbox.
+
+### Fix it:
+
+```python
+print(f"Entered value: {entry.get()}")
+```
+
+---
+
+## ✅ Final corrected startup section (safe)
+
+```python
+from customtkinter import *
+
+set_appearance_mode("dark")
+set_default_color_theme("dark-blue")  # NOT a hex color
+
+app = CTk()
+app.geometry("800x550")
+```
+
+---
+
+## 🎯 Summary
+
+| Issue       | Cause                     | Fix                             |
+| ----------- | ------------------------- | ------------------------------- |
+| Theme crash | Hex color passed as theme | Use `"blue"` or JSON theme      |
+| Red styling | Wrong API                 | Use `fg_color` / `border_color` |
+| Entry get() | Textbox syntax            | Use `entry.get()`               |
+
+---
+
+If you want next:
+
+* Custom **red theme JSON**
+* Scrollable tab layouts
+* IRUS-style panel system
+* Responsive resizing per tab
+
+Just say the word 🔧🔥

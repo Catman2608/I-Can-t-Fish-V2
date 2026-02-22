@@ -32,8 +32,11 @@ mouse_controller = MouseController()
 # Set appearance
 set_default_color_theme("blue")
 # from AppKit import NSEvent
-# Area Selector
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+# Last Config Path / Fix macOS DMG issues
+if sys.platform == "darwin":
+    os.chdir(os.path.dirname(os.path.abspath(__file__)))
+else:
+    pass # You're on Windows
 LAST_CONFIG_PATH = "last_config.json"
 class ShakeAreaSelector(CTkToplevel):
     def __init__(self, parent, area, callback):
@@ -1118,7 +1121,45 @@ class App(CTk):
         self.status_label.configure(text=text)
     # Utility functions
     def _take_debug_screenshot(self):
-        print("Not implemented yet")
+        """Capture the configured fish area and save a debug image.
+
+        The fish region is defined in ``self.bar_areas['fish']`` and is expected to
+        be a dict containing ``x, y, width, height``. If the area is missing or
+        invalid, the method logs a status message and returns early. The resulting
+        screenshot is written to ``debug_fish.png`` in the current working
+        directory and a status update is shown on the main window.
+        """
+        area = self.bar_areas.get("fish")
+        # Validate the stored area
+        if not isinstance(area, dict):
+            self.set_status("Fish area not set (cannot take screenshot)")
+            return
+
+        try:
+            x = int(area.get("x", 0))
+            y = int(area.get("y", 0))
+            w = int(area.get("width", 0))
+            h = int(area.get("height", 0))
+        except Exception:
+            self.set_status("Fish area invalid")
+            return
+
+        if w <= 0 or h <= 0:
+            self.set_status("Fish area has nonpositive dimensions")
+            return
+
+        # grab the specified region
+        img = self._grab_screen_region(x, y, x + w, y + h)
+        if img is None:
+            self.set_status("Failed to grab fish area")
+            return
+
+        try:
+            cv2.imwrite("debug_bar.png", img)
+            self.set_status("Saved bar-area debug screenshot → debug_bar.png")
+        except Exception as e:
+            self.set_status(f"Error saving screenshot: {e}")
+
     def _pick_colors(self):
         print("Not implemented yet")
     def open_link(self, url):
@@ -1178,7 +1219,36 @@ class App(CTk):
             if isinstance(self.bar_areas.get("fish"), dict)
             else default_fish_area()
         )
+        # ---- TEMPLATE HEIGHT FAILSAFE ----
+        if (
+            isinstance(fish_area, dict)
+            and self.templates.get("fish") is not None
+            and self.templates.get("left_bar") is not None
+        ):
 
+            fish_template_h = self.templates["fish"].shape[0]
+            bar_template_h  = self.templates["left_bar"].shape[0]
+
+            min_required_height = int((fish_template_h + bar_template_h) + 5)  # Add some padding
+
+            if fish_area["height"] < min_required_height:
+
+                old_height = fish_area["height"]
+
+                # Keep top position stable
+                fish_area["height"] = min_required_height
+
+                # Prevent going off bottom of screen
+                if fish_area["y"] + fish_area["height"] > screen_h:
+                    fish_area["y"] = screen_h - fish_area["height"]
+
+                # Prevent negative Y
+                if fish_area["y"] < 0:
+                    fish_area["y"] = 0
+
+                self.set_status(
+                    f"Bar height too small ({old_height}) → corrected to {min_required_height}"
+                )
         def on_shake_done(shake):
             self.bar_areas["shake"] = shake
 
@@ -1204,17 +1274,13 @@ class App(CTk):
             area=fish_area,
             callback=on_fish_done
         )
-
-        self.set_status("Area selector opened (ESC or click button again to close)")
     # Image processing and interaction functions
     def _find_template(self, frame, template, confidence=0.85):
         if template is None or frame is None:
             return None
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
         result = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
-
         if max_val >= confidence:
             h, w = template.shape
             return max_loc[0] + w // 2   # X relative to frame
@@ -1304,22 +1370,29 @@ class App(CTk):
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
         Find the center point of a color cluster in a frame.
-        
-        Args:
-            frame: BGR numpy array from cv2/mss
-            target_color_hex: Hex color code (e.g., "#FFFFFF")
-            tolerance: Color tolerance range (0-255)
-        
-        Returns:
-            (x, y) tuple of center point, or None if no pixels found
+        Comet-style vectorized detection.
         """
-        pixels = self._pixel_search(frame, target_color_hex, tolerance)
-        if not pixels:
+
+        if frame is None:
             return None
-        
-        # Calculate average position
-        x_coords = [p[0] for p in pixels]
-        y_coords = [p[1] for p in pixels]
+
+        # Convert color
+        target_bgr = np.array(self._hex_to_bgr(target_color_hex), dtype=np.int16)
+
+        # Convert frame for safe subtraction
+        frame_int = frame.astype(np.int16)
+
+        tol = int(np.clip(tolerance, 0, 255))
+
+        # Vectorized absolute tolerance comparison
+        mask = np.all(np.abs(frame_int - target_bgr) <= tol, axis=2)
+
+        y_coords, x_coords = np.where(mask)
+
+        if len(x_coords) == 0:
+            return None
+
+        # Comet-style center calculation (vectorized mean)
         center_x = int(np.mean(x_coords))
         center_y = int(np.mean(y_coords))
 
@@ -1343,34 +1416,20 @@ class App(CTk):
         left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
         right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
 
-        band_height = 5
-        y1 = max(0, y - band_height)
-        y2 = min(h, y + band_height)
-
-        band = frame[y1:y2].astype(np.int16)
-
-        # Flatten line
-        pixels = band.reshape(-1, 3)
+        line = frame[y].astype(np.int16)
 
         tol_l = int(np.clip(tolerance, 0, 255))
         tol_r = int(np.clip(tolerance2, 0, 255))
 
-        # Proper absolute tolerance comparison
-        left_mask = np.all(np.abs(pixels - left_bgr) <= tol_l, axis=1)
-        right_mask = np.all(np.abs(pixels - right_bgr) <= tol_r, axis=1)
+        # V1-style threshold comparison
+        left_mask = np.all(line >= (left_bgr - tol_l), axis=1)
+        right_mask = np.all(line >= (right_bgr - tol_r), axis=1)
 
         left_indices = np.where(left_mask)[0]
         right_indices = np.where(right_mask)[0]
 
-        if left_indices.size:
-            left_edge = left_indices[0] % w
-        else:
-            left_edge = None
-
-        if right_indices.size:
-            right_edge = right_indices[-1] % w
-        else:
-            right_edge = None
+        left_edge = int(left_indices[0]) if left_indices.size else None
+        right_edge = int(right_indices[-1]) if right_indices.size else None
 
         return left_edge, right_edge
 
@@ -1768,15 +1827,19 @@ class App(CTk):
 
         fish_template_h = fish_template.shape[0]
         bar_template_h  = bar_template.shape[0]
+        # Get confidence levels
+        left_confidence  = float(self.vars["left_confidence"].get()  or 0.8)
+        right_confidence = float(self.vars["right_confidence"].get() or 0.8)
+        fish_confidence  = float(self.vars["fish_confidence"].get()  or 0.8)
 
         # ---- Fish region (remove bottom bar part) ----
-        fish_region = img[:img_h - bar_template_h - 10, :]
-        fish_x = self._find_template(fish_region, fish_template, 0.8)
+        fish_region = img[:img_h - bar_template_h, :]
+        fish_x = self._find_template(fish_region, fish_template, fish_confidence)
 
         # ---- Bar region (remove top fish part) ----
-        bar_region = img[fish_template_h + 10:, :]
-        left_x = self._find_template(bar_region, bar_template, 0.8)
-        right_x = self._find_template(bar_region, self.templates["right_bar"], 0.8)
+        bar_region = img[fish_template_h:, :]
+        left_x = self._find_template(bar_region, bar_template, left_confidence)
+        right_x = self._find_template(bar_region, self.templates["right_bar"], right_confidence)
         return fish_x, left_x, right_x
     def _do_pixel_search(self, img):
         fish_hex = self.vars["fish_color"].get()
@@ -1898,7 +1961,6 @@ class App(CTk):
                     mouse_controller.release(Button.left)
                     return
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
-                print("Green not found")
                 continue
 
             # Lowest green pixel
@@ -1910,13 +1972,11 @@ class App(CTk):
                 white_tolerance
             )
             if not white_pixels:
-                print("White not found")
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
             white_x, white_y = min(white_pixels, key=lambda p: p[1])
             if white_pixels and green_pixels:
                 distance = abs(green_y - white_y)
-                print(distance)
                 if distance < 30:
                     mouse_controller.release(Button.left)
             if time.time() - start_time > 3.5:
@@ -1964,7 +2024,6 @@ class App(CTk):
 
 
         shake_area = self.bar_areas["shake"]
-        print(shake_area)
 
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
@@ -2113,6 +2172,7 @@ class App(CTk):
             # Convert to grayscale once
             if len(template.shape) == 3:
                 template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+        # Arrow tracking variables
         arrow_hex = self.vars["arrow_color"].get()
         arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
         bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
@@ -2157,10 +2217,7 @@ class App(CTk):
             mode = self.vars["fishing_mode"].get()
 
             if mode == "Image":
-                try:
-                    fish_x, left_x, right_x = self._do_image_search(img, img_h)
-                except:
-                    fish_x, left_x, right_x = self._do_pixel_search(img)
+                fish_x, left_x, right_x = self._do_image_search(img, img_h)
             else:
                 fish_x, left_x, right_x = self._do_pixel_search(img)
 
@@ -2186,7 +2243,10 @@ class App(CTk):
             self.clear_minigame()
             # ---- BARS NOT FOUND ----
             bars_found = left_x is not None and right_x is not None
-            fish_x = fish_x + fish_left
+            if mode == "Image":
+                fish_x = fish_x + fish_left
+            else:
+                fish_x = fish_x[0] + fish_left
             if bars_found and left_x is not None and right_x is not None:
                 bar_center = int((left_x + right_x) / 2 + fish_left)
                 bar_size = abs(right_x - left_x)

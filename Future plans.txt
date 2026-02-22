@@ -1,0 +1,8 @@
+## Things I want to add to 2.2 before release:
+1. Retake screenshot every time
+2. Auto detect bar areas
+3. Make bar areas changer more accurate
+4. Advanced tools: Add a click limit / second
+5. Advanced tools: Add a catch until xx percentage
+6. Add fish cache settings, and escaping the minigame requires fish position lost and bar position lost.
+7. Add an eyedropper tool for color mode

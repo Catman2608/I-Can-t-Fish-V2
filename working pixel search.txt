@@ -1,0 +1,129 @@
+    def _detect_fish_colors_in_frame(self, frame, target_line_color, left_bar_color, right_bar_color,
+                                   arrow_color, target_line_tolerance, left_bar_tolerance,
+                                   right_bar_tolerance, arrow_tolerance, skip_arrow_scan=False):
+        """
+        Detect fish colors in frame and return pixel positions.
+        Returns dict with: target_line_x, bar_left_x, bar_right_x, arrow_left_x, arrow_right_x
+        Optimized: Uses vectorized numpy operations + vertical line detection.
+
+        Args:
+            skip_arrow_scan: If True, skip arrow detection entirely (optimization when bars found)
+        """
+
+        result = {
+            "target_line_x": None,  # Kept for backwards compatibility (will be middle)
+            "target_left_x": None,
+            "target_right_x": None,
+            "target_middle_x": None,
+            "bar_left_x": None,
+            "bar_right_x": None,
+            "arrow_center_x": None
+        }
+
+        height, width = frame.shape[:2]
+        
+        # Try vertical line detection first (more reliable for clear lines)
+        use_line_detection = self.settings.get("use_vertical_line_detection", True)
+        
+        if use_line_detection:
+            # Detect 3-4 vertical lines: target_left, target_right, bar_left, bar_right
+            expected_lines = 4 if (left_bar_color is not None and right_bar_color is not None) else 3
+            vertical_lines = find_vertical_lines_in_frame(frame, expected_count=expected_lines, min_sep=10)
+            
+            if len(vertical_lines) >= 2:
+                # Assign detected lines to target and bar positions
+                if len(vertical_lines) == 4:
+                    # 4 lines: assign as left_target, right_target, left_bar, right_bar
+                    result["target_left_x"] = vertical_lines[0]
+                    result["target_right_x"] = vertical_lines[1]
+                    result["target_middle_x"] = (vertical_lines[0] + vertical_lines[1]) // 2
+                    result["target_line_x"] = result["target_middle_x"]
+                    result["bar_left_x"] = vertical_lines[2]
+                    result["bar_right_x"] = vertical_lines[3]
+                    return result  # Perfect detection, return immediately
+                    
+                elif len(vertical_lines) == 3:
+                    # 3 lines: left_target, right_target, and one bar edge
+                    result["target_left_x"] = vertical_lines[0]
+                    result["target_right_x"] = vertical_lines[1]
+                    result["target_middle_x"] = (vertical_lines[0] + vertical_lines[1]) // 2
+                    result["target_line_x"] = result["target_middle_x"]
+                    # Third line could be left or right bar - use middle distance heuristic
+                    bar_x = vertical_lines[2]
+                    if bar_x < result["target_middle_x"]:
+                        result["bar_left_x"] = bar_x
+                    else:
+                        result["bar_right_x"] = bar_x
+                    return result
+                    
+                elif len(vertical_lines) == 2:
+                    # 2 lines: assume target boundaries
+                    result["target_left_x"] = vertical_lines[0]
+                    result["target_right_x"] = vertical_lines[1]
+                    result["target_middle_x"] = (vertical_lines[0] + vertical_lines[1]) // 2
+                    result["target_line_x"] = result["target_middle_x"]
+                    # Fall through to color detection for bars
+
+        # Fallback to color-based detection (original method)
+        # Helper function to create mask for a color (returns x_coords or None)
+        def find_color_x_coords(bgr_color, tolerance):
+            if bgr_color is None:
+                return None
+
+            # Create mask for color with tolerance
+            lower_bound = np.array([max(0, bgr_color[0] - tolerance),
+                                  max(0, bgr_color[1] - tolerance),
+                                  max(0, bgr_color[2] - tolerance)])
+            upper_bound = np.array([min(255, bgr_color[0] + tolerance),
+                                  min(255, bgr_color[1] + tolerance),
+                                  min(255, bgr_color[2] + tolerance)])
+
+            mask = cv2.inRange(frame, lower_bound, upper_bound)
+            y_coords, x_coords = np.where(mask > 0)
+
+            # Return x_coords array directly (vectorized)
+            if len(x_coords) > 0:
+                return x_coords
+            return None
+
+        # Find target line pixels if not already found by line detection
+        if result["target_line_x"] is None:
+            target_x_coords = find_color_x_coords(target_line_color, target_line_tolerance)
+            if target_x_coords is not None:
+                result["target_left_x"] = int(np.min(target_x_coords))
+                result["target_right_x"] = int(np.max(target_x_coords))
+                result["target_middle_x"] = int((result["target_left_x"] + result["target_right_x"]) / 2)
+                result["target_line_x"] = result["target_middle_x"]
+
+        # Find bar pixels if not already found by line detection
+        if result["bar_left_x"] is None and result["bar_right_x"] is None:
+            bar_x_coords = None
+
+            if left_bar_color is not None:
+                left_x_coords = find_color_x_coords(left_bar_color, left_bar_tolerance)
+                if left_x_coords is not None:
+                    bar_x_coords = left_x_coords
+
+            if right_bar_color is not None:
+                right_x_coords = find_color_x_coords(right_bar_color, right_bar_tolerance)
+                if right_x_coords is not None:
+                    if bar_x_coords is not None:
+                        # Concatenate both bar color arrays
+                        bar_x_coords = np.concatenate([bar_x_coords, right_x_coords])
+                    else:
+                        bar_x_coords = right_x_coords
+
+            # If ANY bar pixels found, assign leftmost and rightmost
+            if bar_x_coords is not None:
+                result["bar_left_x"] = int(np.min(bar_x_coords))
+                result["bar_right_x"] = int(np.max(bar_x_coords))
+
+        # Find single arrow point if enabled (fallback only)
+        # Skip arrow scan if bars were found (optimization)
+        if not skip_arrow_scan and arrow_color is not None:
+            arrow_x_coords = find_color_x_coords(arrow_color, arrow_tolerance)
+            if arrow_x_coords is not None:
+                # Just find the center/average position of arrow pixels (vectorized mean)
+                result["arrow_center_x"] = float(np.mean(arrow_x_coords))
+
+        return result

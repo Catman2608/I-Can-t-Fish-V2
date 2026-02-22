@@ -1222,7 +1222,7 @@ class App(CTk):
         result = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
 
-        print(template.shape, ": ", max_val)
+        print("Confidence", ": ", max_val)
 
         if max_val >= confidence:
             h, w = template.shape

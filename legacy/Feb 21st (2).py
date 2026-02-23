@@ -1326,7 +1326,7 @@ class App(CTk):
             "center_y": (min_y + max_y) / 2
         }
 
-    def _find_white_pixel(self, frame, tolerance=10):
+    def _find_shake_pixel(self, frame, tolerance=10):
         tolerance = int(np.clip(tolerance, 0, 255))
 
         white = np.array([255, 255, 255], dtype=np.int16)
@@ -1803,17 +1803,17 @@ class App(CTk):
             # Lowest green pixel
             green_x, green_y = max(green_pixels, key=lambda p: p[1])
 
-            white_pixels = self._pixel_search(
+            shake_pixels = self._pixel_search(
                 frame,
                 "#d4d3ca",
                 white_tolerance
             )
-            if not white_pixels:
+            if not shake_pixels:
                 print("White not found")
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
-            white_x, white_y = min(white_pixels, key=lambda p: p[1])
-            if white_pixels and green_pixels:
+            white_x, white_y = min(shake_pixels, key=lambda p: p[1])
+            if shake_pixels and green_pixels:
                 distance = abs(green_y - white_y)
                 print(distance)
                 if distance < 30:
@@ -1884,9 +1884,9 @@ class App(CTk):
                 continue
 
             # 2️⃣ Look for white shake pixel
-            white_pixel = self._find_white_pixel(shake_area, tolerance)
-            if white_pixel:
-                x, y = white_pixel
+            shake_pixel = self._find_shake_pixel(shake_area, tolerance)
+            if shake_pixel:
+                x, y = shake_pixel
                 screen_x = shake_left + x
                 screen_y = shake_top + y
                 self._click_at(screen_x, screen_y)

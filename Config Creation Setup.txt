@@ -1,0 +1,94 @@
+So apparently no one in my Discord server knows how to make a config, so I have to make a 1-minute YouTube tutorial for it. Can you improve my script?
+
+[Intro]
+So you’re watching this because you clicked the Create Config tutorial… and realized you have no idea how to actually make one. Don’t worry — this takes less than a minute.
+
+Step 1 – Create Your Config Folder
+
+Go to the configs folder.
+Right-click → New Folder → name it whatever you want your config to be.
+Important: don’t open it yet.
+
+Step 2 – Copy the Default Config
+
+Open the default config folder.
+Find config.json.
+Copy it:
+
+Windows: Ctrl + C
+
+macOS: Cmd + C
+
+Step 3 – Paste It
+
+Now open the folder you just created.
+Paste the file:
+
+Windows: Ctrl + V
+
+macOS: Cmd + V
+
+Step 4 – Edit It
+
+Right-click config.json →
+
+Windows: Open with Notepad
+
+macOS: Open with TextEdit
+
+Find this line:
+
+"active_config": "default.json"
+
+Change default to the name of the config folder you just made.
+
+Save the file. Done.
+
+If you want every setting explained, click the Tutorial button in the app.
+
+Minigame Setup
+
+Now go to the Minigame tab.
+
+You’ll see Fish Mode:
+
+Image = image search
+
+Pixel = pixel color detection
+
+If You Choose Pixel Mode:
+
+Catch a fish.
+
+While in the minigame, press your screenshot key.
+
+Go to https://kleki.com/
+
+Paste the screenshot.
+
+Right-click the bar color → hashtag → copy the hex code.
+
+Paste it into ICF.
+
+Repeat for arrow and fish.
+
+If You Choose Image Mode:
+
+Take a screenshot during the minigame.
+
+Go to https://kleki.com/
+
+Crop the image until only the bar is visible.
+
+Do the same for the fish icon.
+Not the fish line — the fish icon.
+
+Save them as:
+
+left_bar.png
+
+right_bar.png
+
+fish.png
+
+And that’s it. Your config is ready.

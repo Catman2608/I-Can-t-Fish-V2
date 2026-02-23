@@ -1,5 +1,3 @@
-# Compile Feb 23th if you want to compile a stable version of V2.2. This version is version 2.3.
-
 # Initialization
 from customtkinter import *
 import tkinter as tk
@@ -858,7 +856,7 @@ class App(CTk):
         ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
     # SUPPORT SETTINGS TAB
     def build_advanced_tab(self, parent):
-        # Advanced Colors
+        # Shake Colors
         advanced_colors = CTkFrame(
             parent,
             border_width=2
@@ -891,18 +889,6 @@ class App(CTk):
             width=120,
             textvariable=perfect_color_var
         ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(advanced_colors, text="Gift Box Color:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
-
-        gift_box_color_var = StringVar(value="#5FA84B")
-        self.vars["gift_box_color"] = gift_box_color_var
-
-        CTkEntry(
-            advanced_colors,
-            width=120,
-            textvariable=gift_box_color_var
-        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
@@ -2120,19 +2106,6 @@ class App(CTk):
             time.sleep(scan_delay)
 
     def _enter_minigame(self):
-        # --- SHAKE AREA ---
-        shake = self.bar_areas.get("shake")
-        if isinstance(shake, dict):
-            shake_left   = shake["x"]
-            shake_top    = shake["y"]
-            shake_right  = shake["x"] + shake["width"]
-            shake_bottom = shake["y"] + shake["height"]
-        else:
-            # fallback (old ratio logic)
-            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
-            shake_top    = int(self.SCREEN_HEIGHT * 0.162)
-            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
-            shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
         # --- FISH AREA ---
         fish = self.bar_areas.get("fish")
         if isinstance(fish, dict):

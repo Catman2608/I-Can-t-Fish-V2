@@ -1,1 +1,10 @@
-{"last_config": "scratch"}
+{
+    "last_rod": "Basic Rod",
+    "bar_areas": {
+        "shake": null,
+        "fish": null
+    },
+    "start_key": "F5",
+    "screenshot_key": "F8",
+    "stop_key": "F7"
+}

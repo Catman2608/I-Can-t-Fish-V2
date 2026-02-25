@@ -121,7 +121,7 @@ class App(CTk):
 
         # Window 
         self.geometry("800x550")
-        self.title("I Can't Fish V2.1")
+        self.title("I Can't Fish V2.3")
 
         # Macro state
         self.macro_running = False
@@ -165,7 +165,7 @@ class App(CTk):
         # Logo Label
         logo_label = CTkLabel(
             self, 
-            text="I CAN'T FISH V2.1",
+            text="I CAN'T FISH V2.3",
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, columnspan=6, pady=5, padx=20, sticky="w")

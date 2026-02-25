@@ -43,8 +43,12 @@
     "velocity_smoothing": "6",
     "shake_color": "#FFFFFF",
     "perfect_color": "#5FA84B",
+    "gift_box_color": "#008c8c",
+    "gift_box_tolerance": "5",
+    "tracking_focus": "Gift",
     "combobox_active_config": "default.json",
     "combobox_capture_mode": "MSS",
     "combobox_shake_mode": "Navigation",
-    "combobox_fishing_mode": "Pixel"
+    "combobox_fishing_mode": "Pixel",
+    "combobox_tracking_focus": "Gift"
 }

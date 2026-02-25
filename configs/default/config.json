@@ -46,6 +46,7 @@
     "gift_box_color": "#008c8c",
     "gift_box_tolerance": "5",
     "tracking_focus": "Gift",
+    "gift_box_timer": "3",
     "combobox_active_config": "default.json",
     "combobox_capture_mode": "MSS",
     "combobox_shake_mode": "Navigation",

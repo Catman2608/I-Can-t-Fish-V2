@@ -477,7 +477,7 @@ class App(CTk):
         self.last_right_x = None
         self.last_known_box_center_x = None
         # Minigame overlay window and canvas
-        self.minigame_window = None
+        self.overlay_window = None
         self.minigame_canvas = None
         self.pid_source = None  # "bar" or "arrow"
 
@@ -543,7 +543,7 @@ class App(CTk):
         self.bar_areas = {"fish": None, "shake": None}
         self.load_misc_settings()
         self.load_settings(last or "default.json")
-        self.init_minigame_window()
+        self.init_overlay_window()
         self.show_minigame()
         # Arrow variables
         self.initial_bar_size = None
@@ -1805,23 +1805,23 @@ class App(CTk):
             return None
 
     # === MINIGAME WINDOW (instance methods) ===
-    def init_minigame_window(self):
+    def init_overlay_window(self):
         """
         Create the minigame window and canvas (only once).
         """
-        if self.minigame_window and self.minigame_window.winfo_exists():
+        if self.overlay_window and self.overlay_window.winfo_exists():
             return
 
-        self.minigame_window = tk.Toplevel(self)
-        self.minigame_window.geometry("800x50+560+660")
+        self.overlay_window = tk.Toplevel(self)
+        self.overlay_window.geometry("800x50+560+660")
         if sys.platform == "darwin":
-            self.minigame_window.overrideredirect(False)
+            self.overlay_window.overrideredirect(False)
         else:
-            self.minigame_window.overrideredirect(True)
-        self.minigame_window.attributes("-topmost", True)
+            self.overlay_window.overrideredirect(True)
+        self.overlay_window.attributes("-topmost", True)
 
         self.minigame_canvas = tk.Canvas(
-            self.minigame_window,
+            self.overlay_window,
             width=800,
             height=60,
             bg="#1d1d1d",
@@ -1830,13 +1830,13 @@ class App(CTk):
         self.minigame_canvas.pack(fill="both", expand=True)
 
     def show_minigame(self):
-        if self.minigame_window and self.minigame_window.winfo_exists():
-            self.minigame_window.deiconify()
-            self.minigame_window.lift()
+        if self.overlay_window and self.overlay_window.winfo_exists():
+            self.overlay_window.deiconify()
+            self.overlay_window.lift()
 
     def hide_minigame(self):
-        if self.minigame_window and self.minigame_window.winfo_exists():
-            self.minigame_window.withdraw()
+        if self.overlay_window and self.overlay_window.winfo_exists():
+            self.overlay_window.withdraw()
 
     def clear_minigame(self):
         if not self.minigame_canvas or not self.minigame_canvas.winfo_exists():

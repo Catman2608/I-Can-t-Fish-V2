@@ -43,6 +43,7 @@
     "velocity_smoothing": "6",
     "shake_color": "#FFFFFF",
     "perfect_color": "#5FA84B",
+    "perfect_color2": "#d4d3ca",
     "gift_box_color": "#008c8c",
     "gift_box_tolerance": "5",
     "tracking_focus": "Gift",

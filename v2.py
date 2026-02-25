@@ -889,7 +889,7 @@ class App(CTk):
             textvariable=shake_color_var
         ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(advanced_colors, text="Perfect Cast Color:").grid(
+        CTkLabel(advanced_colors, text="Perfect Cast (Green) Color:").grid(
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
 
@@ -901,6 +901,20 @@ class App(CTk):
             width=120,
             textvariable=perfect_color_var
         ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(advanced_colors, text="Perfect Cast (White) Color:").grid(
+            row=3, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        perfect_color2_var = StringVar(value="#d4d3ca")
+        self.vars["perfect_color2"] = perfect_color2_var
+
+        CTkEntry(
+            advanced_colors,
+            width=120,
+            textvariable=perfect_color2_var
+        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+
         gift_settings = CTkFrame(
             scroll,
             border_width=2
@@ -1290,11 +1304,13 @@ class App(CTk):
             if isinstance(self.bar_areas.get("fish"), dict)
             else default_fish_area()
         )
+        mode = self.vars["fishing_mode"].get()
         # ---- TEMPLATE HEIGHT FAILSAFE ----
         if (
             isinstance(fish_area, dict)
             and self.templates.get("fish") is not None
             and self.templates.get("left_bar") is not None
+            and mode == "Image"
         ):
 
             fish_template_h = self.templates["fish"].shape[0]
@@ -1971,6 +1987,9 @@ class App(CTk):
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
         # Other variables
         start_time = time.time()
+        white_color = self.vars["perfect_color2"].get()
+        green_color = self.vars["perfect_color"].get()
+
         white_tolerance = int(self.vars["perfect_cast2_tolerance"].get())
         green_tolerance = int(self.vars["perfect_cast_tolerance"].get())
 
@@ -1980,7 +1999,7 @@ class App(CTk):
 
             green_pixels = self._pixel_search(
                 frame,
-                "#5fa84b",
+                green_color,
                 green_tolerance
             )
 
@@ -1996,7 +2015,7 @@ class App(CTk):
 
             shake_pixels = self._pixel_search(
                 frame,
-                "#d4d3ca",
+                white_color,
                 white_tolerance
             )
             if not shake_pixels:

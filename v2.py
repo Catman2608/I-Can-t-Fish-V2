@@ -143,8 +143,8 @@ class App(CTk):
         self.last_right_x = None
         self.last_known_box_center_x = None
         # Minigame overlay window and canvas
-        self.minigame_window = None
-        self.minigame_canvas = None
+        self.overlay_window = None
+        self.overlay_canvas = None
         self.pid_source = None  # "bar" or "arrow"
 
         # Hotkey variables
@@ -244,8 +244,7 @@ class App(CTk):
         self.bar_areas = {"fish": None, "shake": None}
         self.load_misc_settings()
         self.load_settings(last or "default.json")
-        self.init_minigame_window()
-        self.show_minigame()
+        self.init_overlay_window()
         # Arrow variables
         self.initial_bar_size = None
         # Utility variables
@@ -261,7 +260,7 @@ class App(CTk):
         #  Configs 
         configs = CTkFrame(scroll, border_width=2)
         configs.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(configs, text="Basic Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(configs, text="Config Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(configs, text="Rod Type:").grid(
             row=1, column=0, padx=12, pady=6, sticky="w"
         )
@@ -277,58 +276,63 @@ class App(CTk):
         )
         config_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
-        # Start key
-        CTkLabel(configs, text="Start Key").grid(
-            row=2, column=0, padx=12, pady=6, sticky="w"
-        )
-        CTkLabel(configs, text="Screenshot Key").grid(
-            row=3, column=0, padx=12, pady=6, sticky="w"
-        )
-        CTkLabel(configs, text="Stop Key").grid(
-            row=4, column=0, padx=12, pady=6, sticky="w"
-        )
-        # Start, screenshot and stop key changer
-        start_key_var = StringVar(value="F5")
-        self.vars["start_key"] = start_key_var
-        start_key_entry = CTkEntry(
-            configs,
-            width=120,
-            textvariable=start_key_var
-        )
-        start_key_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        screenshot_key_var = StringVar(value="F8")
-        self.vars["screenshot_key"] = screenshot_key_var
-        screenshot_key_entry = CTkEntry(
-            configs,
-            width=120,
-            textvariable=screenshot_key_var
-        )
-        screenshot_key_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
-        stop_key_var = StringVar(value="F7")
-        self.vars["stop_key"] = stop_key_var
-        stop_key_entry = CTkEntry(
-            configs,
-            width=120,
-            textvariable=stop_key_var
-        )
-        stop_key_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
         CTkButton(
             configs,
             text="Change Bar Areas",
             corner_radius=32,
             command=self.open_dual_area_selector
-        ).grid(row=5, column=0, padx=12, pady=12, sticky="w")
+        ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
+        # Hotkey Settings
+        hotkey_settings = CTkFrame(scroll, border_width=2)
+        hotkey_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(hotkey_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        # Save misc settings (most important)
         CTkButton(
-            configs,
+            hotkey_settings,
             text="Save Misc Settings",
             corner_radius=32,
             command=self.save_misc_settings
-        ).grid(row=5, column=1, padx=12, pady=12, sticky="w")
+        ).grid(row=0, column=1, padx=12, pady=12, sticky="w")
+        # Start key
+        CTkLabel(hotkey_settings, text="Start Key").grid(
+            row=1, column=0, padx=12, pady=6, sticky="w"
+        )
+        CTkLabel(hotkey_settings, text="Screenshot Key").grid(
+            row=2, column=0, padx=12, pady=6, sticky="w"
+        )
+        CTkLabel(hotkey_settings, text="Stop Key").grid(
+            row=3, column=0, padx=12, pady=6, sticky="w"
+        )
+        # Start, screenshot and stop key changer
+        start_key_var = StringVar(value="F5")
+        self.vars["start_key"] = start_key_var
+        start_key_entry = CTkEntry(
+            hotkey_settings,
+            width=120,
+            textvariable=start_key_var
+        )
+        start_key_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+
+        screenshot_key_var = StringVar(value="F8")
+        self.vars["screenshot_key"] = screenshot_key_var
+        screenshot_key_entry = CTkEntry(
+            hotkey_settings,
+            width=120,
+            textvariable=screenshot_key_var
+        )
+        screenshot_key_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
+        stop_key_var = StringVar(value="F7")
+        self.vars["stop_key"] = stop_key_var
+        stop_key_entry = CTkEntry(
+            hotkey_settings,
+            width=120,
+            textvariable=stop_key_var
+        )
+        stop_key_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
-        automation.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        automation.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(automation, text="Automation Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Create and store checkboxes with StringVar
         auto_rod_var = StringVar(value="off")
@@ -858,9 +862,15 @@ class App(CTk):
         ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
     # SUPPORT SETTINGS TAB
     def build_advanced_tab(self, parent):
+        scroll = CTkScrollableFrame(parent)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        # VERY important
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+
         # Advanced Colors
         advanced_colors = CTkFrame(
-            parent,
+            scroll,
             border_width=2
         )
         advanced_colors.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
@@ -891,45 +901,65 @@ class App(CTk):
             width=120,
             textvariable=perfect_color_var
         ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(advanced_colors, text="Gift Box Color:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
+        gift_settings = CTkFrame(
+            scroll,
+            border_width=2
+        )
+        gift_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(gift_settings, text="Gift Box Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w") 
+        CTkLabel(gift_settings, text="Gift Box Color:").grid(
+            row=1, column=0, padx=12, pady=10, sticky="w"
         )
 
         gift_box_color_var = StringVar(value="#008c8c")
         self.vars["gift_box_color"] = gift_box_color_var
 
         CTkEntry(
-            advanced_colors,
+            gift_settings,
             width=120,
             textvariable=gift_box_color_var
-        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(advanced_colors, text="Gift Box Tolerance:").grid(
-            row=4, column=0, padx=12, pady=10, sticky="w"
+        CTkLabel(gift_settings, text="Gift Box Tolerance:").grid(
+            row=2, column=0, padx=12, pady=10, sticky="w"
         )
 
         gift_box_tolerance_var = StringVar(value="2")
         self.vars["gift_box_tolerance"] = gift_box_tolerance_var
 
         CTkEntry(
-            advanced_colors,
+            gift_settings,
             width=120,
             textvariable=gift_box_tolerance_var
-        ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(advanced_colors, text="Tracking Focus:").grid(
-            row=5, column=0, padx=12, pady=10, sticky="w"
+        ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(gift_settings, text="Tracking Focus:").grid(
+            row=3, column=0, padx=12, pady=10, sticky="w"
         )
         tracking_focus_var = StringVar(value="Fish")
         self.vars["tracking_focus"] = tracking_focus_var
 
         tracking_cb = CTkComboBox(
-            advanced_colors,
+            gift_settings,
             values=["Gift", "Gift + Fish", "Fish"],
             variable=tracking_focus_var,
-            command=lambda v: self.set_status(f"tracking mode: {v}")
+            command=lambda v: self.set_status(f"Tracking mode set to {v}")
         )
-        tracking_cb.grid(row=5, column=1, padx=12, pady=10, sticky="w")
+        tracking_cb.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["tracking_focus"] = tracking_cb
+
+        CTkLabel(gift_settings, text="Gift Box Timer:").grid(
+            row=4, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        gift_box_timer_var = StringVar(value="3")
+        self.vars["gift_box_timer"] = gift_box_timer_var
+
+        CTkEntry(
+            gift_settings,
+            width=120,
+            textvariable=gift_box_timer_var
+        ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
@@ -1737,60 +1767,60 @@ class App(CTk):
             return None
 
     # === MINIGAME WINDOW (instance methods) ===
-    def init_minigame_window(self):
+    def init_overlay_window(self):
         """
         Create the minigame window and canvas (only once).
         """
-        if self.minigame_window and self.minigame_window.winfo_exists():
+        if self.overlay_window and self.overlay_window.winfo_exists():
             return
 
-        self.minigame_window = tk.Toplevel(self)
-        self.minigame_window.geometry("800x50+560+660")
+        self.overlay_window = tk.Toplevel(self)
+        self.overlay_window.geometry("800x50+560+660")
         if sys.platform == "darwin":
-            self.minigame_window.overrideredirect(False)
+            self.overlay_window.overrideredirect(False)
         else:
-            self.minigame_window.overrideredirect(True)
-        self.minigame_window.attributes("-topmost", True)
+            self.overlay_window.overrideredirect(True)
+        self.overlay_window.attributes("-topmost", True)
 
-        self.minigame_canvas = tk.Canvas(
-            self.minigame_window,
+        self.overlay_canvas = tk.Canvas(
+            self.overlay_window,
             width=800,
             height=60,
             bg="#1d1d1d",
             highlightthickness=0
         )
-        self.minigame_canvas.pack(fill="both", expand=True)
+        self.overlay_canvas.pack(fill="both", expand=True)
 
-    def show_minigame(self):
-        if self.minigame_window and self.minigame_window.winfo_exists():
-            self.minigame_window.deiconify()
-            self.minigame_window.lift()
+    def show_overlay(self):
+        if self.overlay_window and self.overlay_window.winfo_exists():
+            self.overlay_window.deiconify()
+            self.overlay_window.lift()
 
-    def hide_minigame(self):
-        if self.minigame_window and self.minigame_window.winfo_exists():
-            self.minigame_window.withdraw()
+    def hide_overlay(self):
+        if self.overlay_window and self.overlay_window.winfo_exists():
+            self.overlay_window.withdraw()
 
-    def clear_minigame(self):
-        if not self.minigame_canvas or not self.minigame_canvas.winfo_exists():
+    def clear_overlay(self):
+        if not self.overlay_canvas or not self.overlay_canvas.winfo_exists():
             return
-        self.minigame_canvas.delete("all")
+        self.overlay_canvas.delete("all")
         self.initial_bar_size = None
 
     def draw_box(self, x1, y1, x2, y2, fill="#000000", outline="white"):
-        if not self.minigame_canvas or not self.minigame_canvas.winfo_exists():
+        if not self.overlay_canvas or not self.overlay_canvas.winfo_exists():
             return
 
         def _draw():
-            self.minigame_canvas.create_rectangle(
+            self.overlay_canvas.create_rectangle(
                 x1, y1, x2, y2,
                 outline=outline,
                 width=2,
                 fill=fill
             )
 
-        self.minigame_canvas.after(0, _draw)
+        self.overlay_canvas.after(0, _draw)
 
-    def draw_bar_minigame(
+    def draw_overlay(
         self,
         bar_center,
         box_size,
@@ -1885,9 +1915,9 @@ class App(CTk):
                 time.sleep(0.2)
             # 2: Fish Overlay
             if self.vars["fish_overlay"].get() == "on":
-                self.show_minigame()
+                self.show_overlay()
             else:
-                self.hide_minigame()
+                self.hide_overlay()
             if not self.macro_running:
                 break
 
@@ -1946,6 +1976,7 @@ class App(CTk):
 
         while self.macro_running:
             frame = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
+            self.clear_overlay()
 
             green_pixels = self._pixel_search(
                 frame,
@@ -2183,9 +2214,11 @@ class App(CTk):
             # Convert to grayscale once
             if len(template.shape) == 3:
                 template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-        # gift_box_color
+        # Gift box color and timer settings
         gift_box_hex = self.vars["gift_box_color"].get()
         gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
+        gift_missing_tolerance = float(self.vars["gift_box_timer"].get())
+        gift_missing_tolerance = gift_missing_tolerance - 0.1
         # Arrow tracking variables
         arrow_hex = self.vars["arrow_color"].get()
         arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
@@ -2211,7 +2244,6 @@ class App(CTk):
         gift_box_timer = 0.0
         gift_missing_time = 0.0
         GIFT_TRACK_THRESHOLD = 0.1
-        GIFT_MISSING_TOLERANCE = 2.6   # allow 2s detection loss
 
         def hold_mouse():
             nonlocal mouse_down
@@ -2260,7 +2292,7 @@ class App(CTk):
                 gift_missing_time += scan_delay
 
                 # Only reset if missing for too long
-                if gift_missing_time >= GIFT_MISSING_TOLERANCE:
+                if gift_missing_time >= gift_missing_tolerance:
                     gift_box_timer = 0.0
                     gift_missing_time = 0.0
             # ---- FISH NOT FOUND ----
@@ -2279,7 +2311,7 @@ class App(CTk):
                 time.sleep(0.02)
                 continue
             # ---- CLEAR MINIGAME ----
-            self.clear_minigame()
+            self.clear_overlay()
             # ---- BARS NOT FOUND ----
             bars_found = left_x is not None and right_x is not None
             if mode == "Image":
@@ -2302,12 +2334,6 @@ class App(CTk):
                 pid_found = 3
             if bars_found and bar_center is not None: # Bar found
                 # ----- GIFT TRACKING LOGIC -----
-                print(
-                    "Tracking:", tracking_focus,
-                    "Timer:", gift_box_timer,
-                    "Threshold:", GIFT_TRACK_THRESHOLD,
-                    "Check:", gift_box_timer >= GIFT_TRACK_THRESHOLD
-                )
                 if ( bars_found and gift_box_x is not None and gift_box_timer >= GIFT_TRACK_THRESHOLD ):
                     # convert shake → fish coordinate
                     shake_width = shake_right - shake_left
@@ -2329,34 +2355,34 @@ class App(CTk):
                     # tracking_focus == 2 → Fish only
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_bar_minigame(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
                         else:
-                            self.draw_bar_minigame(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
-                        self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 1
                 
                 elif max_right is not None and fish_x >= max_right:
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_bar_minigame(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
                         else:
-                            self.draw_bar_minigame(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
-                        self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 2
                 else:
                     if self.vars["fish_overlay"].get() == "on":
                         # Main code
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_bar_minigame(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
                         else:
-                            self.draw_bar_minigame(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
-                        self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                         # Debug code
-                        self.draw_bar_minigame(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
-                        self.draw_bar_minigame(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                     pid_found = 0
             elif arrow_center:
 
@@ -2364,7 +2390,7 @@ class App(CTk):
                 arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
 
                 if self.vars["fish_overlay"].get() == "on":
-                    self.draw_bar_minigame(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
+                    self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
 
                 if arrow_indicator_x is None:
                     pid_found = 1
@@ -2384,7 +2410,7 @@ class App(CTk):
                         pid_found = 0
 
                         if self.vars["fish_overlay"].get() == "on":
-                            self.draw_bar_minigame(
+                            self.draw_overlay(
                                 bar_center=bar_center,
                                 box_size=40,
                                 color="yellow",
@@ -2404,7 +2430,7 @@ class App(CTk):
                         pid_found = 1
 
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_bar_minigame(
+                        self.draw_overlay(
                             bar_center=arrow_screen_x,
                             box_size=20,
                             color="yellow",
@@ -2443,7 +2469,7 @@ class App(CTk):
             return
         self.macro_running = False
         self._reset_pid_state()
-        self.hide_minigame()
+        self.hide_overlay()
         self.after(0, self.deiconify)  # show window safely
         self.set_status("Macro Status: Stopped")
 if __name__ == "__main__":

@@ -883,7 +883,7 @@ class App(CTk):
             row=2, column=0, padx=12, pady=10, sticky="w"
         )
 
-        perfect_color_var = StringVar(value="#5FA84B")
+        perfect_color_var = StringVar(value="#64a04c")
         self.vars["perfect_color"] = perfect_color_var
 
         CTkEntry(
@@ -895,7 +895,7 @@ class App(CTk):
             row=3, column=0, padx=12, pady=10, sticky="w"
         )
 
-        gift_box_color_var = StringVar(value="#5FA84B")
+        gift_box_color_var = StringVar(value="#008c8c")
         self.vars["gift_box_color"] = gift_box_color_var
 
         CTkEntry(
@@ -903,6 +903,33 @@ class App(CTk):
             width=120,
             textvariable=gift_box_color_var
         ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(advanced_colors, text="Gift Box Tolerance:").grid(
+            row=4, column=0, padx=12, pady=10, sticky="w"
+        )
+
+        gift_box_tolerance_var = StringVar(value="2")
+        self.vars["gift_box_tolerance"] = gift_box_tolerance_var
+
+        CTkEntry(
+            advanced_colors,
+            width=120,
+            textvariable=gift_box_tolerance_var
+        ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(advanced_colors, text="Tracking Focus:").grid(
+            row=5, column=0, padx=12, pady=10, sticky="w"
+        )
+        tracking_focus_var = StringVar(value="Fish")
+        self.vars["tracking_focus"] = tracking_focus_var
+
+        tracking_cb = CTkComboBox(
+            advanced_colors,
+            values=["Gift", "Gift + Fish", "Fish"],
+            variable=tracking_focus_var,
+            command=lambda v: self.set_status(f"tracking mode: {v}")
+        )
+        tracking_cb.grid(row=5, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["tracking_focus"] = tracking_cb
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
@@ -2156,6 +2183,9 @@ class App(CTk):
             # Convert to grayscale once
             if len(template.shape) == 3:
                 template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+        # gift_box_color
+        gift_box_hex = self.vars["gift_box_color"].get()
+        gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
         # Arrow tracking variables
         arrow_hex = self.vars["arrow_color"].get()
         arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
@@ -2178,6 +2208,11 @@ class App(CTk):
         self.pid_integral = 0.0
         self.pid_last_time = None
 
+        gift_box_timer = 0.0
+        gift_missing_time = 0.0
+        GIFT_TRACK_THRESHOLD = 0.1
+        GIFT_MISSING_TOLERANCE = 2.6   # allow 2s detection loss
+
         def hold_mouse():
             nonlocal mouse_down
             if not mouse_down:
@@ -2190,6 +2225,9 @@ class App(CTk):
                 mouse_controller.release(Button.left)
                 mouse_down = False
         while self.macro_running: # Main macro loop
+            gift_img = self._grab_screen_region(
+                shake_left, shake_top, shake_right, shake_bottom
+            )
             img = self._grab_screen_region(
                 fish_left, fish_top, fish_right, fish_bottom
             )
@@ -2199,7 +2237,13 @@ class App(CTk):
 
             img_h = img.shape[0]
             mode = self.vars["fishing_mode"].get()
-
+            tracking_focus2 = self.vars["tracking_focus"].get()
+            if tracking_focus2 == "Gift":
+                tracking_focus = 0
+            elif tracking_focus2 == "Gift + Fish":
+                tracking_focus = 1
+            else:
+                tracking_focus = 2
             if mode == "Image":
                 fish_x, left_x, right_x = self._do_image_search(img, img_h)
             else:
@@ -2207,7 +2251,18 @@ class App(CTk):
 
             # ---- Arrow ----
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
+            # ---- Gift box ----
+            gift_box_x = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
+            if gift_box_x is not None:
+                gift_box_timer += scan_delay
+                gift_missing_time = 0.0
+            else:
+                gift_missing_time += scan_delay
 
+                # Only reset if missing for too long
+                if gift_missing_time >= GIFT_MISSING_TOLERANCE:
+                    gift_box_timer = 0.0
+                    gift_missing_time = 0.0
             # ---- FISH NOT FOUND ----
             if fish_x is not None:
                 fish_miss_count = 0
@@ -2246,6 +2301,32 @@ class App(CTk):
                 max_right = None
                 pid_found = 3
             if bars_found and bar_center is not None: # Bar found
+                # ----- GIFT TRACKING LOGIC -----
+                print(
+                    "Tracking:", tracking_focus,
+                    "Timer:", gift_box_timer,
+                    "Threshold:", GIFT_TRACK_THRESHOLD,
+                    "Check:", gift_box_timer >= GIFT_TRACK_THRESHOLD
+                )
+                if ( bars_found and gift_box_x is not None and gift_box_timer >= GIFT_TRACK_THRESHOLD ):
+                    # convert shake → fish coordinate
+                    shake_width = shake_right - shake_left
+                    fish_width = fish_right - fish_left
+
+                    gift_screen_x = int(
+                        (gift_box_x[0] / shake_width) * fish_width
+                    ) + fish_left
+
+                    if tracking_focus == 0:  # Gift only
+                        fish_x = gift_screen_x
+
+                    elif tracking_focus == 1:  # Gift + Fish
+                        distance = abs(fish_x - gift_screen_x)
+
+                        if distance <= 400:
+                            fish_x = int((fish_x + gift_screen_x) / 2)
+
+                    # tracking_focus == 2 → Fish only
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
                         self.draw_bar_minigame(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)

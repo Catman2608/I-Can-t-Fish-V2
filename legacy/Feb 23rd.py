@@ -604,7 +604,6 @@ class App(CTk):
         CTkLabel(notes1, text="Determines the tolerance to detect the shaking text").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         CTkLabel(notes1, text="Adjust delay values for your latency").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         CTkLabel(notes1, text="The amount of failed attempts before restarting the macro").grid(row=4, column=0, padx=12, pady=10, sticky="w")
-
     # MINIGAME SETTINGS TAB
     def build_minigame_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -612,167 +611,82 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-        
-        bar_toggle_settings = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        # Toggle between image and pixel + eyedropper tool
+        bar_toggle_settings = CTkFrame(scroll, border_width=2)
         bar_toggle_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(bar_toggle_settings, text="Fish Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-
-        CTkLabel(bar_toggle_settings, text="Fish Method:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(bar_toggle_settings, text="Fish Method:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
         fishing_mode_var = StringVar(value="Pixel")
         self.vars["fishing_mode"] = fishing_mode_var
-
-        fishing_cb = CTkComboBox(
-            bar_toggle_settings,
-            values=["Image", "Pixel"],
-            variable=fishing_mode_var,
-            command=lambda v: self.set_status(f"fishing mode: {v}")
-        )
+        fishing_cb = CTkComboBox( bar_toggle_settings, values=["Image", "Pixel"], variable=fishing_mode_var, command=lambda v: self.set_status(f"fishing mode: {v}") )
         fishing_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["fishing_mode"] = fishing_cb
-        CTkButton(
-            bar_toggle_settings,
-            text="Pick Colors",
-            corner_radius=32,
-            command=self._pick_colors
-        ).grid(row=0, column=1, padx=12, pady=12, sticky="w")
-        
-        image_settings = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        CTkButton( bar_toggle_settings, text="Pick Colors", corner_radius=32, command=self._pick_colors ).grid(row=0, column=1, padx=12, pady=12, sticky="w")
+        # Image Search Settings
+        image_settings = CTkFrame( scroll, border_width=2 )
         image_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(image_settings, text="Image Search Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(image_settings, text="Left Bar Confidence:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
-        )
-
+        CTkLabel(image_settings, text="Left Bar Confidence:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
         left_confidence_var = StringVar(value="0.5")
         self.vars["left_confidence"] = left_confidence_var
-
-        CTkEntry(
-            image_settings,
-            width=120,
-            textvariable=left_confidence_var
-        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        
-        CTkLabel(image_settings, text="Right Bar Confidence:").grid(
-            row=2, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkEntry(image_settings, width=120, textvariable=left_confidence_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(image_settings, text="Right Bar Confidence:").grid( row=2, column=0, padx=12, pady=10, sticky="w" )
         right_confidence_var = StringVar(value="0.01")
         self.vars["right_confidence"] = right_confidence_var
         right_confidence_entry = CTkEntry(image_settings, placeholder_text="0.01", width=120, textvariable=right_confidence_var)
         right_confidence_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(image_settings, text="Fish Confidence:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
-
+        CTkLabel(image_settings, text="Fish Confidence:").grid( row=3, column=0, padx=12, pady=10, sticky="w" )
         fish_confidence_var = StringVar(value="1")
         self.vars["fish_confidence"] = fish_confidence_var
-
-        CTkEntry(
-            image_settings,
-            width=120,
-            textvariable=fish_confidence_var
-        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
-        pixel_settings = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        CTkEntry( image_settings, width=120, textvariable=fish_confidence_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        # Pixel Settings
+        pixel_settings = CTkFrame( scroll, border_width=2 )
         pixel_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(pixel_settings, text="Bar Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pixel_settings, text="Left Bar Color:").grid(
-            row=2, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(pixel_settings, text="Left Bar Color:").grid( row=2, column=0, padx=12, pady=10, sticky="w" )
         left_color_var = StringVar(value="#F1F1F1")
         self.vars["left_color"] = left_color_var
         CTkEntry(pixel_settings, placeholder_text="#F1F1F1", width=120, textvariable=left_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(pixel_settings, text="Right Bar Color:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(pixel_settings, text="Right Bar Color:").grid( row=3, column=0, padx=12, pady=10, sticky="w" )
         right_color_var = StringVar(value="#FFFFFF")
         self.vars["right_color"] = right_color_var
         CTkEntry(pixel_settings, placeholder_text="#FFFFFF", width=120, textvariable=right_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        
-        CTkLabel(pixel_settings, text="Arrow Color:").grid(
-            row=4, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(pixel_settings, text="Arrow Color:").grid( row=4, column=0, padx=12, pady=10, sticky="w" )
         arrow_color_var = StringVar(value="#848587")
         self.vars["arrow_color"] = arrow_color_var
         CTkEntry(pixel_settings, placeholder_text="#848587", width=120, textvariable=arrow_color_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
-        
-        CTkLabel(pixel_settings, text="Fish Color:").grid(
-            row=5, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(pixel_settings, text="Fish Color:").grid( row=5, column=0, padx=12, pady=10, sticky="w" )
         fish_color_var = StringVar(value="#434B5B")
         self.vars["fish_color"] = fish_color_var
         CTkEntry(pixel_settings, placeholder_text="#434B5B", width=120, textvariable=fish_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-        
-        CTkLabel(pixel_settings, text="Fish Color 2:").grid(
-            row=6, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(pixel_settings, text="Fish Color 2:").grid( row=6, column=0, padx=12, pady=10, sticky="w" )
         fish2_color_var = StringVar(value="#434B5B")
         self.vars["fish2_color"] = fish2_color_var
         CTkEntry(pixel_settings, placeholder_text="#434B5B", width=120, textvariable=fish2_color_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
-        
         left_tolerance_var = StringVar(value="8")
         self.vars["left_tolerance"] = left_tolerance_var
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
-            row=2, column=2, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(pixel_settings, text="Tolerance:").grid( row=2, column=2, padx=12, pady=10, sticky="w" )
         left_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=left_tolerance_var)
         left_tolerance_entry.grid(row=2, column=3, padx=12, pady=10, sticky="w")
-        
         right_tolerance_var = StringVar(value="8")
         self.vars["right_tolerance"] = right_tolerance_var
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
-            row=3, column=2, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(pixel_settings, text="Tolerance:").grid( row=3, column=2, padx=12, pady=10, sticky="w" )
         right_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=right_tolerance_var)
         right_tolerance_entry.grid(row=3, column=3, padx=12, pady=10, sticky="w")
-        
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
-            row=4, column=2, padx=12, pady=10, sticky="w"
-        )
-
+        CTkLabel(pixel_settings, text="Tolerance:").grid( row=4, column=2, padx=12, pady=10, sticky="w" )
         arrow_tolerance_var = StringVar(value="8")
         self.vars["arrow_tolerance"] = arrow_tolerance_var
         arrow_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=arrow_tolerance_var)
         arrow_tolerance_entry.grid(row=4, column=3, padx=12, pady=10, sticky="w")
-        
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
-            row=5, column=2, padx=12, pady=10, sticky="w"
-        )
-
+        CTkLabel(pixel_settings, text="Tolerance:").grid( row=5, column=2, padx=12, pady=10, sticky="w" )
         fish_tolerance_var = StringVar(value="0")
         self.vars["fish_tolerance"] = fish_tolerance_var
-
-        CTkEntry(
-            pixel_settings,
-            width=120,
-            textvariable=fish_tolerance_var
-        ).grid(row=5, column=3, padx=12, pady=10, sticky="w")
-        
-        CTkLabel(pixel_settings, text="Tolerance:").grid(
-            row=6, column=2, padx=12, pady=10, sticky="w"
-        )
-
+        CTkEntry( pixel_settings, width=120, textvariable=fish_tolerance_var ).grid(row=5, column=3, padx=12, pady=10, sticky="w")
+        CTkLabel(pixel_settings, text="Tolerance:").grid( row=6, column=2, padx=12, pady=10, sticky="w" )
         fish2_tolerance_var = StringVar(value="0")
         self.vars["fish2_tolerance"] = fish2_tolerance_var
-
-        CTkEntry(
-            pixel_settings,
-            width=120,
-            textvariable=fish2_tolerance_var
-        ).grid(row=6, column=3, padx=12, pady=10, sticky="w")
-        
+        CTkEntry( pixel_settings, width=120, textvariable=fish2_tolerance_var ).grid(row=6, column=3, padx=12, pady=10, sticky="w")
+        # Minigame Timing and Limits
         ratio_settings = CTkFrame(
             scroll,
             border_width=2

@@ -1726,8 +1726,8 @@ class App(CTk):
             # 4️⃣ Fish (minigame)
             self.set_status("Fishing")
             self._enter_minigame()
-
             # ⬅️ When minigame ends, loop repeats from Select Rod
+
     def _execute_cast_perfect(self):
         # Hold click
         mouse_controller.press(Button.left)
@@ -1748,35 +1748,21 @@ class App(CTk):
         start_time = time.time()
         white_color = self.vars["perfect_color2"].get()
         green_color = self.vars["perfect_color"].get()
-
         white_tolerance = int(self.vars["perfect_cast2_tolerance"].get())
         green_tolerance = int(self.vars["perfect_cast_tolerance"].get())
-
         while self.macro_running:
             frame = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
             self.clear_overlay()
-
-            green_pixels = self._pixel_search(
-                frame,
-                green_color,
-                green_tolerance
-            )
-
+            green_pixels = self._pixel_search( frame, green_color, green_tolerance )
             if not green_pixels:
                 if time.time() - start_time > 3.5:
                     mouse_controller.release(Button.left)
                     return
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
-
             # Lowest green pixel
             green_x, green_y = max(green_pixels, key=lambda p: p[1])
-
-            shake_pixels = self._pixel_search(
-                frame,
-                white_color,
-                white_tolerance
-            )
+            shake_pixels = self._pixel_search( frame, white_color, white_tolerance )
             if not shake_pixels:
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
@@ -1790,7 +1776,6 @@ class App(CTk):
                 return
 
             time.sleep(float(self.vars["cast_scan_delay"].get()))
-
     def _execute_cast_normal(self):
         # Basic cast: hold left click briefly
         mouse_controller.press(Button.left)
@@ -1799,6 +1784,7 @@ class App(CTk):
         time.sleep(duration)  # adjust cast strength
         mouse_controller.release(Button.left)
         time.sleep(delay)  # wait for cast to register
+
     def _execute_shake_click(self):
         self.set_status("Shake Mode: Click")
         # --- SHAKE AREA ---
@@ -1814,7 +1800,6 @@ class App(CTk):
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
             shake_right  = int(self.SCREEN_WIDTH * 0.7813)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
-
         # --- FISH AREA ---
         fish = self.bar_areas.get("fish")
         if isinstance(fish, dict):
@@ -1827,19 +1812,14 @@ class App(CTk):
             fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
             fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
             fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
-
-
         shake_area = self.bar_areas["shake"]
         shake_hex = self.vars["shake_color"].get()
-
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
         scan_delay = float(self.vars["shake_scan_delay"].get())
         failsafe = int(self.vars["shake_failsafe"].get() or 40)
-
-        # initialize attempts counter to avoid UnboundLocalError
+        # Initialize attempts counter
         attempts = 0
-
         while self.macro_running and attempts < failsafe:
             shake_area = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
             if shake_area is None:
@@ -1849,7 +1829,6 @@ class App(CTk):
             if detection_area is None:
                 time.sleep(scan_delay)
                 continue
-
             # 2️⃣ Look for shake pixel
             shake_pixel = self._find_shake_pixel(shake_area, shake_hex, tolerance)
             if shake_pixel:
@@ -1861,17 +1840,10 @@ class App(CTk):
             # 2️⃣.5 Stable fish detection
             stable = 0
             while stable < 8 and self.macro_running:
-                detection_area = self._grab_screen_region(
-                    fish_left, fish_top, fish_right, fish_bottom
-                )
-
+                detection_area = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom )
                 if detection_area is None:
                     break
-
-                fish_x = self._find_color_center(
-                    detection_area, fish_hex, tolerance
-                )
-
+                fish_x = self._find_color_center( detection_area, fish_hex, tolerance )
                 if fish_x:
                     stable += 1
                     time.sleep(0.005)
@@ -1881,16 +1853,12 @@ class App(CTk):
             # 3️⃣ Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
-
                 mouse_controller.press(Button.left)
                 time.sleep(0.003)
                 mouse_controller.release(Button.left)
-
                 return  # exit shake cleanly
-
             attempts += 1
             time.sleep(scan_delay)
-
     def _execute_shake_navigation(self):
         self.set_status("Shake Mode: Navigation")
         # --- FISH AREA ---
@@ -1905,56 +1873,43 @@ class App(CTk):
             fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
             fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
             fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
-
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
         scan_delay = float(self.vars["shake_scan_delay"].get())
         failsafe = int(self.vars["shake_failsafe"].get() or 20)
-
         attempts = 0
-
         while self.macro_running and attempts < failsafe:
-
             # 1️⃣ Navigation shake (Enter key)
             keyboard_controller.press(Key.enter)
             time.sleep(0.03)
             keyboard_controller.release(Key.enter)
-
             time.sleep(scan_delay)
-
             # 2️⃣ Stable fish detection (old logic preserved)
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(
                     fish_left, fish_top, fish_right, fish_bottom
                 )
-
                 if detection_area is None:
                     break
-
                 fish_x = self._find_color_center(
                     detection_area, fish_hex, tolerance
                 )
-
                 if fish_x:
                     stable += 1
                     time.sleep(0.005)
                 else:
                     break
-
             # 3️⃣ Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
-
                 mouse_controller.press(Button.left)
                 time.sleep(0.003)
                 mouse_controller.release(Button.left)
-
                 return  # exit shake cleanly
-
             attempts += 1
             time.sleep(scan_delay)
-
+            
     def _enter_minigame(self):
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
@@ -1985,10 +1940,8 @@ class App(CTk):
         # --- PREPARE TEMPLATES ONCE ---
         for key in ["fish", "left_bar", "right_bar"]:
             template = self.templates.get(key)
-
             if template is None:
                 continue
-
             # Convert to grayscale once
             if len(template.shape) == 3:
                 template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
@@ -2002,49 +1955,34 @@ class App(CTk):
         arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
         bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
         scan_delay = float(self.vars["minigame_scan_delay"].get() or 0.05)
-
-        try:
-            thresh = float(self.vars["velocity_smoothing"].get() or 8)
-            use_centroid = self.vars["centroid_tracking"].get()
-        except:
-            thresh = 8
-            use_centroid = False
-
+        # Thresh / velocity settings
+        thresh = float(self.vars["velocity_smoothing"].get() or 8)
+        use_centroid = self.vars["centroid_tracking"].get()
         DEADZONE = 8
         mouse_down = False
         fish_miss_count = 0
         MAX_FISH_MISSES = 20
-
         self.pid_prev_error = 0.0
         self.pid_integral = 0.0
         self.pid_last_time = None
-
         gift_box_timer = 0.0
         gift_missing_time = 0.0
         GIFT_TRACK_THRESHOLD = 0.1
-
         def hold_mouse():
             nonlocal mouse_down
             if not mouse_down:
                 mouse_controller.press(Button.left)
                 mouse_down = True
-
         def release_mouse():
             nonlocal mouse_down
             if mouse_down:
                 mouse_controller.release(Button.left)
                 mouse_down = False
         while self.macro_running: # Main macro loop
-            gift_img = self._grab_screen_region(
-                shake_left, shake_top, shake_right, shake_bottom
-            )
-            img = self._grab_screen_region(
-                fish_left, fish_top, fish_right, fish_bottom
-            )
-
+            gift_img = self._grab_screen_region( shake_left, shake_top, shake_right, shake_bottom )
+            img = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom )
             if img is None:
                 return
-
             img_h = img.shape[0]
             mode = self.vars["fishing_mode"].get()
             tracking_focus2 = self.vars["tracking_focus"].get()
@@ -2058,7 +1996,6 @@ class App(CTk):
                 fish_x, left_x, right_x = self._do_image_search(img, img_h)
             else:
                 fish_x, left_x, right_x = self._do_pixel_search(img)
-
             # ---- Arrow ----
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             # ---- Gift box ----
@@ -2068,7 +2005,6 @@ class App(CTk):
                 gift_missing_time = 0.0
             else:
                 gift_missing_time += scan_delay
-
                 # Only reset if missing for too long
                 if gift_missing_time >= gift_missing_tolerance:
                     gift_box_timer = 0.0
@@ -2080,12 +2016,10 @@ class App(CTk):
                 # Neither fish color found
                 fish_miss_count += 1
                 release_mouse()
-
                 if fish_miss_count >= MAX_FISH_MISSES:
                     release_mouse()
                     time.sleep(0.3)
                     return
-
                 time.sleep(0.02)
                 continue
             # ---- CLEAR MINIGAME ----
@@ -2116,20 +2050,13 @@ class App(CTk):
                     # convert shake → fish coordinate
                     shake_width = shake_right - shake_left
                     fish_width = fish_right - fish_left
-
-                    gift_screen_x = int(
-                        (gift_box_x[0] / shake_width) * fish_width
-                    ) + fish_left
-
+                    gift_screen_x = int( (gift_box_x[0] / shake_width) * fish_width ) + fish_left
                     if tracking_focus == 0:  # Gift only
                         fish_x = gift_screen_x
-
                     elif tracking_focus == 1:  # Gift + Fish
                         distance = abs(fish_x - gift_screen_x)
-
                         if distance <= 400:
                             fish_x = int((fish_x + gift_screen_x) / 2)
-
                     # tracking_focus == 2 → Fish only
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
@@ -2140,7 +2067,6 @@ class App(CTk):
                             self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 1
-                
                 elif max_right is not None and fish_x >= max_right:
                     if self.vars["fish_overlay"].get() == "on":
                         self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
@@ -2163,72 +2089,45 @@ class App(CTk):
                         self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                     pid_found = 0
             elif arrow_center:
-
                 capture_width = fish_right - fish_left
                 arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
-
                 if self.vars["fish_overlay"].get() == "on":
                     self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
-
                 if arrow_indicator_x is None:
                     pid_found = 1
                     return
-
                 arrow_screen_x = arrow_indicator_x + fish_left
-
                 if use_centroid:
-                    estimated_bar_center = self._update_arrow_box_estimation(
-                        arrow_indicator_x,
-                        mouse_down,
-                        capture_width
-                    )
-
+                    estimated_bar_center = self._update_arrow_box_estimation( arrow_indicator_x, mouse_down, capture_width )
                     if estimated_bar_center is not None:
                         bar_center = int(estimated_bar_center + fish_left)
                         pid_found = 0
-
                         if self.vars["fish_overlay"].get() == "on":
-                            self.draw_overlay(
-                                bar_center=bar_center,
-                                box_size=40,
-                                color="yellow",
-                                canvas_offset=fish_left
-                            )
+                            self.draw_overlay(bar_center=bar_center,box_size=40,color="yellow",canvas_offset=fish_left)
                     else:
                         pid_found = 1
-
                 else:
                     distance = arrow_screen_x - fish_x
-
                     if abs(distance) < 15:
                         pid_found = 0
                     elif distance < 0:
                         pid_found = 2
                     else:
                         pid_found = 1
-
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_overlay(
-                            bar_center=arrow_screen_x,
-                            box_size=20,
-                            color="yellow",
-                            canvas_offset=fish_left
-                        )
-
+                        self.draw_overlay(bar_center=arrow_screen_x,box_size=20,
+                                          color="yellow",canvas_offset=fish_left)
             else: # No arrow / bar found
                 pid_found = 1
             # PID calculation
             if pid_found == 0 and bar_center is not None:
                 error = fish_x - bar_center
                 control = self._pid_control(error)
-
                 # Map PID output to mouse clicks using hysteresis to avoid jitter/oscillation
                 control = max(-100, min(100, control))
-
                 # Hysteresis thresholds (tune if necessary)
                 on_thresh = thresh
                 off_thresh = thresh * 0.5
-
                 if control > on_thresh:
                     hold_mouse()
                 elif control < -on_thresh:

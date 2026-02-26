@@ -256,85 +256,48 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-
-        #  Configs 
+        # Configs 
         configs = CTkFrame(scroll, border_width=2)
         configs.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(configs, text="Config Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(configs, text="Rod Type:").grid(
-            row=1, column=0, padx=12, pady=6, sticky="w"
-        )
-
+        CTkLabel(configs, text="Rod Type:").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
         config_list = self.load_configs()
         config_var = StringVar(value=config_list[0] if config_list else "default.json")
         self.vars["active_config"] = config_var
-        config_cb = CTkComboBox(
-            configs,
-            values=config_list,
-            variable=config_var,
-            command=lambda v: self.load_settings(v)
-        )
+        config_cb = CTkComboBox( configs, values=config_list, 
+                                variable=config_var, command=lambda v: self.load_settings(v) )
         config_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
-        CTkButton(
-            configs,
-            text="Change Bar Areas",
-            corner_radius=32,
-            command=self.open_dual_area_selector
-        ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
-        CTkButton(
-            configs,
-            text="Reset Bar Areas",
-            corner_radius=32,
-            command=self.reset_bar_areas
+        CTkButton( configs, text="Change Bar Areas", corner_radius=32, 
+                  command=self.open_dual_area_selector
+                  ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
+        CTkButton( configs, text="Reset Bar Areas", 
+                  corner_radius=32, command=self.reset_bar_areas
         ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
         hotkey_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(hotkey_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Save misc settings (most important)
-        CTkButton(
-            hotkey_settings,
-            text="Save Misc Settings",
-            corner_radius=32,
-            command=self.save_misc_settings
+        CTkButton( hotkey_settings, text="Save Misc Settings", 
+                  corner_radius=32, command=self.save_misc_settings
         ).grid(row=0, column=1, padx=12, pady=12, sticky="w")
         # Start key
-        CTkLabel(hotkey_settings, text="Start Key").grid(
-            row=1, column=0, padx=12, pady=6, sticky="w"
-        )
-        CTkLabel(hotkey_settings, text="Screenshot Key").grid(
-            row=2, column=0, padx=12, pady=6, sticky="w"
-        )
-        CTkLabel(hotkey_settings, text="Stop Key").grid(
-            row=3, column=0, padx=12, pady=6, sticky="w"
-        )
+        CTkLabel(hotkey_settings, text="Start Key").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_settings, text="Screenshot Key").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_settings, text="Stop Key").grid( row=3, column=0, padx=12, pady=6, sticky="w" )
         # Start, screenshot and stop key changer
         start_key_var = StringVar(value="F5")
         self.vars["start_key"] = start_key_var
-        start_key_entry = CTkEntry(
-            hotkey_settings,
-            width=120,
-            textvariable=start_key_var
-        )
+        start_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=start_key_var )
         start_key_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-
         screenshot_key_var = StringVar(value="F8")
         self.vars["screenshot_key"] = screenshot_key_var
-        screenshot_key_entry = CTkEntry(
-            hotkey_settings,
-            width=120,
-            textvariable=screenshot_key_var
-        )
+        screenshot_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=screenshot_key_var )
         screenshot_key_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
         stop_key_var = StringVar(value="F7")
         self.vars["stop_key"] = stop_key_var
-        stop_key_entry = CTkEntry(
-            hotkey_settings,
-            width=120,
-            textvariable=stop_key_var
-        )
+        stop_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=stop_key_var )
         stop_key_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
@@ -343,69 +306,34 @@ class App(CTk):
         # Create and store checkboxes with StringVar
         auto_rod_var = StringVar(value="off")
         self.vars["auto_select_rod"] = auto_rod_var
-        auto_rod_cb = CTkCheckBox(automation, text="Auto Select Rod", 
-                                 variable=auto_rod_var, onvalue="on", offvalue="off")
+        auto_rod_cb = CTkCheckBox(automation, text="Auto Select Rod", variable=auto_rod_var, onvalue="on", offvalue="off")
         auto_rod_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
-
         auto_zoom_var = StringVar(value="off")
         self.vars["auto_zoom_in"] = auto_zoom_var
-        auto_zoom_cb = CTkCheckBox(automation, text="Auto Zoom In", 
-                                  variable=auto_zoom_var, onvalue="on", offvalue="off")
+        auto_zoom_cb = CTkCheckBox(automation, text="Auto Zoom In", variable=auto_zoom_var, onvalue="on", offvalue="off")
         auto_zoom_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
-
         fish_overlay_var = StringVar(value="off")
         self.vars["fish_overlay"] = fish_overlay_var
-        fish_overlay_cb = CTkCheckBox(automation, text="Fish Overlay", 
-                                     variable=fish_overlay_var, onvalue="on", offvalue="off")
+        fish_overlay_cb = CTkCheckBox(automation, text="Fish Overlay", variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=3, column=0, padx=12, pady=8, sticky="w")
-
-        #  Casting 
-        casting = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        # Casting Group
+        casting = CTkFrame( scroll, border_width=2 )
         casting.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(casting, text="Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-
         perfect_cast_var = StringVar(value="off")
         self.vars["perfect_cast"] = perfect_cast_var
-
-        CTkCheckBox(
-            casting,
-            text="Perfect Cast (slower)",
-            variable=perfect_cast_var,
-            onvalue="on",
-            offvalue="off"
-        ).grid(row=1, column=0, padx=12, pady=8, sticky="w")
-        # ---- Cast duration ----
-        CTkLabel(casting, text="Cast duration").grid(
-            row=2, column=0, padx=12, pady=8, sticky="w"
-        )
-
+        CTkCheckBox( casting, text="Perfect Cast (slower)", variable=perfect_cast_var, 
+                    onvalue="on", offvalue="off"
+                    ).grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(casting, text="Cast duration").grid( row=2, column=0, padx=12, pady=8, sticky="w" )
         cast_duration_var = StringVar(value="0.6")
         self.vars["cast_duration"] = cast_duration_var
-
-        cast_duration_entry = CTkEntry(
-            casting,
-            width=120,
-            textvariable=cast_duration_var
-        )
+        cast_duration_entry = CTkEntry( casting, width=120, textvariable=cast_duration_var )
         cast_duration_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
-
-
-        # ---- Delay after casting ----
-        CTkLabel(casting, text="Delay after casting").grid(
-            row=3, column=0, padx=12, pady=8, sticky="w"
-        )
-
+        CTkLabel(casting, text="Delay after casting").grid( row=3, column=0, padx=12, pady=8, sticky="w" )
         cast_delay_var = StringVar(value="0.6")
         self.vars["cast_delay"] = cast_delay_var
-
-        cast_delay_entry = CTkEntry(
-            casting,
-            width=120,
-            textvariable=cast_delay_var
-        )
+        cast_delay_entry = CTkEntry( casting, width=120, textvariable=cast_delay_var )
         cast_delay_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
     # MISC SETTINGS TAB
     def build_misc_tab(self, parent):

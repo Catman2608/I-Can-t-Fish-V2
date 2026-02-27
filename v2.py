@@ -127,10 +127,13 @@ class App(CTk):
         self.macro_running = False
         self.macro_thread = None
 
-        # PID state variables
+        # PID state variables (v1-style, no globals)
+        # ``prev_error`` and ``last_time`` mirror the names used in the
+        # original v1 global implementation so that the reset logic works
+        # correctly; these are updated by ``_pid_control``.
         self.pid_integral = 0.0
-        self.prev_error = 0.0
-        self.last_time = None
+        self.prev_error = 0.0      # previous error term
+        self.last_time = None      # timestamp of last PID sample
         self.prev_measurement = None
         self.filtered_derivative = 0.0
         self.last_bar_size = None
@@ -271,8 +274,8 @@ class App(CTk):
         CTkButton( configs, text="Change Bar Areas", corner_radius=32, 
                   command=self.open_dual_area_selector
                   ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
-        CTkButton( configs, text="Reset Bar Areas", 
-                  corner_radius=32, command=self.reset_bar_areas
+        CTkButton( configs, text="Fix Bar Areas", 
+                  corner_radius=32, command=self.fix_bar_areas
         ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
@@ -388,11 +391,16 @@ class App(CTk):
         self.vars["cast_scan_delay"] = cast_scan_delay_var
         cast_scan_delay_entry = CTkEntry( pfc2_settings, width=120, textvariable=cast_scan_delay_var )
         cast_scan_delay_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="Perfect Cast Release Delay:").grid( row=4, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(pfc2_settings, text="Perfect Cast Release Delay:").grid(row=4, column=0, padx=12, pady=10, sticky="w" )
         perfect_release_delay_var = StringVar(value="0.05")
         self.vars["perfect_release_delay"] = perfect_release_delay_var
         perfect_release_delay_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_release_delay_var )
         perfect_release_delay_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pfc2_settings, text="Failsafe Release Timeout:").grid(row=5, column=0, padx=12, pady=10, sticky="w" )
+        perfect_max_time_var = StringVar(value="0.05")
+        self.vars["perfect_max_time"] = perfect_max_time_var
+        perfect_max_time_entry = CTkEntry(pfc2_settings, width=120, textvariable=perfect_max_time_var)
+        perfect_max_time_entry.grid(row=5, column=1, padx=12, pady=10, sticky="w")
         # Fish Overlay Settings 
         overlay_settings = CTkFrame( scroll, border_width=2 )
         overlay_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
@@ -407,10 +415,16 @@ class App(CTk):
         CTkLabel(arrow_settings, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         centroid_tracking_var = StringVar(value="off")
         self.vars["centroid_tracking"] = centroid_tracking_var
-        centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Use Centroid Tracking", 
+        centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Estimate Bar From Arrows", 
                                            variable=centroid_tracking_var, onvalue="on", 
                                            offvalue="off")
         centroid_tracking_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        legacy_pixel_search_var = StringVar(value="off")
+        self.vars["legacy_pixel_search"] = legacy_pixel_search_var
+        legacy_pixel_search_cb = CTkCheckBox(arrow_settings, text="Use Legacy Pixel Search", 
+                                           variable=legacy_pixel_search_var, onvalue="on", 
+                                           offvalue="off")
+        legacy_pixel_search_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         shake_configuration = CTkFrame(
@@ -1008,7 +1022,7 @@ class App(CTk):
     def open_link(self, url):
         """Open a URL in the default web browser."""
         return lambda: webbrowser.open(url)
-    def reset_bar_areas(self):
+    def fix_bar_areas(self):
         print("Not implemented yet")
     def open_dual_area_selector(self):
         self.update_idletasks()
@@ -1304,7 +1318,42 @@ class App(CTk):
             return bar_left_x, bar_right_x
 
         return None, None
+    
+    def _find_bar_edges_legacy(
+        self,
+        frame,
+        left_hex,
+        right_hex,
+        tolerance=15,
+        tolerance2=15,
+        scan_height_ratio=0.55
+    ):
+        if frame is None:
+            return None, None
 
+        h, w, _ = frame.shape
+        y = int(h * scan_height_ratio)
+
+        left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
+        right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
+
+        line = frame[y].astype(np.int16)
+
+        tol_l = int(np.clip(tolerance, 0, 255))
+        tol_r = int(np.clip(tolerance2, 0, 255))
+
+        # V1-style threshold comparison
+        left_mask = np.all(line >= (left_bgr - tol_l), axis=1)
+        right_mask = np.all(line >= (right_bgr - tol_r), axis=1)
+
+        left_indices = np.where(left_mask)[0]
+        right_indices = np.where(right_mask)[0]
+
+        left_edge = int(left_indices[0]) if left_indices.size else None
+        right_edge = int(right_indices[-1]) if right_indices.size else None
+
+        return left_edge, right_edge
+    
     def _find_color_bounds(self, frame, target_color_hex, tolerance=10):
         pixels = self._pixel_search(frame, target_color_hex, tolerance)
         if not pixels:
@@ -1386,25 +1435,30 @@ class App(CTk):
         return kp, kd, ki
     
     def _pid_control(self, error):
+        """
+        Compute PID output using the previous error/time stored on ``self``.
+        """
+
         now = time.perf_counter()
 
-        if self.pid_last_time is None:
-            self.pid_last_time = now
-            self.pid_prev_error = error
+        # first sample: initialize state and return zero control
+        if self.last_time is None:
+            self.last_time = now
+            self.prev_error = error
             return 0.0
 
-        dt = now - self.pid_last_time
+        dt = now - self.last_time
         if dt <= 0:
             return 0.0
 
         kp, kd, ki = self._get_pid_gains()
 
-        # Integral (anti-windup)
+        # Integral term with anti‑windup clamp
         self.pid_integral += error * dt
         self.pid_integral = max(-100, min(100, self.pid_integral))
 
-        # Derivative
-        derivative = (error - self.pid_prev_error) / dt
+        # Derivative term
+        derivative = (error - self.prev_error) / dt
 
         output = (
             kp * error +
@@ -1412,16 +1466,21 @@ class App(CTk):
             kd * derivative
         )
 
-        self.pid_prev_error = error
-        self.pid_last_time = now
+        # update history
+        self.prev_error = error
+        self.last_time = now
 
         return output
 
     def _reset_pid_state(self):
-        """Reset PID control state variables."""
+        """
+        Reset PID control state variables.
+        """
         self.pid_integral = 0.0
+        # history fields used by ``_pid_control``
         self.prev_error = 0.0
         self.last_time = None
+
         # Clear PID source so next detection resets state correctly
         self.prev_measurement = None
         self.filtered_derivative = 0.0
@@ -1521,26 +1580,6 @@ class App(CTk):
         self.last_holding_state = is_holding
         
         return box_center
-    def _find_bar_target(self, fish_x, left_bar_x, right_bar_x, bar_ratio):
-        """
-        Symmetric safe-zone around fish_x.
-        bar_ratio: fraction of bar width (0.0 - 0.5 recommended)
-        """
-        bar_width = right_bar_x - left_bar_x
-        bar_ratio = max(0.05, min(0.45, bar_ratio))
-
-        half_zone = bar_width * bar_ratio * 0.5
-
-        left_limit  = fish_x - half_zone
-        right_limit = fish_x + half_zone
-
-        if fish_x < left_limit:
-            return left_limit
-        elif fish_x > right_limit:
-            return right_limit
-        else:
-            return None
-
     # === MINIGAME WINDOW (instance methods) ===
     def init_overlay_window(self):
         """
@@ -1652,11 +1691,21 @@ class App(CTk):
         right_tol = int(self.vars["right_tolerance"].get() or 8)
         fish_tol = int(self.vars["fish_tolerance"].get() or 1)
         fish_center = self._find_color_center(img, fish_hex, fish_tol)
-        left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
-        if left_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
-        elif right_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+
+        legacy_pixel_search = self.vars["legacy_pixel_search"].get()
+        # Use legacy pixel search if possible
+        if legacy_pixel_search:
+            left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+            if left_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+            elif right_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+        else:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+            if left_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+            elif right_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
         return fish_center, left_bar_center, right_bar_center
     # Start macro and main loop
     def start_macro(self):
@@ -1729,6 +1778,11 @@ class App(CTk):
             # ⬅️ When minigame ends, loop repeats from Select Rod
 
     def _execute_cast_perfect(self):
+        """
+        Find perfect cast color and cast color
+        Then, compare the distances between perfect cast color and cast color
+        Then, release (if failsafe reached release anyways)
+        """
         # Hold click
         mouse_controller.press(Button.left)
         # Get shake area
@@ -1744,40 +1798,50 @@ class App(CTk):
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
             shake_right  = int(self.SCREEN_WIDTH * 0.7813)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
-        # Other variables
+        # Time
         start_time = time.time()
+        # Perfect colors
         white_color = self.vars["perfect_color2"].get()
         green_color = self.vars["perfect_color"].get()
+        # Perfect tolerance
         white_tolerance = int(self.vars["perfect_cast2_tolerance"].get())
         green_tolerance = int(self.vars["perfect_cast_tolerance"].get())
+        # Perfect release delay conversion
+        release_delay = float(self.vars["perfect_release_delay"].get())
+        max_time = float(self.vars["perfect_max_time"].get())
+        if release_delay < 0:
+            green_offset = abs(release_delay * 10)
+            release_delay = 0
+        else:
+            green_offset = 0
+        # Perfect cast loop
         while self.macro_running:
             frame = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
             self.clear_overlay()
-            green_pixels = self._pixel_search( frame, green_color, green_tolerance )
+            green_pixels = self._pixel_search(frame, green_color, green_tolerance)
             if not green_pixels:
-                if time.time() - start_time > 3.5:
+                if time.time() - start_time > max_time:
                     mouse_controller.release(Button.left)
                     return
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
-                continue
             # Lowest green pixel
             green_x, green_y = max(green_pixels, key=lambda p: p[1])
-            shake_pixels = self._pixel_search( frame, white_color, white_tolerance )
-            if not shake_pixels:
+            green_y = green_y + green_offset
+            white_pixels = self._pixel_search(frame, white_color, white_tolerance)
+            if not white_pixels:
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
-                continue
-            white_x, white_y = min(shake_pixels, key=lambda p: p[1])
-            if shake_pixels and green_pixels:
+            white_x, white_y = min(white_pixels, key=lambda p: p[1])
+            if white_pixels and green_pixels: # If white and green found
                 distance = abs(green_y - white_y)
-                if distance < 30:
+                if distance < 30: # Perfect cast release condition
+                    time.sleep(release_delay)
                     mouse_controller.release(Button.left)
-            if time.time() - start_time > 3.5:
+            if time.time() - start_time > max_time: # Timer limit reached
                 mouse_controller.release(Button.left)
                 return
-
             time.sleep(float(self.vars["cast_scan_delay"].get()))
     def _execute_cast_normal(self):
-        # Basic cast: hold left click briefly
+        """Hold left click for user cast delay"""
         mouse_controller.press(Button.left)
         duration = float(self.vars["cast_duration"].get() or 0.6)
         delay = float(self.vars["cast_delay"].get() or 0.2)
@@ -1909,7 +1973,7 @@ class App(CTk):
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
-            
+
     def _enter_minigame(self):
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
@@ -1945,6 +2009,8 @@ class App(CTk):
             # Convert to grayscale once
             if len(template.shape) == 3:
                 template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
+        # Restart delay
+        restart_delay = float(self.vars["restart_delay"].get())
         # Gift box color and timer settings
         gift_box_hex = self.vars["gift_box_color"].get()
         gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
@@ -1958,13 +2024,11 @@ class App(CTk):
         # Thresh / velocity settings
         thresh = float(self.vars["velocity_smoothing"].get() or 8)
         use_centroid = self.vars["centroid_tracking"].get()
-        DEADZONE = 8
         mouse_down = False
-        fish_miss_count = 0
-        MAX_FISH_MISSES = 20
-        self.pid_prev_error = 0.0
+        # initialise/zero PID state before entering the tracking loop
+        self.prev_error = 0.0
         self.pid_integral = 0.0
-        self.pid_last_time = None
+        self.last_time = None
         gift_box_timer = 0.0
         gift_missing_time = 0.0
         GIFT_TRACK_THRESHOLD = 0.1
@@ -1979,8 +2043,8 @@ class App(CTk):
                 mouse_controller.release(Button.left)
                 mouse_down = False
         while self.macro_running: # Main macro loop
-            gift_img = self._grab_screen_region( shake_left, shake_top, shake_right, shake_bottom )
-            img = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom )
+            gift_img = self._grab_screen_region( shake_left, shake_top, shake_right, shake_bottom)
+            img = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom)
             if img is None:
                 return
             img_h = img.shape[0]
@@ -2009,19 +2073,17 @@ class App(CTk):
                 if gift_missing_time >= gift_missing_tolerance:
                     gift_box_timer = 0.0
                     gift_missing_time = 0.0
-            # ---- FISH NOT FOUND ----
+            # ---- FISH HANDLING ----
             if fish_x is not None:
-                fish_miss_count = 0
+                # Normal detection
+                self.last_fish_x = fish_x
             else:
-                # Neither fish color found
-                fish_miss_count += 1
-                release_mouse()
-                if fish_miss_count >= MAX_FISH_MISSES:
+                if (left_x is None and right_x is None):
                     release_mouse()
-                    time.sleep(0.3)
+                    time.sleep(restart_delay)
                     return
-                time.sleep(0.02)
-                continue
+                else:
+                    fish_x = self.last_fish_x
             # ---- CLEAR MINIGAME ----
             self.clear_overlay()
             # ---- BARS NOT FOUND ----

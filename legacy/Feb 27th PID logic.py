@@ -415,16 +415,10 @@ class App(CTk):
         CTkLabel(arrow_settings, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         centroid_tracking_var = StringVar(value="off")
         self.vars["centroid_tracking"] = centroid_tracking_var
-        centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Estimate Bar From Arrows", 
+        centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Use Centroid Tracking", 
                                            variable=centroid_tracking_var, onvalue="on", 
                                            offvalue="off")
         centroid_tracking_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
-        legacy_pixel_search_var = StringVar(value="off")
-        self.vars["legacy_pixel_search"] = legacy_pixel_search_var
-        legacy_pixel_search_cb = CTkCheckBox(arrow_settings, text="Use Legacy Pixel Search", 
-                                           variable=legacy_pixel_search_var, onvalue="on", 
-                                           offvalue="off")
-        legacy_pixel_search_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         shake_configuration = CTkFrame(
@@ -1318,42 +1312,7 @@ class App(CTk):
             return bar_left_x, bar_right_x
 
         return None, None
-    
-    def _find_bar_edges_legacy(
-        self,
-        frame,
-        left_hex,
-        right_hex,
-        tolerance=15,
-        tolerance2=15,
-        scan_height_ratio=0.55
-    ):
-        if frame is None:
-            return None, None
 
-        h, w, _ = frame.shape
-        y = int(h * scan_height_ratio)
-
-        left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
-        right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
-
-        line = frame[y].astype(np.int16)
-
-        tol_l = int(np.clip(tolerance, 0, 255))
-        tol_r = int(np.clip(tolerance2, 0, 255))
-
-        # V1-style threshold comparison
-        left_mask = np.all(line >= (left_bgr - tol_l), axis=1)
-        right_mask = np.all(line >= (right_bgr - tol_r), axis=1)
-
-        left_indices = np.where(left_mask)[0]
-        right_indices = np.where(right_mask)[0]
-
-        left_edge = int(left_indices[0]) if left_indices.size else None
-        right_edge = int(right_indices[-1]) if right_indices.size else None
-
-        return left_edge, right_edge
-    
     def _find_color_bounds(self, frame, target_color_hex, tolerance=10):
         pixels = self._pixel_search(frame, target_color_hex, tolerance)
         if not pixels:
@@ -1580,6 +1539,26 @@ class App(CTk):
         self.last_holding_state = is_holding
         
         return box_center
+    def _find_bar_target(self, fish_x, left_bar_x, right_bar_x, bar_ratio):
+        """
+        Symmetric safe-zone around fish_x.
+        bar_ratio: fraction of bar width (0.0 - 0.5 recommended)
+        """
+        bar_width = right_bar_x - left_bar_x
+        bar_ratio = max(0.05, min(0.45, bar_ratio))
+
+        half_zone = bar_width * bar_ratio * 0.5
+
+        left_limit  = fish_x - half_zone
+        right_limit = fish_x + half_zone
+
+        if fish_x < left_limit:
+            return left_limit
+        elif fish_x > right_limit:
+            return right_limit
+        else:
+            return None
+
     # === MINIGAME WINDOW (instance methods) ===
     def init_overlay_window(self):
         """
@@ -1691,21 +1670,11 @@ class App(CTk):
         right_tol = int(self.vars["right_tolerance"].get() or 8)
         fish_tol = int(self.vars["fish_tolerance"].get() or 1)
         fish_center = self._find_color_center(img, fish_hex, fish_tol)
-
-        legacy_pixel_search = self.vars["legacy_pixel_search"].get()
-        # Use legacy pixel search if possible
-        if legacy_pixel_search:
-            left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
-            if left_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
-            elif right_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
-        else:
-            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
-            if left_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
-            elif right_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+        left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+        if left_bar_center is None:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+        elif right_bar_center is None:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
         return fish_center, left_bar_center, right_bar_center
     # Start macro and main loop
     def start_macro(self):
@@ -2009,8 +1978,6 @@ class App(CTk):
             # Convert to grayscale once
             if len(template.shape) == 3:
                 template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
-        # Restart delay
-        restart_delay = float(self.vars["restart_delay"].get())
         # Gift box color and timer settings
         gift_box_hex = self.vars["gift_box_color"].get()
         gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
@@ -2024,7 +1991,10 @@ class App(CTk):
         # Thresh / velocity settings
         thresh = float(self.vars["velocity_smoothing"].get() or 8)
         use_centroid = self.vars["centroid_tracking"].get()
+        DEADZONE = 8
         mouse_down = False
+        fish_miss_count = 0
+        MAX_FISH_MISSES = 20
         # initialise/zero PID state before entering the tracking loop
         self.prev_error = 0.0
         self.pid_integral = 0.0
@@ -2043,8 +2013,8 @@ class App(CTk):
                 mouse_controller.release(Button.left)
                 mouse_down = False
         while self.macro_running: # Main macro loop
-            gift_img = self._grab_screen_region( shake_left, shake_top, shake_right, shake_bottom)
-            img = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom)
+            gift_img = self._grab_screen_region( shake_left, shake_top, shake_right, shake_bottom )
+            img = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom )
             if img is None:
                 return
             img_h = img.shape[0]
@@ -2073,17 +2043,19 @@ class App(CTk):
                 if gift_missing_time >= gift_missing_tolerance:
                     gift_box_timer = 0.0
                     gift_missing_time = 0.0
-            # ---- FISH HANDLING ----
+            # ---- FISH NOT FOUND ----
             if fish_x is not None:
-                # Normal detection
-                self.last_fish_x = fish_x
+                fish_miss_count = 0
             else:
-                if (left_x is None and right_x is None):
+                # Neither fish color found
+                fish_miss_count += 1
+                release_mouse()
+                if fish_miss_count >= MAX_FISH_MISSES:
                     release_mouse()
-                    time.sleep(restart_delay)
+                    time.sleep(0.3)
                     return
-                else:
-                    fish_x = self.last_fish_x
+                time.sleep(0.02)
+                continue
             # ---- CLEAR MINIGAME ----
             self.clear_overlay()
             # ---- BARS NOT FOUND ----

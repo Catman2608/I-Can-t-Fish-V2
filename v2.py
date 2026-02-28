@@ -170,7 +170,7 @@ class App(CTk):
             self, 
             text="I CAN'T FISH V2.3",
             font=CTkFont(size=16, weight="bold")
-        )
+       )
         logo_label.grid(row=0, column=0, columnspan=6, pady=5, padx=20, sticky="w")
         # Bar Areas Variables
         self.shake_selector = None
@@ -195,33 +195,33 @@ class App(CTk):
             text="Website",
             corner_radius=32,
             command=self.open_link("https://sites.google.com/view/icf-automation-network/")
-        ).pack(side="left", padx=6)
+       ).pack(side="left", padx=6)
 
         CTkButton(
             button_frame,
             text="YouTube",
             corner_radius=32,
             command=self.open_link("https://www.youtube.com/@HexaTitanGaming")
-        ).pack(side="left", padx=6)
+       ).pack(side="left", padx=6)
 
         CTkButton(
             button_frame,
             text="Tutorial",
             corner_radius=32,
             command=self.open_link("https://docs.google.com/document/d/1qjhgcONxpZZbSAEYiSCXoUXGjQwd7Jghf4EysWC4Cps/edit?usp=drive_link")
-        ).pack(side="left", padx=6)
+       ).pack(side="left", padx=6)
 
         # Tabs 
         self.tabs = CTkTabview(
             self,
             anchor="w",
-        )
+       )
 
         self.tabs.grid(
             row=2, column=0,
             padx=20, pady=10,
             sticky="nsew"
-        )
+       )
 
         self.tabs.add("Basic")
         self.tabs.add("Misc")
@@ -477,79 +477,79 @@ class App(CTk):
         bar_toggle_settings = CTkFrame(scroll, border_width=2)
         bar_toggle_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(bar_toggle_settings, text="Fish Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(bar_toggle_settings, text="Fish Method:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(bar_toggle_settings, text="Fish Method:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         fishing_mode_var = StringVar(value="Pixel")
         self.vars["fishing_mode"] = fishing_mode_var
         fishing_cb = CTkComboBox(bar_toggle_settings, values=["Image", "Pixel"], 
                                  variable=fishing_mode_var, command=lambda v: self.set_status(f"fishing mode: {v}")
-                                 )
+                                )
         fishing_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["fishing_mode"] = fishing_cb
-        CTkButton( bar_toggle_settings, text="Pick Colors", corner_radius=32, command=self._pick_colors ).grid(row=0, column=1, padx=12, pady=12, sticky="w")
+        CTkButton(bar_toggle_settings, text="Pick Colors", corner_radius=32, command=self._pick_colors).grid(row=0, column=1, padx=12, pady=12, sticky="w")
         # Image Search Settings
-        image_settings = CTkFrame( scroll, border_width=2 )
+        image_settings = CTkFrame(scroll, border_width=2)
         image_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(image_settings, text="Image Search Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(image_settings, text="Left Bar Confidence:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(image_settings, text="Left Bar Confidence:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         left_confidence_var = StringVar(value="0.5")
         self.vars["left_confidence"] = left_confidence_var
         CTkEntry(image_settings, width=120, textvariable=left_confidence_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(image_settings, text="Right Bar Confidence:").grid( row=2, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(image_settings, text="Right Bar Confidence:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         right_confidence_var = StringVar(value="0.01")
         self.vars["right_confidence"] = right_confidence_var
         right_confidence_entry = CTkEntry(image_settings, placeholder_text="0.01", width=120, textvariable=right_confidence_var)
         right_confidence_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(image_settings, text="Fish Confidence:").grid( row=3, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(image_settings, text="Fish Confidence:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         fish_confidence_var = StringVar(value="1")
         self.vars["fish_confidence"] = fish_confidence_var
-        CTkEntry( image_settings, width=120, textvariable=fish_confidence_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(image_settings, width=120, textvariable=fish_confidence_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # Pixel Settings
-        pixel_settings = CTkFrame( scroll, border_width=2 )
+        pixel_settings = CTkFrame(scroll, border_width=2)
         pixel_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(pixel_settings, text="Bar Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pixel_settings, text="Left Bar Color:").grid( row=2, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Left Bar Color:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         left_color_var = StringVar(value="#F1F1F1")
         self.vars["left_color"] = left_color_var
         CTkEntry(pixel_settings, placeholder_text="#F1F1F1", width=120, textvariable=left_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Right Bar Color:").grid( row=3, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Right Bar Color:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         right_color_var = StringVar(value="#FFFFFF")
         self.vars["right_color"] = right_color_var
         CTkEntry(pixel_settings, placeholder_text="#FFFFFF", width=120, textvariable=right_color_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Arrow Color:").grid( row=4, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Arrow Color:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
         arrow_color_var = StringVar(value="#848587")
         self.vars["arrow_color"] = arrow_color_var
         CTkEntry(pixel_settings, placeholder_text="#848587", width=120, textvariable=arrow_color_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Fish Color:").grid( row=5, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Fish Color:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
         fish_color_var = StringVar(value="#434B5B")
         self.vars["fish_color"] = fish_color_var
         CTkEntry(pixel_settings, placeholder_text="#434B5B", width=120, textvariable=fish_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Fish Color 2:").grid( row=6, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Fish Color 2:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
         fish2_color_var = StringVar(value="#434B5B")
         self.vars["fish2_color"] = fish2_color_var
         CTkEntry(pixel_settings, placeholder_text="#434B5B", width=120, textvariable=fish2_color_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
         left_tolerance_var = StringVar(value="8")
         self.vars["left_tolerance"] = left_tolerance_var
-        CTkLabel(pixel_settings, text="Tolerance:").grid( row=2, column=2, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Tolerance:").grid(row=2, column=2, padx=12, pady=10, sticky="w")
         left_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=left_tolerance_var)
         left_tolerance_entry.grid(row=2, column=3, padx=12, pady=10, sticky="w")
         right_tolerance_var = StringVar(value="8")
         self.vars["right_tolerance"] = right_tolerance_var
-        CTkLabel(pixel_settings, text="Tolerance:").grid( row=3, column=2, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Tolerance:").grid(row=3, column=2, padx=12, pady=10, sticky="w")
         right_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=right_tolerance_var)
         right_tolerance_entry.grid(row=3, column=3, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Tolerance:").grid( row=4, column=2, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Tolerance:").grid(row=4, column=2, padx=12, pady=10, sticky="w")
         arrow_tolerance_var = StringVar(value="8")
         self.vars["arrow_tolerance"] = arrow_tolerance_var
         arrow_tolerance_entry = CTkEntry(pixel_settings, placeholder_text="8", width=120, textvariable=arrow_tolerance_var)
         arrow_tolerance_entry.grid(row=4, column=3, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Tolerance:").grid( row=5, column=2, padx=12, pady=10, sticky="w" )
+        CTkLabel(pixel_settings, text="Tolerance:").grid(row=5, column=2, padx=12, pady=10, sticky="w")
         fish_tolerance_var = StringVar(value="0")
         self.vars["fish_tolerance"] = fish_tolerance_var
-        CTkEntry( pixel_settings, width=120, textvariable=fish_tolerance_var ).grid(row=5, column=3, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Tolerance:").grid( row=6, column=2, padx=12, pady=10, sticky="w" )
+        CTkEntry(pixel_settings, width=120, textvariable=fish_tolerance_var).grid(row=5, column=3, padx=12, pady=10, sticky="w")
+        CTkLabel(pixel_settings, text="Tolerance:").grid(row=6, column=2, padx=12, pady=10, sticky="w")
         fish2_tolerance_var = StringVar(value="0")
         self.vars["fish2_tolerance"] = fish2_tolerance_var
-        CTkEntry( pixel_settings, width=120, textvariable=fish2_tolerance_var ).grid(row=6, column=3, padx=12, pady=10, sticky="w")
+        CTkEntry(pixel_settings, width=120, textvariable=fish2_tolerance_var).grid(row=6, column=3, padx=12, pady=10, sticky="w")
         # Minigame Timing and Limits
         ratio_settings = CTkFrame(
             scroll,
@@ -578,60 +578,41 @@ class App(CTk):
         minigame_scan_delay_entry = CTkEntry(ratio_settings, placeholder_text="0.01", width=120, textvariable=minigame_scan_delay_var)
         minigame_scan_delay_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(ratio_settings, text="Restart Delay:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(ratio_settings, text="Restart Delay:").grid(row=3, column=0, padx=12, pady=10, sticky="w" )
 
         restart_delay_var = StringVar(value="1")
         self.vars["restart_delay"] = restart_delay_var
 
-        CTkEntry(
-            ratio_settings,
-            width=120,
-            textvariable=restart_delay_var
-        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(ratio_settings, width=120, textvariable=restart_delay_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        pid_settings = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        pid_settings = CTkFrame(scroll, border_width=2 )
         pid_settings.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(pid_settings, text="PID Controller Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pid_settings, text="Proportional gain:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
-        )
 
-        p_gain_var = StringVar(value="0.01")
+        CTkLabel(pid_settings, text="Proportional gain:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
+        p_gain_var = StringVar(value="0.9")
         self.vars["proportional_gain"] = p_gain_var
+        CTkEntry(pid_settings, width=120, textvariable=p_gain_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            pid_settings,
-            width=120,
-            textvariable=p_gain_var
-        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pid_settings, text="Derivative gain:").grid(
-            row=2, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(pid_settings, text="Integral gain:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        i_gain_var = StringVar(value="0.1")
+        self.vars["integral_gain"] = i_gain_var
+        CTkEntry(pid_settings, width=120, textvariable=i_gain_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
-        d_gain_var = StringVar(value="0.01")
+        CTkLabel(pid_settings, text="Derivative gain:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        d_gain_var = StringVar(value="0.4")
         self.vars["derivative_gain"] = d_gain_var
-        CTkEntry(
-            pid_settings,
-            width=120,
-            textvariable=d_gain_var
-        ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pid_settings, text="Velocity Smoothing:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkEntry(pid_settings, width=120, textvariable=d_gain_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        velocity_smoothing_var = StringVar(value="6")
-        self.vars["velocity_smoothing"] = velocity_smoothing_var
+        CTkLabel(pid_settings, text="Stabilize Threshold:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
+        stabilize_threshold2_var = StringVar(value="6")
+        self.vars["stabilize_threshold2"] = stabilize_threshold2_var
+        CTkEntry(pid_settings, width=120, textvariable=stabilize_threshold2_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            pid_settings,
-            width=120,
-            textvariable=velocity_smoothing_var
-        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pid_settings, text="PID Clamp:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
+        pid_clamp_var = StringVar(value="100")
+        self.vars["pid_clamp"] = pid_clamp_var
+        CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
     # SUPPORT SETTINGS TAB
     def build_advanced_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -1070,13 +1051,13 @@ class App(CTk):
             self.bar_areas.get("shake")
             if isinstance(self.bar_areas.get("shake"), dict)
             else default_shake_area()
-        )
+       )
 
         fish_area = (
             self.bar_areas.get("fish")
             if isinstance(self.bar_areas.get("fish"), dict)
             else default_fish_area()
-        )
+       )
         mode = self.vars["fishing_mode"].get()
         # ---- TEMPLATE HEIGHT FAILSAFE ----
         if (
@@ -1084,7 +1065,7 @@ class App(CTk):
             and self.templates.get("fish") is not None
             and self.templates.get("left_bar") is not None
             and mode == "Image"
-        ):
+       ):
 
             fish_template_h = self.templates["fish"].shape[0]
             bar_template_h  = self.templates["left_bar"].shape[0]
@@ -1108,7 +1089,7 @@ class App(CTk):
 
                 self.set_status(
                     f"Bar height too small ({old_height}) → corrected to {min_required_height}"
-                )
+               )
         def on_shake_done(shake):
             self.bar_areas["shake"] = shake
 
@@ -1127,13 +1108,13 @@ class App(CTk):
             parent=self,
             area=shake_area,
             callback=on_shake_done
-        )
+       )
 
         self.fish_selector = FishAreaSelector(
             parent=self,
             area=fish_area,
             callback=on_fish_done
-        )
+       )
     # Image processing and interaction functions
     def _find_template(self, frame, template, confidence=0.85):
         if template is None or frame is None:
@@ -1155,7 +1136,7 @@ class App(CTk):
                 self.templates[key] = cv2.cvtColor(
                     self.templates[key],
                     cv2.COLOR_BGR2GRAY
-                )
+               )
     # Pixel Search Functions
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
         """
@@ -1266,7 +1247,7 @@ class App(CTk):
         tolerance=15,
         tolerance2=15,
         scan_height_ratio=0.55
-    ):
+   ):
         if frame is None:
             return None, None
 
@@ -1327,7 +1308,7 @@ class App(CTk):
         tolerance=15,
         tolerance2=15,
         scan_height_ratio=0.55
-    ):
+   ):
         if frame is None:
             return None, None
 
@@ -1384,7 +1365,7 @@ class App(CTk):
         mask = np.all(
             np.abs(frame_i - white) <= tolerance,
             axis=-1
-        )
+       )
 
         coords = np.argwhere(mask)
         if coords.size > 0:
@@ -1429,8 +1410,11 @@ class App(CTk):
         except:
             kd = 0.2
         
-        # Small integral term to reduce steady-state error
-        ki = 0.02
+        # Read integral gain from the UI (minigame tab); fall back to small value
+        try:
+            ki = float(self.vars["integral_gain"].get() or 0.02)
+        except:
+            ki = 0.02
         
         return kp, kd, ki
     
@@ -1464,7 +1448,7 @@ class App(CTk):
             kp * error +
             ki * self.pid_integral +
             kd * derivative
-        )
+       )
 
         # update history
         self.prev_error = error
@@ -1602,7 +1586,7 @@ class App(CTk):
             height=60,
             bg="#1d1d1d",
             highlightthickness=0
-        )
+       )
         self.overlay_canvas.pack(fill="both", expand=True)
 
     def show_overlay(self):
@@ -1630,7 +1614,7 @@ class App(CTk):
                 outline=outline,
                 width=2,
                 fill=fill
-            )
+           )
 
         self.overlay_canvas.after(0, _draw)
 
@@ -1642,7 +1626,7 @@ class App(CTk):
         canvas_offset,
         bar_y1=10,
         bar_y2=40,
-    ):
+   ):
         """
         Draws:
         - Square box with size
@@ -1824,12 +1808,14 @@ class App(CTk):
                     mouse_controller.release(Button.left)
                     return
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
+                continue
             # Lowest green pixel
             green_x, green_y = max(green_pixels, key=lambda p: p[1])
             green_y = green_y + green_offset
             white_pixels = self._pixel_search(frame, white_color, white_tolerance)
             if not white_pixels:
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
+                continue
             white_x, white_y = min(white_pixels, key=lambda p: p[1])
             if white_pixels and green_pixels: # If white and green found
                 distance = abs(green_y - white_y)
@@ -1904,10 +1890,10 @@ class App(CTk):
             # 2️⃣.5 Stable fish detection
             stable = 0
             while stable < 8 and self.macro_running:
-                detection_area = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom )
+                detection_area = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
                 if detection_area is None:
                     break
-                fish_x = self._find_color_center( detection_area, fish_hex, tolerance )
+                fish_x = self._find_color_center(detection_area, fish_hex, tolerance)
                 if fish_x:
                     stable += 1
                     time.sleep(0.005)
@@ -1953,12 +1939,12 @@ class App(CTk):
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(
                     fish_left, fish_top, fish_right, fish_bottom
-                )
+               )
                 if detection_area is None:
                     break
                 fish_x = self._find_color_center(
                     detection_area, fish_hex, tolerance
-                )
+               )
                 if fish_x:
                     stable += 1
                     time.sleep(0.005)
@@ -2021,12 +2007,14 @@ class App(CTk):
         arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
         bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
         scan_delay = float(self.vars["minigame_scan_delay"].get() or 0.05)
-        # Thresh / velocity settings
-        thresh = float(self.vars["velocity_smoothing"].get() or 8)
+        # Thresh / clamp settings
+        thresh = float(self.vars["stabilize_threshold2"].get() or 8)
+        pid_clamp = float(self.vars["pid_clamp"].get() or 100)
         use_centroid = self.vars["centroid_tracking"].get()
         mouse_down = False
         # initialise/zero PID state before entering the tracking loop
         self.prev_error = 0.0
+        # integral state should start at zero regardless of the gain setting
         self.pid_integral = 0.0
         self.last_time = None
         gift_box_timer = 0.0
@@ -2043,8 +2031,8 @@ class App(CTk):
                 mouse_controller.release(Button.left)
                 mouse_down = False
         while self.macro_running: # Main macro loop
-            gift_img = self._grab_screen_region( shake_left, shake_top, shake_right, shake_bottom)
-            img = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom)
+            gift_img = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
+            img = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
             if img is None:
                 return
             img_h = img.shape[0]
@@ -2108,11 +2096,11 @@ class App(CTk):
                 pid_found = 3
             if bars_found and bar_center is not None: # Bar found
                 # ----- GIFT TRACKING LOGIC -----
-                if ( bars_found and gift_box_x is not None and gift_box_timer >= GIFT_TRACK_THRESHOLD ):
+                if (bars_found and gift_box_x is not None and gift_box_timer >= GIFT_TRACK_THRESHOLD):
                     # convert shake → fish coordinate
                     shake_width = shake_right - shake_left
                     fish_width = fish_right - fish_left
-                    gift_screen_x = int( (gift_box_x[0] / shake_width) * fish_width ) + fish_left
+                    gift_screen_x = int((gift_box_x[0] / shake_width) * fish_width) + fish_left
                     if tracking_focus == 0:  # Gift only
                         fish_x = gift_screen_x
                     elif tracking_focus == 1:  # Gift + Fish
@@ -2122,20 +2110,20 @@ class App(CTk):
                     # tracking_focus == 2 → Fish only
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_overlay(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
                         if self.vars["bar_size"].get() == "on":
                             self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
                         else:
                             self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 1
                 elif max_right is not None and fish_x >= max_right:
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                         if self.vars["bar_size"].get() == "on":
                             self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
                         else:
                             self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 2
                 else:
@@ -2146,9 +2134,6 @@ class App(CTk):
                         else:
                             self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
-                        # Debug code
-                        self.draw_overlay(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
-                        self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                     pid_found = 0
             elif arrow_center:
                 capture_width = fish_right - fish_left
@@ -2160,7 +2145,7 @@ class App(CTk):
                     return
                 arrow_screen_x = arrow_indicator_x + fish_left
                 if use_centroid:
-                    estimated_bar_center = self._update_arrow_box_estimation( arrow_indicator_x, mouse_down, capture_width )
+                    estimated_bar_center = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
                     if estimated_bar_center is not None:
                         bar_center = int(estimated_bar_center + fish_left)
                         pid_found = 0
@@ -2186,7 +2171,7 @@ class App(CTk):
                 error = fish_x - bar_center
                 control = self._pid_control(error)
                 # Map PID output to mouse clicks using hysteresis to avoid jitter/oscillation
-                control = max(-100, min(100, control))
+                control = max((0 - pid_clamp), min(pid_clamp, control))
                 # Hysteresis thresholds (tune if necessary)
                 on_thresh = thresh
                 off_thresh = thresh * 0.5

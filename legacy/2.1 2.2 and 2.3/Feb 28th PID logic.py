@@ -24,18 +24,9 @@ import threading
 # Time
 import time
 import json
-# OpenCV for pixel searches and NumPy for arrow calculations
+# OpenCV and MSS for image/pixel search
 import cv2
 import numpy as np
-# DXCAM and MSS for capturing the screen (also a guard for DXCAM on macOS)
-try:
-    if sys.platform == "win32":
-        import dxcam
-    else:
-        dxcam = None
-        # macOS DPI awareness requires PyAutoGUI code but I use pynput.
-except Exception:
-    dxcam = None
 import mss
 # Initialize controllers
 keyboard_controller = KeyboardController()
@@ -68,11 +59,12 @@ class ShakeAreaSelector(CTkToplevel):
         self.focus_force()          # Force focus (important on macOS)
         self.lift()                 # Bring to front
     def on_close(self):
+        # Force geometry update
         self.update_idletasks()
 
         area_data = {
-            "x": self.winfo_rootx(),
-            "y": self.winfo_rooty(),
+            "x": self.winfo_x(),
+            "y": self.winfo_y(),
             "width": self.winfo_width(),
             "height": self.winfo_height()
         }
@@ -99,11 +91,12 @@ class FishAreaSelector(CTkToplevel):
         self.focus_force()          # Force focus (important on macOS)
         self.lift()                 # Bring to front
     def on_close(self):
+        # Force geometry update
         self.update_idletasks()
 
         area_data = {
-            "x": self.winfo_rootx(),
-            "y": self.winfo_rooty(),
+            "x": self.winfo_x(),
+            "y": self.winfo_y(),
             "width": self.winfo_width(),
             "height": self.winfo_height()
         }
@@ -132,7 +125,10 @@ class App(CTk):
         self.macro_running = False
         self.macro_thread = None
 
-        # PID state variables
+        # PID state variables (v1-style, no globals)
+        # ``prev_error`` and ``last_time`` mirror the names used in the
+        # original v1 global implementation so that the reset logic works
+        # correctly; these are updated by ``_pid_control``.
         self.pid_integral = 0.0
         self.prev_error = 0.0      # previous error term
         self.last_time = None      # timestamp of last PID sample
@@ -250,22 +246,10 @@ class App(CTk):
         self.load_misc_settings()
         self.load_settings(last or "default.json")
         self.init_overlay_window()
-        # Perfect cast variables
-        self.right_mouse_down = False
-        # Capture backend
-        self.camera = None
-
-        if sys.platform == "win32" and dxcam:
-            try:
-                self.camera = dxcam.create()
-                self.camera.start(target_fps=60)
-            except Exception:
-                self.camera = None
         # Arrow variables
         self.initial_bar_size = None
         # Utility variables
         self.area_selector = None
-        self.last_fish_x = None
     # BASIC SETTINGS TAB
     def build_basic_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -363,17 +347,14 @@ class App(CTk):
         capture_settings = CTkFrame( scroll, border_width=2 )
         capture_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(capture_settings, text="Capture Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(capture_settings, text="Capture Mode:").grid( row=1, column=0, padx=12, pady=6, sticky="w")
-        if sys.platform == "darwin":
-            CTkLabel(capture_settings, text="MSS").grid(row=1, column=1, padx=12, pady=6, sticky="w")
-        else:
-            capture_var = StringVar(value="DXCAM")
-            self.vars["capture_mode"] = capture_var
-            capture_cb = CTkComboBox(capture_settings, values=["DXCAM", "MSS"], 
-                                    variable=capture_var, command=lambda v: self.set_status(f"Capture mode: {v}")
-                                    )
-            capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
-            self.comboboxes["capture_mode"] = capture_cb
+        CTkLabel(capture_settings, text="Capture Mode:").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
+        capture_var = StringVar(value="DXCAM")
+        self.vars["capture_mode"] = capture_var
+        capture_cb = CTkComboBox(capture_settings, values=["DXCAM", "MSS"], 
+                                 variable=capture_var, command=lambda v: self.set_status(f"Capture mode: {v}")
+                                 )
+        capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
+        self.comboboxes["capture_mode"] = capture_cb
         # Perfect Cast Settings
         pfc1_settings = CTkFrame( scroll, border_width=2 )
         pfc1_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
@@ -976,8 +957,13 @@ class App(CTk):
         self.status_label.configure(text=text)
     # Utility functions
     def _take_debug_screenshot(self):
-        """
-        Capture the configured fish area and save a debug image.
+        """Capture the configured fish area and save a debug image.
+
+        The fish region is defined in ``self.bar_areas['fish']`` and is expected to
+        be a dict containing ``x, y, width, height``. If the area is missing or
+        invalid, the method logs a status message and returns early. The resulting
+        screenshot is written to ``debug_fish.png`` in the current working
+        directory and a status update is shown on the main window.
         """
         area = self.bar_areas.get("fish")
         # Validate the stored area
@@ -1009,106 +995,14 @@ class App(CTk):
             self.set_status("Saved bar-area debug screenshot → debug_bar.png")
         except Exception as e:
             self.set_status(f"Error saving screenshot: {e}")
-    # Eyedropper-related functions
+
     def _pick_colors(self):
-        """Live eyedropper tool without freezing screen."""
-
-        # Create fullscreen transparent overlay
-        self.eyedropper = tk.Toplevel(self)
-        self.eyedropper.attributes("-fullscreen", True)
-        self.eyedropper.attributes("-alpha", 0.01)  # Almost invisible
-        self.eyedropper.attributes("-topmost", True)
-        self.eyedropper.config(cursor="crosshair")
-
-        # Bind left click to pick color
-        self.eyedropper.bind("<Button-1>", self._on_pick_color)
-
-        # Escape to cancel
-        self.eyedropper.bind("<Escape>", lambda e: self.eyedropper.destroy())
-    def _on_pick_color(self, event):
-        """Capture pixel color at mouse position."""
-
-        x = self.winfo_pointerx()
-        y = self.winfo_pointery()
-
-        with mss.mss() as sct:
-            monitor = {
-                "left": x,
-                "top": y,
-                "width": 1,
-                "height": 1
-            }
-            img = sct.grab(monitor)
-
-            # BGRA → BGR
-            b = img.raw[0]
-            g = img.raw[1]
-            r = img.raw[2]
-
-        hex_color = f"#{r:02X}{g:02X}{b:02X}"
-
-        print("Picked:", hex_color)
-
-        # 🔥 Store it somewhere neutral
-        self.last_picked_color = hex_color
-
-        # Optional: show small popup preview
-        self._show_color_preview(hex_color)
-
-        self.eyedropper.destroy()
-    def _show_color_preview(self, hex_color):
-        preview = tk.Toplevel(self)
-        preview.title("Picked Color")
-        preview.geometry("220x120")
-        preview.attributes("-topmost", True)
-
-        tk.Label(preview, text=hex_color, font=("Arial", 12)).pack(pady=10)
-
-        color_box = tk.Frame(preview, bg=hex_color, width=100, height=40)
-        color_box.pack(pady=5)
-
-        tk.Button(preview, text="Close", command=preview.destroy).pack(pady=5)
+        print("Not implemented yet")
     def open_link(self, url):
         """Open a URL in the default web browser."""
         return lambda: webbrowser.open(url)
-    def hold_right_mouse(self):
-        if not self.right_mouse_down:
-            mouse_controller.press(Button.right)
-            self.right_mouse_down = True
-    def release_right_mouse(self):
-        if self.right_mouse_down:
-            mouse_controller.release(Button.right)
-            self.right_mouse_down = False
-    def look_vertical(self, pixels):
-        """
-        pixels > 0 → look down
-        pixels < 0 → look up
-        """
-
-        # 1️⃣ Always release first (important)
-        self.release_right_mouse()
-        time.sleep(0.05)
-
-        # 2️⃣ Optional: center mouse on screen (VERY IMPORTANT for Roblox)
-        screen_w, screen_h = self.SCREEN_WIDTH, self.SCREEN_HEIGHT
-        mouse_controller.position = (screen_w // 2, screen_h // 2)
-        time.sleep(0.05)
-
-        # 3️⃣ Hold right click
-        self.hold_right_mouse()
-        time.sleep(0.05)
-
-        # 4️⃣ Use bigger movement
-        big_move = pixels * 5  # amplify
-        mouse_controller.move(0, big_move)
-        time.sleep(0.05)
-
-        # 5️⃣ Release
-        self.release_right_mouse()
-        time.sleep(0.05)
-
-        # 6️⃣ Re-center again (prevents drift)
-        mouse_controller.position = (screen_w // 2, screen_h // 2)
+    def fix_bar_areas(self):
+        print("Not implemented yet")
     def open_dual_area_selector(self):
         self.update_idletasks()
         # If already open → close both
@@ -1196,19 +1090,17 @@ class App(CTk):
                )
         def on_shake_done(shake):
             self.bar_areas["shake"] = shake
-            check_if_both_closed()
 
         def on_fish_done(fish):
             self.bar_areas["fish"] = fish
-            check_if_both_closed()
+            self.save_misc_settings()
+            self.set_status("Bar areas saved")
 
-        def check_if_both_closed():
-            if (
-                (not self.shake_selector or not self.shake_selector.winfo_exists()) and
-                (not self.fish_selector or not self.fish_selector.winfo_exists())
-            ):
-                self.save_misc_settings()
-                self.set_status("Bar areas saved")
+        # Screenshot
+        with mss.mss() as sct:
+            monitor = sct.monitors[1]
+            shot = sct.grab(monitor)
+            screenshot = Image.frombytes("RGB", shot.size, shot.rgb)
 
         self.shake_selector = ShakeAreaSelector(
             parent=self,
@@ -1221,98 +1113,17 @@ class App(CTk):
             area=fish_area,
             callback=on_fish_done
        )
-    def fix_bar_areas(self):
-        self.set_status("Fixing bar areas...")
-
-        # Hide window
-        self.withdraw()
-        self.update()
-        time.sleep(0.15)
-
-        # Capture screen
-        with mss.mss() as sct:
-            monitor = sct.monitors[1]
-            shot = sct.grab(monitor)
-            frame = np.array(shot)[:, :, :3]
-
-        screen_h, screen_w = frame.shape[:2]
-
-        # Get fish area (scan only here)
-        fish = self.bar_areas.get("fish")
-        if not isinstance(fish, dict):
-            self.set_status("fish area not set")
-            self.deiconify()
-            return
-
-        x1 = fish["x"]
-        y1 = fish["y"]
-        x2 = x1 + fish["width"]
-        y2 = y1 + fish["height"]
-
-        roi = frame[y1:y2, x1:x2]
-
-        # Convert colors
-        fish_bgr = self._hex_to_bgr(self.vars["fish_color"].get())
-        bar_bgr  = self._hex_to_bgr(self.vars["left_bar_color"].get())
-
-        if fish_bgr is None or bar_bgr is None:
-            self.set_status("Invalid color settings")
-            self.deiconify()
-            return
-
-        bar_color = np.array(bar_bgr)
-        tolerance = int(self.vars["tolerance"].get() or 8)
-
-        bar_top = None
-        bar_bottom = None
-
-        # Scan only ROI
-        for y in range(roi.shape[0]):
-            row = roi[y]
-
-            matches = np.where(
-                np.all(np.abs(row - bar_color) <= tolerance, axis=1)
-            )[0]
-
-            if len(matches) > 5:  # require small cluster
-                if bar_top is None:
-                    bar_top = y
-                bar_bottom = y
-
-        if bar_top is None or bar_bottom is None:
-            self.set_status("Bar auto-detect failed")
-            self.deiconify()
-            return
-
-        bar_height = bar_bottom - bar_top
-
-        # Update fish area aligned to fish X
-        self.bar_areas["fish"] = {
-            "x": x1,
-            "y": y1 + bar_top,
-            "width": fish["width"],
-            "height": bar_height
-        }
-
-        self.save_misc_settings()
-        self.set_status("Bar areas auto-fixed")
-
-        self.deiconify()
-        self.lift()
     # Image processing and interaction functions
     def _find_template(self, frame, template, confidence=0.85):
         if template is None or frame is None:
-            return None, 0.0
-
+            return None
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         result = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
         _, max_val, _, max_loc = cv2.minMaxLoc(result)
-
         if max_val >= confidence:
             h, w = template.shape
-            return max_loc[0] + w // 2, max_val
-
-        return None, max_val
+            return max_loc[0] + w // 2   # X relative to frame
+        return None
     def _prepare_templates(self):
         """Convert templates to grayscale once."""
         for key in self.templates:
@@ -1365,7 +1176,7 @@ class App(CTk):
         if len(x_coords) > 0:
             return list(zip(x_coords, y_coords))
         return []
-        
+    
     def _grab_screen_region(self, left, top, right, bottom):
         width = right - left
         height = bottom - top
@@ -1373,32 +1184,6 @@ class App(CTk):
         if width <= 0 or height <= 0:
             return None
 
-        # --- macOS always MSS ---
-        if sys.platform == "darwin":
-            with mss.mss() as sct:
-                monitor = {
-                    "left": left,
-                    "top": top,
-                    "width": width,
-                    "height": height
-                }
-                img = np.array(sct.grab(monitor))
-                return cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
-
-        # --- Windows ---
-        mode = self.vars.get("capture_mode")
-
-        # Use DXCAM if selected
-        if mode and mode.get() == "DXCAM" and self.camera:
-            frame = self.camera.get_latest_frame()
-            if frame is None:
-                return None
-
-            # DXCAM frame is full screen RGB
-            cropped = frame[top:bottom, left:right]
-            return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
-
-        # Fallback → MSS
         with mss.mss() as sct:
             monitor = {
                 "left": left,
@@ -1460,7 +1245,7 @@ class App(CTk):
         tolerance=15,
         tolerance2=15,
         scan_height_ratio=0.55
-    ):
+   ):
         if frame is None:
             return None, None
 
@@ -1868,39 +1653,13 @@ class App(CTk):
         fish_confidence  = float(self.vars["fish_confidence"].get()  or 0.8)
 
         # ---- Fish region (remove bottom bar part) ----
-        fish_x = None
-        max_attempts = 10
-        shift_step = 2
-
-        search_height = img_h - bar_template_h
-
-        for i in range(max_attempts):
-
-            shift_y = i * shift_step
-
-            if shift_y >= search_height:
-                break
-
-            # move UP inside cropped region
-            roi = img[shift_y:search_height, :]
-
-            if roi.shape[0] < fish_template.shape[0]:
-                continue
-
-            found_x, conf = self._find_template(
-                roi,
-                fish_template,
-                fish_confidence
-            )
-
-            if found_x is not None:
-                fish_x = found_x
-                break
+        fish_region = img[:img_h - bar_template_h, :]
+        fish_x = self._find_template(fish_region, fish_template, fish_confidence)
 
         # ---- Bar region (remove top fish part) ----
         bar_region = img[fish_template_h:, :]
-        left_x, num1 = self._find_template(bar_region, bar_template, left_confidence)
-        right_x, num1 = self._find_template(bar_region, self.templates["right_bar"], right_confidence)
+        left_x = self._find_template(bar_region, bar_template, left_confidence)
+        right_x = self._find_template(bar_region, self.templates["right_bar"], right_confidence)
         return fish_x, left_x, right_x
     def _do_pixel_search(self, img):
         fish_hex = self.vars["fish_color"].get()
@@ -1929,25 +1688,13 @@ class App(CTk):
         return fish_center, left_bar_center, right_bar_center
     # Start macro and main loop
     def start_macro(self):
-        # Get shake area for mouse movement areas
-        shake = self.bar_areas.get("shake")
-        if isinstance(shake, dict):
-            shake_left   = shake["x"]
-            shake_top    = shake["y"]
-            shake_right  = shake["x"] + shake["width"]
-            shake_bottom = shake["y"] + shake["height"]
-            shake_x = int((shake_left + shake_right) / 2)
-            shake_y = int((shake_top + shake_bottom) / 2)
-        else:
-            shake_x = int(self.SCREEN_WIDTH * 0.5)
-            shake_y = int(self.SCREEN_HEIGHT * 0.3)
         # 434 705 1029 794
         self.macro_running = True
         self._reset_pid_state()
         self.set_status("Macro Status: Running")
 
         # Initial camera alignment (ONLY ONCE)
-        mouse_controller.position = (shake_x, shake_y)
+        mouse_controller.position = (960, 300)
         if self.vars["auto_zoom_in"].get() == "on":
             for _ in range(20):
                 mouse_controller.scroll(0, 1)
@@ -2015,8 +1762,6 @@ class App(CTk):
         Then, compare the distances between perfect cast color and cast color
         Then, release (if failsafe reached release anyways)
         """
-        # Look up
-        self.look_vertical(350)
         # Hold click
         mouse_controller.press(Button.left)
         # Get shake area
@@ -2072,10 +1817,8 @@ class App(CTk):
                 if distance < 30: # Perfect cast release condition
                     time.sleep(release_delay)
                     mouse_controller.release(Button.left)
-                    self.look_vertical(-350)
             if time.time() - start_time > max_time: # Timer limit reached
                 mouse_controller.release(Button.left)
-                self.look_vertical(-350)
                 return
             time.sleep(float(self.vars["cast_scan_delay"].get()))
     def _execute_cast_normal(self):
@@ -2284,7 +2027,7 @@ class App(CTk):
                 mouse_down = False
         while self.macro_running: # Main macro loop
             gift_img = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
-            img = self._grab_screen_region(fish_left, fish_top - 2, fish_right, fish_bottom)
+            img = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
             if img is None:
                 return
             img_h = img.shape[0]
@@ -2314,24 +2057,16 @@ class App(CTk):
                     gift_box_timer = 0.0
                     gift_missing_time = 0.0
             # ---- FISH HANDLING ----
-            if mode == "Pixel":
-                if fish_x is not None:
-                    self.last_fish_x = fish_x
-                else:
-                    if (left_x is None and right_x is None):
-                        release_mouse()
-                        time.sleep(restart_delay)
-                        return
-                    else:
-                        fish_x = self.last_fish_x
-            else: # Image mode
-                if fish_x is not None:
-                    self.last_fish_x = fish_x
-                else:
-                    # In image mode, if fish missing → escape immediately
+            if fish_x is not None:
+                # Normal detection
+                self.last_fish_x = fish_x
+            else:
+                if (left_x is None and right_x is None):
                     release_mouse()
                     time.sleep(restart_delay)
                     return
+                else:
+                    fish_x = self.last_fish_x
             # ---- CLEAR MINIGAME ----
             self.clear_overlay()
             # ---- BARS NOT FOUND ----

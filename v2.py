@@ -44,11 +44,39 @@ mouse_controller = MouseController()
 set_default_color_theme("blue")
 # from AppKit import NSEvent
 # Last Config Path / Fix macOS DMG issues
+def get_base_path():
+    if getattr(sys, 'frozen', False):
+        return sys._MEIPASS
+    return os.path.dirname(os.path.abspath(__file__))
+user_config_dir = os.path.join(
+    os.path.expanduser("~"),
+    "Library",
+    "Application Support",
+    "IcantFishV2",
+    "configs"
+)
+
+os.makedirs(user_config_dir, exist_ok=True)
+BASE_PATH = get_base_path()
+
+if sys.platform == "darwin" and getattr(sys, "frozen", False):
+    # Only use Application Support when bundled
+    USER_CONFIG_DIR = os.path.join(
+        os.path.expanduser("~"),
+        "Library",
+        "Application Support",
+        "IcantFishV2",
+        "configs"
+    )
+else:
+    # During development, use local project folder
+    USER_CONFIG_DIR = os.path.join(BASE_PATH, "configs")
+
+os.makedirs(USER_CONFIG_DIR, exist_ok=True)
 if sys.platform == "darwin":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 else:
-    pass # You're on Windows
-LAST_CONFIG_PATH = "last_config.json"
+    pass # You're on Windows, no need to change the working directory
 class ShakeAreaSelector(CTkToplevel):
     def __init__(self, parent, area, callback):
         super().__init__(parent)
@@ -747,7 +775,7 @@ class App(CTk):
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
-        config_dir = "configs"
+        config_dir = USER_CONFIG_DIR
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
         # Get config names from subdirectories
@@ -821,7 +849,7 @@ class App(CTk):
 
     def save_settings(self, name):
         """Save all settings to a JSON config file."""
-        config_dir = "configs"
+        config_dir = USER_CONFIG_DIR
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
         
@@ -867,7 +895,7 @@ class App(CTk):
     
     def load_settings(self, name):
         """Load settings from a JSON config file."""
-        config_dir = "configs"
+        config_dir = USER_CONFIG_DIR
         rod_folder = os.path.join(config_dir, name.replace(".json", ""))
         path = os.path.join(rod_folder, "config.json")
 

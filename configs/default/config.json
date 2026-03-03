@@ -44,18 +44,18 @@
     "proportional_gain": "0.8",
     "integral_gain": "0.4",
     "derivative_gain": "0.6",
-    "stabilize_threshold2": "6",
-    "pid_clamp": "150",
+    "stabilize_threshold2": "15",
+    "pid_clamp": "100",
     "shake_color": "#FFFFFF",
     "perfect_color": "#63ae4b",
     "perfect_color2": "#d4d3ca",
     "gift_box_color": "#008c8c",
     "gift_box_tolerance": "5",
-    "tracking_focus": "Gift",
+    "tracking_focus": "Fish",
     "gift_box_timer": "3",
     "combobox_active_config": "default.json",
     "combobox_capture_mode": "MSS",
     "combobox_shake_mode": "Navigation",
     "combobox_fishing_mode": "Pixel",
-    "combobox_tracking_focus": "Gift"
+    "combobox_tracking_focus": "Fish"
 }

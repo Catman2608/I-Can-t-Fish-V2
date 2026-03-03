@@ -153,8 +153,8 @@ class App(CTk):
         self.SCREEN_HEIGHT = self.winfo_screenheight()
 
         # Window 
-        self.geometry("800x550")
-        self.title("I Can't Fish V2.3")
+        self.geometry("800x600")
+        self.title("I Can't Fish V2.4")
 
         # Macro state
         self.macro_running = False
@@ -200,11 +200,8 @@ class App(CTk):
             self, 
             text="I CAN'T FISH V2.3",
             font=CTkFont(size=16, weight="bold")
-       )
+        )
         logo_label.grid(row=0, column=0, columnspan=6, pady=5, padx=20, sticky="w")
-        # Bar Areas Variables
-        self.shake_selector = None
-        self.fish_selector = None
 
         # Top Bar Frame (Status + Buttons)
         top_bar = CTkFrame(self, fg_color="transparent")
@@ -241,6 +238,10 @@ class App(CTk):
             command=self.open_link("https://docs.google.com/document/d/1qjhgcONxpZZbSAEYiSCXoUXGjQwd7Jghf4EysWC4Cps/edit?usp=drive_link")
        ).pack(side="left", padx=6)
 
+        # Bar Areas Variables
+        self.shake_selector = None
+        self.fish_selector = None
+
         # Tabs 
         self.tabs = CTkTabview(
             self,
@@ -255,15 +256,17 @@ class App(CTk):
 
         self.tabs.add("Basic")
         self.tabs.add("Misc")
+        self.tabs.add("Cast")
         self.tabs.add("Shake")
-        self.tabs.add("Minigame")
+        self.tabs.add("Fish")
         self.tabs.add("Advanced")
 
         # Build tabs
         self.build_basic_tab(self.tabs.tab("Basic"))
         self.build_misc_tab(self.tabs.tab("Misc"))
+        self.build_cast_tab(self.tabs.tab("Cast"))
         self.build_shake_tab(self.tabs.tab("Shake"))
-        self.build_minigame_tab(self.tabs.tab("Minigame"))
+        self.build_fishing_tab(self.tabs.tab("Fish"))
         self.build_advanced_tab(self.tabs.tab("Advanced"))
 
         # Grid behavior
@@ -301,9 +304,24 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+        # Capture Mode Settings 
+        capture_settings = CTkFrame( scroll, border_width=2 )
+        capture_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(capture_settings, text="Capture Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(capture_settings, text="Capture Mode:").grid( row=1, column=0, padx=12, pady=6, sticky="w")
+        if sys.platform == "darwin":
+            CTkLabel(capture_settings, text="MSS").grid(row=1, column=1, padx=12, pady=6, sticky="w")
+        else:
+            capture_var = StringVar(value="DXCAM")
+            self.vars["capture_mode"] = capture_var
+            capture_cb = CTkComboBox(capture_settings, values=["DXCAM", "MSS"], 
+                                    variable=capture_var, command=lambda v: self.set_status(f"Capture mode: {v}")
+                                    )
+            capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
+            self.comboboxes["capture_mode"] = capture_cb
         # Configs 
         configs = CTkFrame(scroll, border_width=2)
-        configs.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        configs.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(configs, text="Config Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(configs, text="Rod Type:").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
         config_list = self.load_configs()
@@ -313,19 +331,19 @@ class App(CTk):
                                 variable=config_var, command=lambda v: self.load_settings(v) )
         config_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
-        CTkButton( configs, text="Change Bar Areas", corner_radius=32, 
+        CTkButton( configs, text="Change Bar Areas", corner_radius=10, 
                   command=self.open_dual_area_selector
                   ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
         CTkButton( configs, text="Fix Bar Areas", 
-                  corner_radius=32, command=self.fix_bar_areas
+                  corner_radius=10, command=self.fix_bar_areas
         ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
-        hotkey_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        hotkey_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(hotkey_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Save misc settings (most important)
         CTkButton( hotkey_settings, text="Save Misc Settings", 
-                  corner_radius=32, command=self.save_misc_settings
+                  corner_radius=10, command=self.save_misc_settings
         ).grid(row=0, column=1, padx=12, pady=12, sticky="w")
         # Start key
         CTkLabel(hotkey_settings, text="Start Key").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
@@ -346,7 +364,7 @@ class App(CTk):
         stop_key_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
-        automation.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        automation.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(automation, text="Automation Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Create and store checkboxes with StringVar
         auto_rod_var = StringVar(value="off")
@@ -361,25 +379,6 @@ class App(CTk):
         self.vars["fish_overlay"] = fish_overlay_var
         fish_overlay_cb = CTkCheckBox(automation, text="Fish Overlay", variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=3, column=0, padx=12, pady=8, sticky="w")
-        # Casting Group
-        casting = CTkFrame( scroll, border_width=2 )
-        casting.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(casting, text="Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        perfect_cast_var = StringVar(value="off")
-        self.vars["perfect_cast"] = perfect_cast_var
-        CTkCheckBox( casting, text="Perfect Cast (slower)", variable=perfect_cast_var, 
-                    onvalue="on", offvalue="off"
-                    ).grid(row=1, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(casting, text="Cast duration").grid( row=2, column=0, padx=12, pady=8, sticky="w" )
-        cast_duration_var = StringVar(value="0.6")
-        self.vars["cast_duration"] = cast_duration_var
-        cast_duration_entry = CTkEntry( casting, width=120, textvariable=cast_duration_var )
-        cast_duration_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
-        CTkLabel(casting, text="Delay after casting").grid( row=3, column=0, padx=12, pady=8, sticky="w" )
-        cast_delay_var = StringVar(value="0.6")
-        self.vars["cast_delay"] = cast_delay_var
-        cast_delay_entry = CTkEntry( casting, width=120, textvariable=cast_delay_var )
-        cast_delay_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
     # MISC SETTINGS TAB
     def build_misc_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -387,68 +386,9 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-        # Capture Mode Settings 
-        capture_settings = CTkFrame( scroll, border_width=2 )
-        capture_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(capture_settings, text="Capture Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(capture_settings, text="Capture Mode:").grid( row=1, column=0, padx=12, pady=6, sticky="w")
-        if sys.platform == "darwin":
-            CTkLabel(capture_settings, text="MSS").grid(row=1, column=1, padx=12, pady=6, sticky="w")
-        else:
-            capture_var = StringVar(value="DXCAM")
-            self.vars["capture_mode"] = capture_var
-            capture_cb = CTkComboBox(capture_settings, values=["DXCAM", "MSS"], 
-                                    variable=capture_var, command=lambda v: self.set_status(f"Capture mode: {v}")
-                                    )
-            capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
-            self.comboboxes["capture_mode"] = capture_cb
-        # Perfect Cast Settings
-        pfc1_settings = CTkFrame( scroll, border_width=2 )
-        pfc1_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(pfc1_settings, text="Perfect Cast Sequence", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pfc1_settings, text="Zoom Amount:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
-        perfect_cast_zoom_var = StringVar(value="4")
-        self.vars["perfect_cast_zoom"] = perfect_cast_zoom_var
-        perfect_cast_zoom_entry = CTkEntry( pfc1_settings, width=120, textvariable=perfect_cast_zoom_var )
-        perfect_cast_zoom_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc1_settings, text="Look Down Amount (pixels):").grid( row=2, column=0, padx=12, pady=10, sticky="w" )
-        perfect_cast_lookdown_var = StringVar(value="1200")
-        self.vars["perfect_cast_lookdown"] = perfect_cast_lookdown_var
-        perfect_cast_lookdown_entry = CTkEntry( pfc1_settings, width=120, textvariable=perfect_cast_lookdown_var )
-        perfect_cast_lookdown_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        # Perfect Cast Release Settings 
-        pfc2_settings = CTkFrame( scroll, border_width=2 )
-        pfc2_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
-        # ---- Perfect cast tolerance ----
-        CTkLabel(pfc2_settings, text="Perfect Cast Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pfc2_settings, text="Green (Perfect Cast) Tolerance:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
-        perfect_cast_tolerance_var = StringVar(value="18")
-        self.vars["perfect_cast_tolerance"] = perfect_cast_tolerance_var
-        perfect_cast_tolerance_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_cast_tolerance_var )
-        perfect_cast_tolerance_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="White (Perfect Cast) Tolerance:").grid( row=2, column=0, padx=12, pady=10, sticky="w" )
-        perfect_cast2_tolerance_var = StringVar(value="16")
-        self.vars["perfect_cast2_tolerance"] = perfect_cast2_tolerance_var
-        perfect_cast2_tolerance_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_cast2_tolerance_var )
-        perfect_cast2_tolerance_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="Perfect Cast Scan FPS:").grid( row=3, column=0, padx=12, pady=10, sticky="w" )
-        cast_scan_delay_var = StringVar(value="0.05")
-        self.vars["cast_scan_delay"] = cast_scan_delay_var
-        cast_scan_delay_entry = CTkEntry( pfc2_settings, width=120, textvariable=cast_scan_delay_var )
-        cast_scan_delay_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="Perfect Cast Release Delay:").grid(row=4, column=0, padx=12, pady=10, sticky="w" )
-        perfect_release_delay_var = StringVar(value="0.05")
-        self.vars["perfect_release_delay"] = perfect_release_delay_var
-        perfect_release_delay_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_release_delay_var )
-        perfect_release_delay_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="Failsafe Release Timeout:").grid(row=5, column=0, padx=12, pady=10, sticky="w" )
-        perfect_max_time_var = StringVar(value="0.05")
-        self.vars["perfect_max_time"] = perfect_max_time_var
-        perfect_max_time_entry = CTkEntry(pfc2_settings, width=120, textvariable=perfect_max_time_var)
-        perfect_max_time_entry.grid(row=5, column=1, padx=12, pady=10, sticky="w")
         # Fish Overlay Settings 
-        overlay_settings = CTkFrame( scroll, border_width=2 )
-        overlay_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
+        overlay_settings = CTkFrame(scroll, border_width=2 )
+        overlay_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_settings, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         bar_size_var = StringVar(value="off")
         self.vars["bar_size"] = bar_size_var
@@ -456,7 +396,7 @@ class App(CTk):
         bar_size_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
         # Arrow Tracking Settings
         arrow_settings = CTkFrame( scroll, border_width=2 )
-        arrow_settings.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
+        arrow_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(arrow_settings, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         centroid_tracking_var = StringVar(value="off")
         self.vars["centroid_tracking"] = centroid_tracking_var
@@ -470,6 +410,76 @@ class App(CTk):
                                            variable=legacy_pixel_search_var, onvalue="on", 
                                            offvalue="off")
         legacy_pixel_search_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
+    # CAST SETTINGS TAB
+    def build_cast_tab(self, parent):
+        scroll = CTkScrollableFrame(parent)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        # VERY important
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+        # Normal Casting Group
+        normal_casting = CTkFrame(scroll, border_width=2 )
+        normal_casting.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(normal_casting, text="Normal Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        perfect_cast_var = StringVar(value="off")
+        self.vars["perfect_cast"] = perfect_cast_var
+        CTkCheckBox( normal_casting, text="Perfect Cast (slower)", variable=perfect_cast_var, 
+                    onvalue="on", offvalue="off"
+                    ).grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(normal_casting, text="Cast duration").grid( row=2, column=0, padx=12, pady=8, sticky="w")
+        cast_duration_var = StringVar(value="0.6")
+        self.vars["cast_duration"] = cast_duration_var
+        cast_duration_entry = CTkEntry( normal_casting, width=120, textvariable=cast_duration_var)
+        cast_duration_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
+        CTkLabel(normal_casting, text="Cast Delay").grid( row=3, column=0, padx=12, pady=8, sticky="w")
+        cast_delay_var = StringVar(value="0.6")
+        self.vars["cast_delay"] = cast_delay_var
+        cast_delay_entry = CTkEntry( normal_casting, width=120, textvariable=cast_delay_var)
+        cast_delay_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
+        # Perfect Cast Settings
+        pfc1_settings = CTkFrame(scroll, border_width=2)
+        pfc1_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(pfc1_settings, text="Perfect Casting Sequence", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(pfc1_settings, text="Zoom Amount:").grid( row=1, column=0, padx=12, pady=10, sticky="w")
+        perfect_cast_zoom_var = StringVar(value="4")
+        self.vars["perfect_cast_zoom"] = perfect_cast_zoom_var
+        perfect_cast_zoom_entry = CTkEntry( pfc1_settings, width=120, textvariable=perfect_cast_zoom_var)
+        perfect_cast_zoom_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pfc1_settings, text="Look Down Amount (pixels):").grid( row=2, column=0, padx=12, pady=10, sticky="w")
+        perfect_cast_lookdown_var = StringVar(value="1200")
+        self.vars["perfect_cast_lookdown"] = perfect_cast_lookdown_var
+        perfect_cast_lookdown_entry = CTkEntry( pfc1_settings, width=120, textvariable=perfect_cast_lookdown_var)
+        perfect_cast_lookdown_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        # Perfect Cast Release Settings 
+        pfc2_settings = CTkFrame(scroll, border_width=2 )
+        pfc2_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        # ---- Perfect cast tolerance ----
+        CTkLabel(pfc2_settings, text="Perfect Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(pfc2_settings, text="Green (Perfect Cast) Tolerance:").grid( row=1, column=0, padx=12, pady=10, sticky="w")
+        perfect_cast_tolerance_var = StringVar(value="18")
+        self.vars["perfect_cast_tolerance"] = perfect_cast_tolerance_var
+        perfect_cast_tolerance_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_cast_tolerance_var)
+        perfect_cast_tolerance_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pfc2_settings, text="White (Perfect Cast) Tolerance:").grid( row=2, column=0, padx=12, pady=10, sticky="w")
+        perfect_cast2_tolerance_var = StringVar(value="16")
+        self.vars["perfect_cast2_tolerance"] = perfect_cast2_tolerance_var
+        perfect_cast2_tolerance_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_cast2_tolerance_var)
+        perfect_cast2_tolerance_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pfc2_settings, text="Perfect Cast Scan FPS:").grid( row=3, column=0, padx=12, pady=10, sticky="w")
+        cast_scan_delay_var = StringVar(value="0.05")
+        self.vars["cast_scan_delay"] = cast_scan_delay_var
+        cast_scan_delay_entry = CTkEntry( pfc2_settings, width=120, textvariable=cast_scan_delay_var)
+        cast_scan_delay_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pfc2_settings, text="Perfect Cast Release Delay:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
+        perfect_release_delay_var = StringVar(value="0.05")
+        self.vars["perfect_release_delay"] = perfect_release_delay_var
+        perfect_release_delay_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_release_delay_var)
+        perfect_release_delay_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(pfc2_settings, text="Failsafe Release Timeout:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
+        perfect_max_time_var = StringVar(value="0.05")
+        self.vars["perfect_max_time"] = perfect_max_time_var
+        perfect_max_time_entry = CTkEntry(pfc2_settings, width=120, textvariable=perfect_max_time_var)
+        perfect_max_time_entry.grid(row=5, column=1, padx=12, pady=10, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         shake_configuration = CTkFrame(
@@ -499,20 +509,9 @@ class App(CTk):
         shake_failsafe_var = StringVar(value="20")
         self.vars["shake_failsafe"] = shake_failsafe_var
         CTkEntry( shake_configuration, width=120, textvariable=shake_failsafe_var ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
-        # Notes
-        notes1 = CTkFrame(
-            parent,
-            border_width=2
-        )
-        notes1.grid(row=0, column=1, padx=20, pady=20, sticky="nw")
-        CTkLabel(notes1, text="Notes", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(notes1, text="Click for mouse clicks | Navigation for keyboard spam").grid(row=1, column=0, padx=12, pady=10, sticky="w")
-        CTkLabel(notes1, text="Determines the tolerance to detect the shaking text").grid(row=2, column=0, padx=12, pady=10, sticky="w")
-        CTkLabel(notes1, text="Adjust delay values for your latency").grid(row=3, column=0, padx=12, pady=10, sticky="w")
-        CTkLabel(notes1, text="The amount of failed attempts before restarting the macro").grid(row=4, column=0, padx=12, pady=10, sticky="w")
 
-    # MINIGAME SETTINGS TAB
-    def build_minigame_tab(self, parent):
+    # FISHING SETTINGS TAB
+    def build_fishing_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
         scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
         # VERY important
@@ -530,7 +529,7 @@ class App(CTk):
                                 )
         fishing_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["fishing_mode"] = fishing_cb
-        CTkButton(bar_toggle_settings, text="Pick Colors", corner_radius=32, command=self._pick_colors).grid(row=0, column=1, padx=12, pady=12, sticky="w")
+        CTkButton(bar_toggle_settings, text="Pick Colors", corner_radius=10, command=self._pick_colors).grid(row=0, column=1, padx=12, pady=12, sticky="w")
         # Image Search Settings
         image_settings = CTkFrame(scroll, border_width=2)
         image_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
@@ -2300,6 +2299,8 @@ class App(CTk):
         gift_box_timer = 0.0
         gift_missing_time = 0.0
         GIFT_TRACK_THRESHOLD = 0.1
+        # Deadzone action
+        deadzone_action = 0
         def hold_mouse():
             nonlocal mouse_down
             if not mouse_down:
@@ -2360,6 +2361,10 @@ class App(CTk):
                     release_mouse()
                     time.sleep(restart_delay)
                     return
+            # ---- STABILIZE FRAME ----
+            deadzone_action = deadzone_action + 1
+            if deadzone_action == 2:
+                deadzone_action = 0
             # ---- CLEAR MINIGAME ----
             self.clear_overlay()
             # ---- BARS NOT FOUND ----
@@ -2460,16 +2465,15 @@ class App(CTk):
                 control = self._pid_control(error)
                 # Map PID output to mouse clicks using hysteresis to avoid jitter/oscillation
                 control = max((0 - pid_clamp), min(pid_clamp, control))
-                # Hysteresis thresholds (tune if necessary)
-                on_thresh = thresh
-                off_thresh = thresh * 0.5
-                if control > on_thresh:
+                # Stabilize Deadzone Checker
+                if control > thresh:
                     hold_mouse()
-                elif control < -on_thresh:
+                elif control < -thresh:
                     release_mouse()
                 else:
-                    # Action 0: Within deadzone
-                    if abs(control) < off_thresh:
+                    if deadzone_action == 1:
+                        hold_mouse()
+                    else:
                         release_mouse()
             elif pid_found == 1:
                 release_mouse()

@@ -51,7 +51,7 @@
     "perfect_color2": "#d4d3ca",
     "gift_box_color": "#008c8c",
     "gift_box_tolerance": "5",
-    "tracking_focus": "Gift",
+    "tracking_focus": "Fish",
     "gift_box_timer": "3",
     "combobox_active_config": "onirifalx.json",
     "combobox_capture_mode": "MSS",

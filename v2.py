@@ -195,23 +195,23 @@ class App(CTk):
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
-        # Logo Label
-        logo_label = CTkLabel(
-            self, 
-            text="I CAN'T FISH V2.3",
-            font=CTkFont(size=16, weight="bold")
-        )
-        logo_label.grid(row=0, column=0, columnspan=6, pady=5, padx=20, sticky="w")
-
         # Top Bar Frame (Status + Buttons)
         top_bar = CTkFrame(self, fg_color="transparent")
-        top_bar.grid(row=1, column=0, padx=20, pady=5, sticky="ew")
+        top_bar.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
 
         top_bar.grid_columnconfigure(0, weight=1)
 
+        # Logo Label
+        logo_label = CTkLabel(
+            top_bar, 
+            text="I CAN'T FISH V2.3",
+            font=CTkFont(size=16, weight="bold")
+        )
+        logo_label.grid(row=0, column=0, sticky="w")
+
         # Status label (left side)
         self.status_label = CTkLabel(top_bar, text="Macro status: Idle")
-        self.status_label.grid(row=0, column=0, sticky="w")
+        self.status_label.grid(row=1, column=0, pady=5, sticky="w")
 
         # Buttons frame (right side)
         button_frame = CTkFrame(top_bar, fg_color="transparent")
@@ -246,13 +246,13 @@ class App(CTk):
         self.tabs = CTkTabview(
             self,
             anchor="w",
-       )
+        )
 
         self.tabs.grid(
             row=2, column=0,
             padx=20, pady=10,
             sticky="nsew"
-       )
+        )
 
         self.tabs.add("Basic")
         self.tabs.add("Misc")
@@ -300,7 +300,7 @@ class App(CTk):
     # BASIC SETTINGS TAB
     def build_basic_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
-        scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
@@ -334,9 +334,6 @@ class App(CTk):
         CTkButton( configs, text="Change Bar Areas", corner_radius=10, 
                   command=self.open_dual_area_selector
                   ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
-        CTkButton( configs, text="Fix Bar Areas", 
-                  corner_radius=10, command=self.fix_bar_areas
-        ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
         hotkey_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
@@ -376,27 +373,36 @@ class App(CTk):
         auto_zoom_cb = CTkCheckBox(automation, text="Auto Zoom In", variable=auto_zoom_var, onvalue="on", offvalue="off")
         auto_zoom_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
         fish_overlay_var = StringVar(value="off")
+        # Overlay Options 
+        overlay_options = CTkFrame(scroll, border_width=2)
+        overlay_options.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         self.vars["fish_overlay"] = fish_overlay_var
-        fish_overlay_cb = CTkCheckBox(automation, text="Fish Overlay", variable=fish_overlay_var, onvalue="on", offvalue="off")
-        fish_overlay_cb.grid(row=3, column=0, padx=12, pady=8, sticky="w")
+        fish_overlay_cb = CTkCheckBox(overlay_options, text="Fish Overlay", variable=fish_overlay_var, onvalue="on", offvalue="off")
+        fish_overlay_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        bar_size_var = StringVar(value="off")
+        self.vars["bar_size"] = bar_size_var
+        bar_size_cb = CTkCheckBox(overlay_options, text="Show Bar Size", variable=bar_size_var, onvalue="on", offvalue="off")
+        bar_size_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
     # MISC SETTINGS TAB
     def build_misc_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
-        scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-        # Fish Overlay Settings 
-        overlay_settings = CTkFrame(scroll, border_width=2 )
-        overlay_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(overlay_settings, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        bar_size_var = StringVar(value="off")
-        self.vars["bar_size"] = bar_size_var
-        bar_size_cb = CTkCheckBox(overlay_settings, text="Show Bar Size", variable=bar_size_var, onvalue="on", offvalue="off")
-        bar_size_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        # Sequence Options
+        sequence_options = CTkFrame(scroll, border_width=2)
+        sequence_options.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(sequence_options, text="Sequences Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(sequence_options, text="Select Rod Delay").grid( row=2, column=0, padx=12, pady=8, sticky="w")
+        bag_delay_var = StringVar(value="0.2")
+        self.vars["bag_delay"] = bag_delay_var
+        bag_delay_entry = CTkEntry(sequence_options, width=120, textvariable=bag_delay_var)
+        bag_delay_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
         # Arrow Tracking Settings
-        arrow_settings = CTkFrame( scroll, border_width=2 )
-        arrow_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        arrow_settings = CTkFrame(scroll, border_width=2)
+        arrow_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(arrow_settings, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         centroid_tracking_var = StringVar(value="off")
         self.vars["centroid_tracking"] = centroid_tracking_var
@@ -413,7 +419,7 @@ class App(CTk):
     # CAST SETTINGS TAB
     def build_cast_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
-        scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
@@ -513,7 +519,7 @@ class App(CTk):
     # FISHING SETTINGS TAB
     def build_fishing_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
-        scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
@@ -660,7 +666,7 @@ class App(CTk):
     # SUPPORT SETTINGS TAB
     def build_advanced_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
-        scroll.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
@@ -888,7 +894,6 @@ class App(CTk):
                 json.dump(data, f, indent=4)
             self.save_last_config_name(name)
             self.save_misc_settings()  # Also save misc settings
-            self.set_status(f"Saved Config: {name}")
         except Exception as e:
             self.set_status(f"Error saving config: {e}")
     
@@ -945,7 +950,6 @@ class App(CTk):
             print(f"Error loading comboboxes: {e}")
 
         self.save_last_config_name(name)
-        self.set_status(f"Loaded Config: {name}")
     def load_misc_settings(self):
         """Load miscellaneous settings from last_config.json."""
         try:
@@ -1248,84 +1252,6 @@ class App(CTk):
             area=fish_area,
             callback=on_fish_done
        )
-    def fix_bar_areas(self):
-        self.set_status("Fixing bar areas...")
-
-        # Hide window
-        self.withdraw()
-        self.update()
-        time.sleep(0.15)
-
-        # Capture screen
-        with mss.mss() as sct:
-            monitor = sct.monitors[1]
-            shot = sct.grab(monitor)
-            frame = np.array(shot)[:, :, :3]
-
-        screen_h, screen_w = frame.shape[:2]
-
-        # Get fish area (scan only here)
-        fish = self.bar_areas.get("fish")
-        if not isinstance(fish, dict):
-            self.set_status("fish area not set")
-            self.deiconify()
-            return
-
-        x1 = fish["x"]
-        y1 = fish["y"]
-        x2 = x1 + fish["width"]
-        y2 = y1 + fish["height"]
-
-        roi = frame[y1:y2, x1:x2]
-
-        # Convert colors
-        fish_bgr = self._hex_to_bgr(self.vars["fish_color"].get())
-        bar_bgr  = self._hex_to_bgr(self.vars["left_bar_color"].get())
-
-        if fish_bgr is None or bar_bgr is None:
-            self.set_status("Invalid color settings")
-            self.deiconify()
-            return
-
-        bar_color = np.array(bar_bgr)
-        tolerance = int(self.vars["tolerance"].get() or 8)
-
-        bar_top = None
-        bar_bottom = None
-
-        # Scan only ROI
-        for y in range(roi.shape[0]):
-            row = roi[y]
-
-            matches = np.where(
-                np.all(np.abs(row - bar_color) <= tolerance, axis=1)
-            )[0]
-
-            if len(matches) > 5:  # require small cluster
-                if bar_top is None:
-                    bar_top = y
-                bar_bottom = y
-
-        if bar_top is None or bar_bottom is None:
-            self.set_status("Bar auto-detect failed")
-            self.deiconify()
-            return
-
-        bar_height = bar_bottom - bar_top
-
-        # Update fish area aligned to fish X
-        self.bar_areas["fish"] = {
-            "x": x1,
-            "y": y1 + bar_top,
-            "width": fish["width"],
-            "height": bar_height
-        }
-
-        self.save_misc_settings()
-        self.set_status("Bar areas auto-fixed")
-
-        self.deiconify()
-        self.lift()
     # Image processing and interaction functions
     def _find_template(self, frame, template, confidence=0.85):
         if template is None or frame is None:
@@ -1655,9 +1581,10 @@ class App(CTk):
         
         return kp, kd, ki
     
-    def _pid_control(self, error):
+    def _pid_control(self, error, bar_center_x=None):
         """
         Compute PID output using the previous error/time stored on ``self``.
+        Uses velocity-based derivative with asymmetric damping from comet reference.
         """
 
         now = time.perf_counter()
@@ -1666,6 +1593,8 @@ class App(CTk):
         if self.last_time is None:
             self.last_time = now
             self.prev_error = error
+            if bar_center_x is not None:
+                self.last_bar_x = bar_center_x
             return 0.0
 
         dt = now - self.last_time
@@ -1678,18 +1607,30 @@ class App(CTk):
         self.pid_integral += error * dt
         self.pid_integral = max((0 - pid_clamp), min(pid_clamp, self.pid_integral))
 
-        # Derivative term
-        derivative = (error - self.prev_error) / dt
+        # Derivative term using velocity-based with asymmetric damping
+        d_term = 0.0
+        if bar_center_x is not None and self.last_bar_x is not None and dt > 0:
+            bar_velocity = (bar_center_x - self.last_bar_x) / dt
+            error_magnitude_decreasing = abs(error) < abs(self.prev_error) if self.prev_error is not None else False
+            bar_moving_toward_target = (bar_velocity > 0 and error > 0) or (bar_velocity < 0 and error < 0)
+            damping_multiplier = 2.0 if (error_magnitude_decreasing and bar_moving_toward_target) else 0.5
+            d_term = -kd * damping_multiplier * bar_velocity
+        else:
+            # Fallback to standard derivative
+            if self.prev_error is not None and dt > 0:
+                d_term = kd * (error - self.prev_error) / dt
 
         output = (
             kp * error +
             ki * self.pid_integral +
-            kd * derivative
+            d_term
        )
 
         # update history
         self.prev_error = error
         self.last_time = now
+        if bar_center_x is not None:
+            self.last_bar_x = bar_center_x
 
         return output
 
@@ -1701,6 +1642,7 @@ class App(CTk):
         # history fields used by ``_pid_control``
         self.prev_error = 0.0
         self.last_time = None
+        self.last_bar_x = None
 
         # Clear PID source so next detection resets state correctly
         self.prev_measurement = None
@@ -1987,11 +1929,12 @@ class App(CTk):
 
             # 1️⃣ Select rod
             if self.vars["auto_select_rod"].get() == "on":
+                bag_delay = float(self.vars["bag_delay"].get())
                 self.set_status("Selecting rod")
                 keyboard_controller.press("2")
                 time.sleep(0.05)
                 keyboard_controller.release("2")
-                time.sleep(0.1)
+                time.sleep(bag_delay)
                 keyboard_controller.press("1")
                 time.sleep(0.05)
                 keyboard_controller.release("1")
@@ -2462,7 +2405,7 @@ class App(CTk):
             # PID calculation
             if pid_found == 0 and bar_center is not None:
                 error = fish_x - bar_center
-                control = self._pid_control(error)
+                control = self._pid_control(error, bar_center)
                 # Map PID output to mouse clicks using hysteresis to avoid jitter/oscillation
                 control = max((0 - pid_clamp), min(pid_clamp, control))
                 # Stabilize Deadzone Checker

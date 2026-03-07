@@ -160,9 +160,10 @@ class App(CTk):
         self.macro_running = False
         self.macro_thread = None
 
-        # PD state variables (changed from PID)
+        # PID state variables
+        self.pid_integral = 0.0
         self.prev_error = 0.0      # previous error term
-        self.last_time = None      # timestamp of last PD sample
+        self.last_time = None      # timestamp of last PID sample
         self.prev_measurement = None
         self.filtered_derivative = 0.0
         self.last_bar_size = None
@@ -203,7 +204,7 @@ class App(CTk):
         # Logo Label
         logo_label = CTkLabel(
             top_bar, 
-            text="I CAN'T FISH V2.3",
+            text="I CAN'T FISH V2.4",
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, sticky="w")
@@ -522,11 +523,40 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+        # Toggle between image and pixel + eyedropper tool
+        bar_toggle_settings = CTkFrame(scroll, border_width=2)
+        bar_toggle_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(bar_toggle_settings, text="Fish Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(bar_toggle_settings, text="Fish Method:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
+        fishing_mode_var = StringVar(value="Pixel")
+        self.vars["fishing_mode"] = fishing_mode_var
+        fishing_cb = CTkComboBox(bar_toggle_settings, values=["Image", "Pixel"], 
+                                 variable=fishing_mode_var, command=lambda v: self.set_status(f"fishing mode: {v}")
+                                )
+        fishing_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["fishing_mode"] = fishing_cb
+        CTkButton(bar_toggle_settings, text="Pick Colors", corner_radius=10, command=self._pick_colors).grid(row=0, column=1, padx=12, pady=12, sticky="w")
+        # Image Search Settings
+        image_settings = CTkFrame(scroll, border_width=2)
+        image_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(image_settings, text="Image Search Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(image_settings, text="Left Bar Confidence:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
+        left_confidence_var = StringVar(value="0.5")
+        self.vars["left_confidence"] = left_confidence_var
+        CTkEntry(image_settings, width=120, textvariable=left_confidence_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(image_settings, text="Right Bar Confidence:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        right_confidence_var = StringVar(value="0.01")
+        self.vars["right_confidence"] = right_confidence_var
+        right_confidence_entry = CTkEntry(image_settings, placeholder_text="0.01", width=120, textvariable=right_confidence_var)
+        right_confidence_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(image_settings, text="Fish Confidence:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        fish_confidence_var = StringVar(value="1")
+        self.vars["fish_confidence"] = fish_confidence_var
+        CTkEntry(image_settings, width=120, textvariable=fish_confidence_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # Pixel Settings
         pixel_settings = CTkFrame(scroll, border_width=2)
-        pixel_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        pixel_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(pixel_settings, text="Bar Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkButton(pixel_settings, text="Pick Colors", corner_radius=10, command=self._pick_colors).grid(row=0, column=1, padx=12, pady=12, sticky="w")
         CTkLabel(pixel_settings, text="Left Bar Color:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         left_color_var = StringVar(value="#F1F1F1")
         self.vars["left_color"] = left_color_var
@@ -575,7 +605,7 @@ class App(CTk):
             scroll,
             border_width=2
         )
-        ratio_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        ratio_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(ratio_settings, text="Minigame Timing & Limits", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(ratio_settings, text="Bar Ratio From Side:").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
@@ -606,28 +636,33 @@ class App(CTk):
         CTkEntry(ratio_settings, width=120, textvariable=restart_delay_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
         pid_settings = CTkFrame(scroll, border_width=2 )
-        pid_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(pid_settings, text="PD Controller Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        pid_settings.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(pid_settings, text="PID Controller Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
 
         CTkLabel(pid_settings, text="Proportional gain:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         p_gain_var = StringVar(value="0.9")
         self.vars["proportional_gain"] = p_gain_var
         CTkEntry(pid_settings, width=120, textvariable=p_gain_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(pid_settings, text="Derivative gain:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        CTkLabel(pid_settings, text="Integral gain:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        i_gain_var = StringVar(value="0.1")
+        self.vars["integral_gain"] = i_gain_var
+        CTkEntry(pid_settings, width=120, textvariable=i_gain_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(pid_settings, text="Derivative gain:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         d_gain_var = StringVar(value="0.4")
         self.vars["derivative_gain"] = d_gain_var
-        CTkEntry(pid_settings, width=120, textvariable=d_gain_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(pid_settings, width=120, textvariable=d_gain_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(pid_settings, text="Stabilize Threshold:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        CTkLabel(pid_settings, text="Stabilize Threshold:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
         stabilize_threshold2_var = StringVar(value="6")
         self.vars["stabilize_threshold2"] = stabilize_threshold2_var
-        CTkEntry(pid_settings, width=120, textvariable=stabilize_threshold2_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(pid_settings, width=120, textvariable=stabilize_threshold2_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(pid_settings, text="P/D Clamp:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
+        CTkLabel(pid_settings, text="PID Clamp:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
         pid_clamp_var = StringVar(value="100")
         self.vars["pid_clamp"] = pid_clamp_var
-        CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
     # SUPPORT SETTINGS TAB
     def build_advanced_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -1217,6 +1252,31 @@ class App(CTk):
             area=fish_area,
             callback=on_fish_done
        )
+    # Image processing and interaction functions
+    def _find_template(self, frame, template, confidence=0.85):
+        if template is None or frame is None:
+            return None, 0.0
+
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        result = cv2.matchTemplate(gray_frame, template, cv2.TM_CCOEFF_NORMED)
+        _, max_val, _, max_loc = cv2.minMaxLoc(result)
+
+        if max_val >= confidence:
+            h, w = template.shape
+            return max_loc[0] + w // 2, max_val
+
+        return None, max_val
+    def _prepare_templates(self):
+        """Convert templates to grayscale once."""
+        for key in self.templates:
+            if self.templates[key] is None:
+                continue
+
+            if len(self.templates[key].shape) == 3:
+                self.templates[key] = cv2.cvtColor(
+                    self.templates[key],
+                    cv2.COLOR_BGR2GRAY
+               )
     # Pixel Search Functions
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
         """
@@ -1514,17 +1574,21 @@ class App(CTk):
             kd = float(self.vars["derivative_gain"].get() or 0.2)
         except:
             kd = 0.2
+        try:
+            ki = float(self.vars["integral_gain"].get() or 0.02)
+        except:
+            ki = 0.02
         
-        return kp, kd
+        return kp, kd, ki
     
     def _pid_control(self, error, bar_center_x=None):
         """
-        Compute PD output using proportional gain system from comet reference.
-        Uses velocity-based derivative with asymmetric damping.
+        Compute PID output using the previous error/time stored on ``self``.
+        Uses velocity-based derivative with asymmetric damping from comet reference.
         """
 
         now = time.perf_counter()
-        pd_clamp = float(self.vars["pid_clamp"].get() or 1.0)  # Changed default to 1.0 like comet
+        pid_clamp = float(self.vars["pid_clamp"].get() or 100)
         # first sample: initialize state and return zero control
         if self.last_time is None:
             self.last_time = now
@@ -1537,12 +1601,13 @@ class App(CTk):
         if dt <= 0:
             return 0.0
 
-        kp, kd = self._get_pid_gains()
+        kp, kd, ki = self._get_pid_gains()
 
-        # P term - proportional to how far we need to move
-        p_term = kp * error
+        # Integral term with anti‑windup clamp
+        self.pid_integral += error * dt
+        self.pid_integral = max((0 - pid_clamp), min(pid_clamp, self.pid_integral))
 
-        # D term - asymmetric damping based on situation
+        # Derivative term using velocity-based with asymmetric damping
         d_term = 0.0
         if bar_center_x is not None and self.last_bar_x is not None and dt > 0:
             bar_velocity = (bar_center_x - self.last_bar_x) / dt
@@ -1555,9 +1620,11 @@ class App(CTk):
             if self.prev_error is not None and dt > 0:
                 d_term = kd * (error - self.prev_error) / dt
 
-        # Combined control signal (PD controller output)
-        control_signal = p_term + d_term
-        control_signal = max(-pd_clamp, min(pd_clamp, control_signal))  # Clamp output
+        output = (
+            kp * error +
+            ki * self.pid_integral +
+            d_term
+       )
 
         # update history
         self.prev_error = error
@@ -1565,12 +1632,13 @@ class App(CTk):
         if bar_center_x is not None:
             self.last_bar_x = bar_center_x
 
-        return control_signal
+        return output
 
     def _reset_pid_state(self):
         """
-        Reset PD control state variables.
+        Reset PID control state variables.
         """
+        self.pid_integral = 0.0
         # history fields used by ``_pid_control``
         self.prev_error = 0.0
         self.last_time = None
@@ -1588,93 +1656,23 @@ class App(CTk):
         self.last_left_x = None
         self.last_right_x = None
         self.last_known_box_center_x = None
-    
-    def _find_arrow_indicator_x(self, frame, arrow_hex, tolerance, is_holding):
+
+    def _update_arrow_box_estimation(self, last_bar_left, last_bar_right, arrow_centroid_x, is_holding):
         """
-        IRUS-style arrow tracking:
-        - If holding: arrow is RIGHT edge → use max X
-        - If not holding: arrow is LEFT edge → use min X
-        Returns indicator X or None.
+        Calculate bar positions using arrows and last bar positions
         """
-        pixels = self._pixel_search(frame, arrow_hex, tolerance)
-        if not pixels:
-            return None
-
-        xs = [x for x, _ in pixels]
-
-        indicator_x = max(xs) if is_holding else min(xs)
-
-        # Small jitter filter
-        if self.last_indicator_x is not None:
-            if abs(indicator_x - self.last_indicator_x) < 2:
-                indicator_x = self.last_indicator_x
-
-        return indicator_x
-
-    def _update_arrow_box_estimation(self, arrow_centroid_x, is_holding, capture_width):
-        """
-        Estimate box position based on arrow indicator using IRUS-style logic.
-        
-        If holding: arrow is on RIGHT edge, extend LEFT
-        If not holding: arrow is on LEFT edge, extend RIGHT
-        When state swaps: measure distance between arrows to get box size
-        
-        Args:
-            arrow_centroid_x: X coordinate of arrow center
-            is_holding: Whether mouse button is currently held
-            capture_width: Width of capture region
-        
-        Returns:
-            Estimated bar center X coordinate, or None if can't estimate
-        """
-        # Handle missing arrow
-        if arrow_centroid_x is None:
-            if self.last_known_box_center_x is not None:
-                return self.last_known_box_center_x
-            return None
-        
-        # Check if state swapped (holding <-> not holding)
-        state_swapped = (self.last_holding_state is not None and 
-                        is_holding != self.last_holding_state)
-        
-        # When swapping: measure new box size from arrow positions
-        if state_swapped and self.last_indicator_x is not None:
-            new_box_size = abs(arrow_centroid_x - self.last_indicator_x)
-            if new_box_size >= 10:  # Reasonable minimum
-                self.estimated_box_length = new_box_size
-        
-        # Set default box size if we don't have one
-        if self.estimated_box_length is None or self.estimated_box_length <= 0:
-            self.estimated_box_length = min(capture_width * 0.3, 200)
-        
-        # Position the box based on current hold state
-        if is_holding:
-            # Holding: arrow is on RIGHT, extend LEFT
-            self.last_right_x = float(arrow_centroid_x)
-            self.last_left_x = self.last_right_x - self.estimated_box_length
+        if arrow_centroid_x == None:
+            return None, None
+        if last_bar_left == None or last_bar_right == None:
+            bar_left = arrow_centroid_x - 20
+            bar_right = arrow_centroid_x + 20
+        if is_holding == False:
+            bar_left = arrow_centroid_x
+            bar_right = last_bar_right
         else:
-            # Not holding: arrow is on LEFT, extend RIGHT
-            self.last_left_x = float(arrow_centroid_x)
-            self.last_right_x = self.last_left_x + self.estimated_box_length
-        
-        # Clamp to capture bounds (keep arrow anchored)
-        if self.last_left_x < 0:
-            self.last_left_x = 0.0
-            self.last_right_x = min(self.estimated_box_length, capture_width)
-        
-        if self.last_right_x > capture_width:
-            self.last_right_x = float(capture_width)
-            self.last_left_x = max(0.0, self.last_right_x - self.estimated_box_length)
-        
-        # Calculate and store center
-        box_center = (self.last_left_x + self.last_right_x) / 2.0
-        self.last_known_box_center_x = box_center
-        
-        # Update tracking variables for next frame
-        self.last_indicator_x = arrow_centroid_x
-        self.last_holding_state = is_holding
-        
-        return box_center
+            bar_left = last_bar_left
+            bar_right = arrow_centroid_x
+        return bar_left, bar_right
     # === MINIGAME WINDOW (instance methods) ===
     def init_overlay_window(self):
         """
@@ -1737,7 +1735,7 @@ class App(CTk):
         canvas_offset,
         bar_y1=10,
         bar_y2=40,
-    ):
+   ):
         """
         Draws:
         - Square box with size
@@ -1756,7 +1754,53 @@ class App(CTk):
         bx1 = left_edge - canvas_offset
         bx2 = right_edge - canvas_offset
         self.draw_box(bx1, bar_y1, bx2, bar_y2, fill="#000000", outline=color)
-    # Do pixel search function (I put it here because it's organized)
+    # Image processing and interaction functions related to minigame
+    def _do_image_search(self, img, img_h):
+        fish_template = self.templates["fish"]
+        bar_template  = self.templates["left_bar"]
+
+        fish_template_h = fish_template.shape[0]
+        bar_template_h  = bar_template.shape[0]
+        # Get confidence levels
+        left_confidence  = float(self.vars["left_confidence"].get()  or 0.8)
+        right_confidence = float(self.vars["right_confidence"].get() or 0.8)
+        fish_confidence  = float(self.vars["fish_confidence"].get()  or 0.8)
+
+        # ---- Fish region (remove bottom bar part) ----
+        fish_x = None
+        max_attempts = 10
+        shift_step = 2
+
+        search_height = img_h - bar_template_h
+
+        for i in range(max_attempts):
+
+            shift_y = i * shift_step
+
+            if shift_y >= search_height:
+                break
+
+            # move UP inside cropped region
+            roi = img[shift_y:search_height, :]
+
+            if roi.shape[0] < fish_template.shape[0]:
+                continue
+
+            found_x, conf = self._find_template(
+                roi,
+                fish_template,
+                fish_confidence
+            )
+
+            if found_x is not None:
+                fish_x = found_x
+                break
+
+        # ---- Bar region (remove top fish part) ----
+        bar_region = img[fish_template_h:, :]
+        left_x, num1 = self._find_template(bar_region, bar_template, left_confidence)
+        right_x, num1 = self._find_template(bar_region, self.templates["right_bar"], right_confidence)
+        return fish_x, left_x, right_x
     def _do_pixel_search(self, img):
         fish_hex = self.vars["fish_color"].get()
         left_bar_hex = self.vars["left_color"].get()
@@ -2094,6 +2138,15 @@ class App(CTk):
             fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
             fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
             fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
+        # Load bar/fish images
+        # --- PREPARE TEMPLATES ONCE ---
+        for key in ["fish", "left_bar", "right_bar"]:
+            template = self.templates.get(key)
+            if template is None:
+                continue
+            # Convert to grayscale once
+            if len(template.shape) == 3:
+                template = cv2.cvtColor(template, cv2.COLOR_BGR2GRAY)
         # Restart delay
         restart_delay = float(self.vars["restart_delay"].get())
         # Gift box color and timer settings
@@ -2111,14 +2164,19 @@ class App(CTk):
         pid_clamp = float(self.vars["pid_clamp"].get() or 100)
         use_centroid = self.vars["centroid_tracking"].get()
         mouse_down = False
-        # initialise/zero PD state before entering the tracking loop
+        # initialise/zero PID state before entering the tracking loop
         self.prev_error = 0.0
+        # integral state should start at zero regardless of the gain setting
+        self.pid_integral = 0.0
         self.last_time = None
         gift_box_timer = 0.0
         gift_missing_time = 0.0
         GIFT_TRACK_THRESHOLD = 0.1
         # Deadzone action
         deadzone_action = 0
+        # Last bar positions
+        last_bar_left = None
+        last_bar_right = None
         def hold_mouse():
             nonlocal mouse_down
             if not mouse_down:
@@ -2134,6 +2192,7 @@ class App(CTk):
             img = self._grab_screen_region(fish_left, fish_top - 2, fish_right, fish_bottom)
             if img is None:
                 return
+            img_h = img.shape[0]
             mode = self.vars["fishing_mode"].get()
             tracking_focus2 = self.vars["tracking_focus"].get()
             if tracking_focus2 == "Gift":
@@ -2142,7 +2201,10 @@ class App(CTk):
                 tracking_focus = 1
             else:
                 tracking_focus = 2
-            fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
+            if mode == "Image":
+                fish_x, left_x, right_x = self._do_image_search(img, img_h)
+            else:
+                fish_x, left_x, right_x = self._do_pixel_search(img)
             # ---- Arrow ----
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             # ---- Gift box ----
@@ -2157,15 +2219,24 @@ class App(CTk):
                     gift_box_timer = 0.0
                     gift_missing_time = 0.0
             # ---- FISH HANDLING ----
-            if fish_x is not None:
-                self.last_fish_x = fish_x
-            else:
-                if (left_x is None and right_x is None):
+            if mode == "Pixel":
+                if fish_x is not None:
+                    self.last_fish_x = fish_x
+                else:
+                    if (left_x is None and right_x is None):
+                        release_mouse()
+                        time.sleep(restart_delay)
+                        return
+                    else:
+                        fish_x = self.last_fish_x
+            else: # Image mode
+                if fish_x is not None:
+                    self.last_fish_x = fish_x
+                else:
+                    # In image mode, if fish missing → escape immediately
                     release_mouse()
                     time.sleep(restart_delay)
                     return
-                else:
-                    fish_x = self.last_fish_x
             # ---- STABILIZE FRAME ----
             deadzone_action = deadzone_action + 1
             if deadzone_action == 2:
@@ -2174,11 +2245,16 @@ class App(CTk):
             self.clear_overlay()
             # ---- BARS NOT FOUND ----
             bars_found = left_x is not None and right_x is not None
+            bar_color = "green"
             if mode == "Image":
                 fish_x = fish_x + fish_left
             else:
                 fish_x = fish_x[0] + fish_left
+            if bars_found:
+                self._update_arrow_box_estimation(last_bar_left, last_bar_right, arrow_center, mouse_down)
+                bar_color = "yellow"
             if bars_found and left_x is not None and right_x is not None:
+                # Bar center and max left calculations
                 bar_center = int((left_x + right_x) / 2 + fish_left)
                 bar_size = abs(right_x - left_x)
                 if self.initial_bar_size is None:
@@ -2186,7 +2262,11 @@ class App(CTk):
                 deadzone = bar_size * bar_ratio
                 max_left = fish_left + deadzone
                 max_right = fish_right - deadzone
-                pid_found = 0 # 0: PID 1: Release 2: Hold 3: Do nothing
+                # Reset PID mode
+                pid_found = 0
+                # Handle last bar position
+                last_bar_left = left_x
+                last_bar_right = right_x
             else:
                 bar_center = None
                 max_left = None
@@ -2209,18 +2289,18 @@ class App(CTk):
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color=bar_color, canvas_offset=fish_left)
                         else:
-                            self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=40, color=bar_color, canvas_offset=fish_left)
                         self.draw_overlay(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 1
                 elif max_right is not None and fish_x >= max_right:
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color=bar_color, canvas_offset=fish_left)
                         else:
-                            self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=40, color=bar_color, canvas_offset=fish_left)
                         self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 2
@@ -2228,41 +2308,12 @@ class App(CTk):
                     if self.vars["fish_overlay"].get() == "on":
                         # Main code
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color=bar_color, canvas_offset=fish_left)
                         else:
-                            self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=40, color=bar_color, canvas_offset=fish_left)
                         self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
                     pid_found = 0
-            elif arrow_center:
-                capture_width = fish_right - fish_left
-                arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
-                if self.vars["fish_overlay"].get() == "on":
-                    self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
-                if arrow_indicator_x is None:
-                    pid_found = 1
-                    return
-                arrow_screen_x = arrow_indicator_x + fish_left
-                if use_centroid:
-                    estimated_bar_center = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
-                    if estimated_bar_center is not None:
-                        bar_center = int(estimated_bar_center + fish_left)
-                        pid_found = 0
-                        if self.vars["fish_overlay"].get() == "on":
-                            self.draw_overlay(bar_center=bar_center,box_size=40,color="yellow",canvas_offset=fish_left)
-                    else:
-                        pid_found = 1
-                else:
-                    distance = arrow_screen_x - fish_x
-                    if abs(distance) < 15:
-                        pid_found = 0
-                    elif distance < 0:
-                        pid_found = 2
-                    else:
-                        pid_found = 1
-                    if self.vars["fish_overlay"].get() == "on":
-                        self.draw_overlay(bar_center=arrow_screen_x,box_size=20,
-                                          color="yellow",canvas_offset=fish_left)
-            else: # No arrow / bar found
+            else: # No bar found
                 pid_found = 1
             # PID calculation
             if pid_found == 0 and bar_center is not None:

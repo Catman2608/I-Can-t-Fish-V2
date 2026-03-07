@@ -48,28 +48,12 @@ def get_base_path():
     if getattr(sys, 'frozen', False):
         return sys._MEIPASS
     return os.path.dirname(os.path.abspath(__file__))
-if sys.platform == "darwin":
-    user_config_dir = os.path.join(
-        os.path.expanduser("~"),
-        "Library",
-        "Application Support",
-        "IcantFishV2",
-        "configs"
-    )
-else:
-    user_config_dir = os.path.join(
-        os.path.expanduser("~"),
-        "AppData",
-        "Roaming",
-        "IcantFishV2",
-        "configs"
-    )
 
-os.makedirs(user_config_dir, exist_ok=True)
 BASE_PATH = get_base_path()
 
+# Determine config directory based on platform and frozen state
 if sys.platform == "darwin" and getattr(sys, "frozen", False):
-    # Only use Application Support when bundled
+    # macOS bundled app: Use Application Support
     USER_CONFIG_DIR = os.path.join(
         os.path.expanduser("~"),
         "Library",
@@ -78,14 +62,17 @@ if sys.platform == "darwin" and getattr(sys, "frozen", False):
         "configs"
     )
 else:
-    # During development, use local project folder
+    # All other cases (Windows bundled, Windows dev, macOS dev):
+    # Use local project folder
     USER_CONFIG_DIR = os.path.join(BASE_PATH, "configs")
 
+# Create the config directory if it doesn't exist
 os.makedirs(USER_CONFIG_DIR, exist_ok=True)
+
+# Only change working directory on macOS (for DMG fixes)
 if sys.platform == "darwin":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
-else:
-    pass # You're on Windows, no need to change the working directory
+# Windows doesn't need working directory changes
 class DualAreaSelector:
 
     HANDLE_SIZE = 8
@@ -477,12 +464,9 @@ class App(CTk):
                                 variable=config_var, command=lambda v: self.load_settings(v) )
         config_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
-        CTkButton(configs, text="Change Bar Areas", corner_radius=10, 
+        CTkButton( configs, text="Change Bar Areas", corner_radius=10, 
                   command=self.open_dual_area_selector
                   ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
-        CTkButton(configs, text="Open Configs Folder", corner_radius=10, 
-                  command=self.open_configs_folder
-                  ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
         hotkey_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
@@ -1333,11 +1317,6 @@ class App(CTk):
         )
 
         self.set_status("Area selector opened (click button again to close)")
-
-    def open_configs_folder(self):
-        """Open the configs folder in the file explorer."""
-        os.startfile('configs')
-
     # Pixel Search Functions
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
         """

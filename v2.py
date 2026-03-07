@@ -77,68 +77,206 @@ if sys.platform == "darwin":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 else:
     pass # You're on Windows, no need to change the working directory
-class ShakeAreaSelector(CTkToplevel):
-    def __init__(self, parent, area, callback):
-        super().__init__(parent)
+class DualAreaSelector:
 
+    HANDLE_SIZE = 8
+
+    def __init__(self, parent, shake_area, fish_area, callback):
+        self.parent = parent
         self.callback = callback
 
-        self.title("Shake Area Selector")
+        self.window = tk.Toplevel(parent)
+        self.window.overrideredirect(True)
+        self.window.attributes("-topmost", True)
 
-        # Apply saved geometry
-        geometry_string = f"{area['width']}x{area['height']}+{area['x']}+{area['y']}"
-        self.geometry(geometry_string)
+        self.window.configure(bg="black")
+        self.window.attributes("-transparentcolor", "black")
 
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
+        w = self.window.winfo_screenwidth()
+        h = self.window.winfo_screenheight()
+        self.window.geometry(f"{w}x{h}+0+0")
 
-        CTkLabel(self, text="Select SHAKE area").pack(pady=20)
-        self.transient(parent)      # Keep on top of parent
-        self.focus_force()          # Force focus (important on macOS)
-        self.lift()                 # Bring to front
-    def on_close(self):
-        self.update_idletasks()
+        self.canvas = tk.Canvas(self.window, bg="black", highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True)
 
-        area_data = {
-            "x": self.winfo_rootx(),
-            "y": self.winfo_rooty(),
-            "width": self.winfo_width(),
-            "height": self.winfo_height()
+        self.shake = shake_area.copy()
+        self.fish = fish_area.copy()
+
+        self.dragging = None
+        self.resize_corner = None
+        self.active_area = None
+
+        self.start_x = 0
+        self.start_y = 0
+
+        self.dragging = None
+        self.resize_corner = None
+        self.active_area = None
+
+        self.draw_boxes()
+
+        self.canvas.bind("<Button-1>", self.mouse_down)
+        self.canvas.bind("<B1-Motion>", self.mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.mouse_up)
+        self.canvas.bind("<Motion>", self.mouse_move)
+
+        self.window.protocol("WM_DELETE_WINDOW", self.close)
+
+    # ---------------- DRAW ----------------
+
+    def draw_boxes(self):
+
+        self.canvas.delete("all")
+
+        self.draw_area(self.shake, "#f44336")
+        self.draw_area(self.fish, "#2196F3")
+
+    def draw_area(self, area, color):
+
+        x1 = area["x"]
+        y1 = area["y"]
+        x2 = x1 + area["width"]
+        y2 = y1 + area["height"]
+
+        self.canvas.create_rectangle(
+            x1, y1, x2, y2,
+            outline=color,
+            width=3,
+            fill=color,
+            stipple="gray25"
+        )
+
+        for x, y in [(x1,y1),(x2,y1),(x1,y2),(x2,y2)]:
+            self.canvas.create_rectangle(
+                x-self.HANDLE_SIZE,
+                y-self.HANDLE_SIZE,
+                x+self.HANDLE_SIZE,
+                y+self.HANDLE_SIZE,
+                fill="white",
+                outline=""
+            )
+
+    # ---------------- HIT TEST ----------------
+
+    def inside(self, x, y, area):
+
+        return (
+            area["x"] <= x <= area["x"] + area["width"] and
+            area["y"] <= y <= area["y"] + area["height"]
+        )
+
+    def get_handle(self, x, y, area):
+
+        x1 = area["x"]
+        y1 = area["y"]
+        x2 = x1 + area["width"]
+        y2 = y1 + area["height"]
+
+        handles = {
+            "nw": (x1,y1),
+            "ne": (x2,y1),
+            "sw": (x1,y2),
+            "se": (x2,y2)
         }
 
-        self.callback(area_data)
-        self.destroy()
+        for name,(hx,hy) in handles.items():
 
-class FishAreaSelector(CTkToplevel):
-    def __init__(self, parent, area, callback):
-        super().__init__(parent)
+            if abs(x-hx) <= self.HANDLE_SIZE and abs(y-hy) <= self.HANDLE_SIZE:
+                return name
 
-        self.callback = callback
+        return None
 
-        self.title("Fish Area Selector")
+    # ---------------- MOUSE ----------------
 
-        geometry_string = f"{area['width']}x{area['height']}+{area['x']}+{area['y']}"
-        self.geometry(geometry_string)
+    def mouse_down(self, e):
 
-        self.protocol("WM_DELETE_WINDOW", self.on_close)
+        self.start_x = e.x
+        self.start_y = e.y
 
-        CTkLabel(self, text="Select FISH area").pack(pady=20)
+        for area,name in [(self.fish,"fish"),(self.shake,"shake")]:
 
-        self.transient(parent)      # Keep on top of parent
-        self.focus_force()          # Force focus (important on macOS)
-        self.lift()                 # Bring to front
-    def on_close(self):
-        self.update_idletasks()
+            handle = self.get_handle(e.x,e.y,area)
 
-        area_data = {
-            "x": self.winfo_rootx(),
-            "y": self.winfo_rooty(),
-            "width": self.winfo_width(),
-            "height": self.winfo_height()
-        }
+            if handle:
+                self.resize_corner = handle
+                self.active_area = area
+                return
 
-        self.callback(area_data)
-        self.destroy()
+            if self.inside(e.x,e.y,area):
+                self.dragging = name
+                self.active_area = area
+                return
 
+    def mouse_drag(self, e):
+
+        if not self.dragging and not self.resize_corner:
+            return
+
+        dx = e.x - self.start_x
+        dy = e.y - self.start_y
+
+        if self.resize_corner:
+
+            a = self.active_area
+
+            if "e" in self.resize_corner:
+                a["width"] += dx
+            if "s" in self.resize_corner:
+                a["height"] += dy
+            if "w" in self.resize_corner:
+                a["x"] += dx
+                a["width"] -= dx
+            if "n" in self.resize_corner:
+                a["y"] += dy
+                a["height"] -= dy
+
+        elif self.dragging:
+
+            a = self.active_area
+            a["x"] += dx
+            a["y"] += dy
+
+        self.start_x = e.x
+        self.start_y = e.y
+
+        self.draw_boxes()
+
+    def mouse_up(self, e):
+
+        self.dragging = None
+        self.resize_corner = None
+        self.active_area = None
+
+    def mouse_move(self, e):
+
+        for area in [self.fish,self.shake]:
+
+            handle = self.get_handle(e.x,e.y,area)
+
+            if handle:
+
+                cursor = {
+                    "nw":"size_nw_se",
+                    "se":"size_nw_se",
+                    "ne":"size_ne_sw",
+                    "sw":"size_ne_sw"
+                }[handle]
+
+                self.canvas.config(cursor=cursor)
+                return
+
+            if self.inside(e.x,e.y,area):
+                self.canvas.config(cursor="fleur")
+                return
+
+        self.canvas.config(cursor="")
+
+    # ---------------- SAVE ----------------
+
+    def close(self):
+
+        self.callback(self.shake,self.fish)
+        self.window.destroy()
 # Main app
 class App(CTk):
     def __init__(self):
@@ -1106,28 +1244,27 @@ class App(CTk):
         # 6️⃣ Re-center again (prevents drift)
         mouse_controller.position = (screen_w // 2, screen_h // 2)
     def open_dual_area_selector(self):
-        self.update_idletasks()
-        # If already open → close both
-        if self.shake_selector or self.fish_selector:
-            if self.shake_selector and self.shake_selector.winfo_exists():
-                self.shake_selector.on_close()
-            if self.fish_selector and self.fish_selector.winfo_exists():
-                self.fish_selector.on_close()
 
-            self.shake_selector = None
-            self.fish_selector = None
+        self.update_idletasks()
+
+        # Toggle OFF if already open
+        if hasattr(self, "area_selector") and self.area_selector and self.area_selector.window.winfo_exists():
+            self.area_selector.close()
+            self.area_selector = None
             self.set_status("Area selector closed")
             return
 
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
 
-        # Failback areas (if you don't set bar areas it will failback to these values)
+        # ---- Default fallback areas ----
+
         def default_shake_area():
             left = int(screen_w * 0.2083)
             top = int(screen_h * 0.162)
             right = int(screen_w * 0.7813)
             bottom = int(screen_h * 0.74)
+
             return {
                 "x": left,
                 "y": top,
@@ -1140,6 +1277,7 @@ class App(CTk):
             top = int(screen_h * 0.7981)
             right = int(screen_w * 0.7141)
             bottom = int(screen_h * 0.8370)
+
             return {
                 "x": left,
                 "y": top,
@@ -1147,76 +1285,42 @@ class App(CTk):
                 "height": bottom - top
             }
 
+        # ---- Load saved areas or fallback ----
+
         shake_area = (
             self.bar_areas.get("shake")
             if isinstance(self.bar_areas.get("shake"), dict)
             else default_shake_area()
-       )
+        )
 
         fish_area = (
             self.bar_areas.get("fish")
             if isinstance(self.bar_areas.get("fish"), dict)
             else default_fish_area()
-       )
-        mode = self.vars["fishing_mode"].get()
-        # ---- TEMPLATE HEIGHT FAILSAFE ----
-        if (
-            isinstance(fish_area, dict)
-            and self.templates.get("fish") is not None
-            and self.templates.get("left_bar") is not None
-            and mode == "Image"
-       ):
+        )
 
-            fish_template_h = self.templates["fish"].shape[0]
-            bar_template_h  = self.templates["left_bar"].shape[0]
+        # ---- Callback when user closes selector ----
 
-            min_required_height = int((fish_template_h + bar_template_h) + 5)  # Add some padding
+        def on_done(shake, fish):
 
-            if fish_area["height"] < min_required_height:
-
-                old_height = fish_area["height"]
-
-                # Keep top position stable
-                fish_area["height"] = min_required_height
-
-                # Prevent going off bottom of screen
-                if fish_area["y"] + fish_area["height"] > screen_h:
-                    fish_area["y"] = screen_h - fish_area["height"]
-
-                # Prevent negative Y
-                if fish_area["y"] < 0:
-                    fish_area["y"] = 0
-
-                self.set_status(
-                    f"Bar height too small ({old_height}) → corrected to {min_required_height}"
-               )
-        def on_shake_done(shake):
             self.bar_areas["shake"] = shake
-            check_if_both_closed()
-
-        def on_fish_done(fish):
             self.bar_areas["fish"] = fish
-            check_if_both_closed()
 
-        def check_if_both_closed():
-            if (
-                (not self.shake_selector or not self.shake_selector.winfo_exists()) and
-                (not self.fish_selector or not self.fish_selector.winfo_exists())
-            ):
-                self.save_misc_settings()
-                self.set_status("Bar areas saved")
+            self.save_misc_settings()
 
-        self.shake_selector = ShakeAreaSelector(
+            self.area_selector = None
+            self.set_status("Bar areas saved")
+
+        # ---- Open selector ----
+
+        self.area_selector = DualAreaSelector(
             parent=self,
-            area=shake_area,
-            callback=on_shake_done
-       )
+            shake_area=shake_area,
+            fish_area=fish_area,
+            callback=on_done
+        )
 
-        self.fish_selector = FishAreaSelector(
-            parent=self,
-            area=fish_area,
-            callback=on_fish_done
-       )
+        self.set_status("Area selector opened (click button again to close)")
     # Pixel Search Functions
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
         """
@@ -1735,27 +1839,43 @@ class App(CTk):
         box_size,
         color,
         canvas_offset,
+        show_bar_center=False,
         bar_y1=10,
         bar_y2=40,
     ):
         """
         Draws:
         - Square box with size
+        - Optional gray center line
         """
 
         # Guard against missing center
         if bar_center is None:
             return
-        
+
         box_size = int(box_size / 2)
         # Calculate bar edges
         left_edge = bar_center - box_size
         right_edge = bar_center + box_size
 
-        # Main bar
+        # Convert to canvas coordinates
         bx1 = left_edge - canvas_offset
         bx2 = right_edge - canvas_offset
+        center_x = bar_center - canvas_offset
+
+        # Main bar
         self.draw_box(bx1, bar_y1, bx2, bar_y2, fill="#000000", outline=color)
+
+        # Center line
+        if show_bar_center:
+            self.overlay_canvas.create_line(
+                center_x,
+                bar_y1,
+                center_x,
+                bar_y2,
+                fill="gray",
+                width=2
+            )
     # Do pixel search function (I put it here because it's organized)
     def _do_pixel_search(self, img):
         fish_hex = self.vars["fish_color"].get()
@@ -2134,7 +2254,6 @@ class App(CTk):
             img = self._grab_screen_region(fish_left, fish_top - 2, fish_right, fish_bottom)
             if img is None:
                 return
-            mode = self.vars["fishing_mode"].get()
             tracking_focus2 = self.vars["tracking_focus"].get()
             if tracking_focus2 == "Gift":
                 tracking_focus = 0
@@ -2174,10 +2293,7 @@ class App(CTk):
             self.clear_overlay()
             # ---- BARS NOT FOUND ----
             bars_found = left_x is not None and right_x is not None
-            if mode == "Image":
-                fish_x = fish_x + fish_left
-            else:
-                fish_x = fish_x[0] + fish_left
+            fish_x = fish_x[0] + fish_left
             if bars_found and left_x is not None and right_x is not None:
                 bar_center = int((left_x + right_x) / 2 + fish_left)
                 bar_size = abs(right_x - left_x)
@@ -2209,7 +2325,7 @@ class App(CTk):
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left, show_bar_center=True)
                         else:
                             self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left)
@@ -2218,7 +2334,7 @@ class App(CTk):
                 elif max_right is not None and fish_x >= max_right:
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left, show_bar_center=True)
                         else:
                             self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left)
@@ -2228,7 +2344,7 @@ class App(CTk):
                     if self.vars["fish_overlay"].get() == "on":
                         # Main code
                         if self.vars["bar_size"].get() == "on":
-                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left)
+                            self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left, show_bar_center=True)
                         else:
                             self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left)
                         self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left)
@@ -2242,7 +2358,7 @@ class App(CTk):
                     pid_found = 1
                     return
                 arrow_screen_x = arrow_indicator_x + fish_left
-                if use_centroid:
+                if use_centroid == "on":
                     estimated_bar_center = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
                     if estimated_bar_center is not None:
                         bar_center = int(estimated_bar_center + fish_left)
@@ -2253,15 +2369,15 @@ class App(CTk):
                         pid_found = 1
                 else:
                     distance = arrow_screen_x - fish_x
-                    if abs(distance) < 15:
-                        pid_found = 0
+                    if distance > 0:
+                        pid_found = 1   # release mouse
                     elif distance < 0:
-                        pid_found = 2
+                        pid_found = 2   # hold mouse
                     else:
                         pid_found = 1
                     if self.vars["fish_overlay"].get() == "on":
-                        self.draw_overlay(bar_center=arrow_screen_x,box_size=20,
-                                          color="yellow",canvas_offset=fish_left)
+                        self.draw_overlay(bar_center=arrow_screen_x,box_size=10,
+                                          color="yellow",canvas_offset=fish_left, show_bar_center=False, bar_y1=20, bar_y2=30)
             else: # No arrow / bar found
                 pid_found = 1
             # PID calculation

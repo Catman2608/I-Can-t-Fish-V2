@@ -39,7 +39,7 @@
     "minigame_scan_delay": "0.01",
     "restart_delay": "1",
     "proportional_gain": "0.6",
-    "derivative_gain": "0.5",
+    "derivative_gain": "0.8",
     "stabilize_threshold2": "6",
     "pid_clamp": "100",
     "shake_color": "#FFFFFF",

@@ -1,3 +1,6 @@
+<p align="center">
+  <img src="https://i.postimg.cc/xdSPjCr4/ICF.png" alt="Logo">
+</p>
 ## How to compile using a PC or mac
 I use a tool called auto-py-to-exe for Windows and Pyinstaller for macOS.
 For windows: I have my auto-py-to-exe config json file.

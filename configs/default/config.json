@@ -6,7 +6,7 @@
     "stop_key": "F7",
     "auto_select_rod": "on",
     "auto_zoom_in": "off",
-    "fish_overlay": "on",
+    "fish_overlay": "off",
     "bar_size": "on",
     "bag_delay": "0.2",
     "centroid_tracking": "off",

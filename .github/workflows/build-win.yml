@@ -21,16 +21,26 @@ jobs:
                   python -m pip install --upgrade pip
                   pip install pyinstaller opencv-python numpy pillow customtkinter
 
-            - name: Build EXE
+            - name: Build EXE with PyInstaller
+              shell: cmd
               run: |
-                  pyinstaller --onefile --windowed v2.py
+                  pyinstaller --onefile --windowed v2.py ^
+                    --hidden-import=cv2 ^
+                    --hidden-import=numpy ^
+                    --collect-all customtkinter ^
+                    --add-data "configs;configs" ^
+                    --name "MyApp"
 
-            - name: Check dist contents
+            - name: List dist contents
               run: |
+                  echo "Files in dist folder:"
                   dir dist
+                  echo "Size of executable:"
+                  dir dist\MyApp.exe
 
             - name: Upload EXE artifact
               uses: actions/upload-artifact@v4
               with:
                   name: Windows-EXE
-                  path: dist/v2.exe
+                  path: dist/MyApp.exe
+                  if-no-files-found: error

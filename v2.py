@@ -22,6 +22,9 @@ import threading
 # Time
 import time
 import json
+# Discord and Text logs
+import requests
+import io
 # OpenCV for pixel searches and NumPy for arrow calculations
 import cv2
 import numpy as np
@@ -75,6 +78,15 @@ if sys.platform == "darwin" and getattr(sys, "frozen", False):
         "IcantFishV2",
         "configs"
     )
+elif sys.platform == "win32" and getattr(sys, "frozen", False):
+    # Only use AppData/Roaming when bundled
+    USER_CONFIG_DIR = os.path.join(
+        os.path.expanduser("~"),
+        "AppData",
+        "Roaming",
+        "IcantFishV2",
+        "configs"
+    )
 else:
     # During development, use local project folder
     USER_CONFIG_DIR = os.path.join(BASE_PATH, "configs")
@@ -85,7 +97,6 @@ if sys.platform == "darwin":
 else:
     pass # You're on Windows, no need to change the working directory
 class DualAreaSelector:
-
     HANDLE_SIZE = 8
 
     def __init__(self, parent, shake_area, fish_area, callback):
@@ -329,8 +340,13 @@ class App(CTk):
         # Hotkey variables
         self.hotkey_start = Key.f5
         self.hotkey_stop = Key.f7
+        self.hotkey_change_areas = Key.f6            # added for the bar area selector
         self.hotkey_reserved = Key.f8
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
+
+        # Logging-related variables
+        # loop counter used by Discord webhook worker; must start at zero
+        self.discord_loop_count = 0
 
         # MSS and DXCAM-related variables
         self.sct = mss.mss()
@@ -408,6 +424,7 @@ class App(CTk):
         self.tabs.add("Cast")
         self.tabs.add("Shake")
         self.tabs.add("Fish")
+        self.tabs.add("Logging")
         self.tabs.add("Advanced")
 
         # Build tabs
@@ -416,6 +433,7 @@ class App(CTk):
         self.build_cast_tab(self.tabs.tab("Cast"))
         self.build_shake_tab(self.tabs.tab("Shake"))
         self.build_fishing_tab(self.tabs.tab("Fish"))
+        self.build_logging_tab(self.tabs.tab("Logging"))
         self.build_advanced_tab(self.tabs.tab("Advanced"))
 
         # Grid behavior
@@ -480,37 +498,39 @@ class App(CTk):
                                 variable=config_var, command=lambda v: self.load_settings(v) )
         config_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
-        CTkButton(configs, text="Change Bar Areas", corner_radius=10, 
-                  command=self.open_dual_area_selector
-                  ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
         CTkButton(configs, text="Open Configs Folder", corner_radius=10, 
                   command=self.open_configs_folder
-                  ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
+                  ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
+        # Save misc settings (most important)
+        CTkButton(configs, text="Save Misc Settings", 
+                  corner_radius=10, command=self.save_misc_settings
+        ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
         hotkey_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(hotkey_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        # Save misc settings (most important)
-        CTkButton( hotkey_settings, text="Save Misc Settings", 
-                  corner_radius=10, command=self.save_misc_settings
-        ).grid(row=0, column=1, padx=12, pady=12, sticky="w")
         # Start key
         CTkLabel(hotkey_settings, text="Start Key").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
-        CTkLabel(hotkey_settings, text="Screenshot Key").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_settings, text="Change Bar Areas Key").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
         CTkLabel(hotkey_settings, text="Stop Key").grid( row=3, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_settings, text="Screenshot Key").grid( row=4, column=0, padx=12, pady=6, sticky="w" )
         # Start, screenshot and stop key changer
         start_key_var = StringVar(value="F5")
         self.vars["start_key"] = start_key_var
         start_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=start_key_var )
         start_key_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        screenshot_key_var = StringVar(value="F8")
-        self.vars["screenshot_key"] = screenshot_key_var
-        screenshot_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=screenshot_key_var )
-        screenshot_key_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        change_bar_areas_key_var = StringVar(value="F6")
+        self.vars["change_bar_areas_key"] = change_bar_areas_key_var
+        change_bar_areas_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=change_bar_areas_key_var )
+        change_bar_areas_key_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
         stop_key_var = StringVar(value="F7")
         self.vars["stop_key"] = stop_key_var
         stop_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=stop_key_var )
         stop_key_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        screenshot_key_var = StringVar(value="F8")
+        self.vars["screenshot_key"] = screenshot_key_var
+        screenshot_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=screenshot_key_var )
+        screenshot_key_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
         automation.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
@@ -786,7 +806,47 @@ class App(CTk):
         pid_clamp_var = StringVar(value="100")
         self.vars["pid_clamp"] = pid_clamp_var
         CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
-    # SUPPORT SETTINGS TAB
+    # LOGGING SETTINGS TAB
+    def build_logging_tab(self, parent):
+        scroll = CTkScrollableFrame(parent)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+
+        # Discord Webhook Settings
+        discord_webhook = CTkFrame(
+            scroll,
+            border_width=2
+        )
+        discord_webhook.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(
+            discord_webhook,
+            text="Discord Webhook",
+            font=CTkFont(size=16, weight="bold")
+        ).grid(row=0, column=0, columnspan=2, padx=12, pady=(10, 5), sticky="w")
+
+        discord_enabled_var = StringVar(value="off")
+        self.vars["discord_enabled"] = discord_enabled_var
+        discord_enabled_cb = CTkCheckBox(discord_webhook, text="Enable Discord Webhook", variable=discord_enabled_var, onvalue="on", offvalue="off")
+        discord_enabled_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+
+        CTkLabel(discord_webhook, text="Webhook URL:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        discord_webhook_url_var = StringVar(value="https://discord.com/api/webhooks/XXXXXXXXXX/XXXXXXXXXX")
+        self.vars["discord_webhook_url"] = discord_webhook_url_var
+        CTkEntry(discord_webhook, width=220, textvariable=discord_webhook_url_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(discord_webhook, text="Webhook name:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        discord_webhook_name_var = StringVar(value="I Can't Fish")
+        self.vars["discord_webhook_name"] = discord_webhook_name_var
+        CTkEntry(discord_webhook, width=120, textvariable=discord_webhook_name_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        # Test webhook button
+        CTkButton(
+            discord_webhook,
+            text="Test Webhook",
+            command=self.test_discord_webhook
+        ).grid(row=4, column=0, columnspan=2, padx=12, pady=12, sticky="w")
+    # ADVANCED SETTINGS TAB
     def build_advanced_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
@@ -900,6 +960,26 @@ class App(CTk):
             width=120,
             textvariable=gift_box_timer_var
         ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(gift_settings, text="Gift Track Threshold:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
+
+        gift_track_threshold_var = StringVar(value="0.1")
+        self.vars["gift_track_threshold"] = gift_track_threshold_var
+
+        CTkEntry(
+            gift_settings,
+            width=120,
+            textvariable=gift_track_threshold_var
+        ).grid(row=5, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(gift_settings, text="Note Cooldown:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
+
+        note_cooldown_var = StringVar(value="0.2")
+        self.vars["note_cooldown"] = note_cooldown_var
+
+        CTkEntry(
+            gift_settings,
+            width=120,
+            textvariable=note_cooldown_var
+        ).grid(row=6, column=1, padx=12, pady=10, sticky="w")
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
@@ -962,6 +1042,7 @@ class App(CTk):
 
                 # 🔥 Save hotkeys
                 "start_key": self.vars["start_key"].get(),
+                "change_bar_areas_key": self.vars["change_bar_areas_key"].get(),
                 "screenshot_key": self.vars["screenshot_key"].get(),
                 "stop_key": self.vars["stop_key"].get()
             }
@@ -969,6 +1050,7 @@ class App(CTk):
                 json.dump(data, f, indent=4)
             # 🔥 Immediately update active hotkeys
             self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
+            self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
             self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
             self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
         except Exception as e:
@@ -1083,15 +1165,18 @@ class App(CTk):
                     self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
                     # 🔥 Load hotkeys if present
                     start_key = data.get("start_key", "F5")
+                    change_key = data.get("change_bar_areas_key", "F6")
                     screenshot_key = data.get("screenshot_key", "F8")
                     stop_key = data.get("stop_key", "F7")
 
                     self.vars["start_key"].set(start_key)
+                    self.vars["change_bar_areas_key"].set(change_key)
                     self.vars["screenshot_key"].set(screenshot_key)
                     self.vars["stop_key"].set(stop_key)
 
                     # Convert to pynput keys
                     self.hotkey_start = self._string_to_key(start_key)
+                    self.hotkey_change_areas = self._string_to_key(change_key)
                     self.hotkey_screenshot = self._string_to_key(screenshot_key)
                     self.hotkey_stop = self._string_to_key(stop_key)
             else:
@@ -1117,6 +1202,10 @@ class App(CTk):
                 self.macro_running = True
                 self.after(0, self.withdraw)
                 threading.Thread(target=self.start_macro, daemon=True).start()
+
+            elif key == self.hotkey_change_areas:
+                # quick toggle area selector, regardless of macro state
+                self.open_dual_area_selector()
 
             elif key == self.hotkey_screenshot:
                 self._take_debug_screenshot()
@@ -1166,26 +1255,20 @@ class App(CTk):
     # Eyedropper-related functions
     def _pick_colors(self):
         """Live eyedropper tool without freezing screen."""
-
         self.eyedropper = tk.Toplevel(self)
-
         # Fill screen but NOT true fullscreen
         w = self.winfo_screenwidth()
         h = self.winfo_screenheight()
         self.eyedropper.geometry(f"{w}x{h}+0+0")
-
         self.eyedropper.attributes("-alpha", 0.01)
         self.eyedropper.attributes("-topmost", True)
         self.eyedropper.config(cursor="crosshair")
-
         self.eyedropper.bind("<Button-1>", self._on_pick_color)
         self.eyedropper.bind("<Escape>", lambda e: self.eyedropper.destroy())
     def _on_pick_color(self, event):
         """Capture pixel color at mouse position."""
-
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
-
         with mss.mss() as sct:
             monitor = {
                 "left": x,
@@ -1194,34 +1277,25 @@ class App(CTk):
                 "height": 1
             }
             img = sct.grab(monitor)
-
             # BGRA → BGR
             b = img.raw[0]
             g = img.raw[1]
             r = img.raw[2]
-
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
-
         print("Picked:", hex_color)
-
         # 🔥 Store it somewhere neutral
         self.last_picked_color = hex_color
-
         # Optional: show small popup preview
         self._show_color_preview(hex_color)
-
         self.eyedropper.destroy()
     def _show_color_preview(self, hex_color):
         preview = tk.Toplevel(self)
         preview.title("Picked Color")
         preview.geometry("220x120")
         preview.attributes("-topmost", True)
-
         tk.Label(preview, text=hex_color, font=("Arial", 12)).pack(pady=10)
-
         color_box = tk.Frame(preview, bg=hex_color, width=100, height=40)
         color_box.pack(pady=5)
-
         tk.Button(preview, text="Close", command=preview.destroy).pack(pady=5)
     def open_link(self, url):
         """Open a URL in the default web browser."""
@@ -1234,128 +1308,151 @@ class App(CTk):
         if self.right_mouse_down:
             mouse_controller.release(Button.right)
             self.right_mouse_down = False
-    def look_vertical(self, pixels):
+    def look_vertical(self, pixels): # Fix this
         """
         pixels > 0 → look down
         pixels < 0 → look up
         """
-
         # 1️⃣ Always release first (important)
         self.release_right_mouse()
         time.sleep(0.05)
-
         # 2️⃣ Optional: center mouse on screen (VERY IMPORTANT for Roblox)
         screen_w, screen_h = self.SCREEN_WIDTH, self.SCREEN_HEIGHT
         mouse_controller.position = (screen_w // 2, screen_h // 2)
         time.sleep(0.05)
-
         # 3️⃣ Hold right click
         self.hold_right_mouse()
         time.sleep(0.05)
-
         # 4️⃣ Use bigger movement
         big_move = pixels * 5  # amplify
         mouse_controller.move(0, big_move)
         time.sleep(0.05)
-
         # 5️⃣ Release
         self.release_right_mouse()
         time.sleep(0.05)
-
         # 6️⃣ Re-center again (prevents drift)
         mouse_controller.position = (screen_w // 2, screen_h // 2)
     def open_dual_area_selector(self):
-
         self.update_idletasks()
-
         # Toggle OFF if already open
         if hasattr(self, "area_selector") and self.area_selector and self.area_selector.window.winfo_exists():
             self.area_selector.close()
             self.area_selector = None
             self.set_status("Area selector closed")
             return
-
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
-
         # ---- Default fallback areas ----
-
         def default_shake_area():
             left = int(screen_w * 0.2083)
             top = int(screen_h * 0.162)
             right = int(screen_w * 0.7813)
             bottom = int(screen_h * 0.74)
-
-            return {
-                "x": left,
-                "y": top,
-                "width": right - left,
-                "height": bottom - top
-            }
-
+            return { "x": left, "y": top, "width": right - left, "height": bottom - top }
         def default_fish_area():
             left = int(screen_w * 0.2844)
             top = int(screen_h * 0.7981)
             right = int(screen_w * 0.7141)
             bottom = int(screen_h * 0.8370)
-
-            return {
-                "x": left,
-                "y": top,
-                "width": right - left,
-                "height": bottom - top
-            }
-
+            return { "x": left, "y": top, "width": right - left, "height": bottom - top }
         # ---- Load saved areas or fallback ----
-
         shake_area = (
             self.bar_areas.get("shake")
             if isinstance(self.bar_areas.get("shake"), dict)
             else default_shake_area()
         )
-
         fish_area = (
             self.bar_areas.get("fish")
             if isinstance(self.bar_areas.get("fish"), dict)
             else default_fish_area()
         )
-
         # ---- Callback when user closes selector ----
-
         def on_done(shake, fish):
-
             self.bar_areas["shake"] = shake
             self.bar_areas["fish"] = fish
-
             self.save_misc_settings()
-
             self.area_selector = None
             self.set_status("Bar areas saved")
-
         # ---- Open selector ----
-
-        self.area_selector = DualAreaSelector(
-            parent=self,
-            shake_area=shake_area,
-            fish_area=fish_area,
-            callback=on_done
-        )
-
+        self.area_selector = DualAreaSelector(parent=self, shake_area=shake_area, fish_area=fish_area, callback=on_done)
         self.set_status("Area selector opened (click button again to close)")
-
     def open_configs_folder(self):
-
-        folder = os.path.abspath("configs")
-
+        folder = USER_CONFIG_DIR
         if sys.platform == "win32":
             os.startfile(folder)
-
         elif sys.platform == "darwin":  # macOS
             subprocess.run(["open", folder])
-
         else:  # Linux
             subprocess.run(["xdg-open", folder])
+    # Logging-related functions
+    def _discord_text_worker(self, webhook_url, message_prefix):
+        """Worker function to send text webhook."""
+        discord_webhook_name = self.vars["discord_webhook_name"].get()
+        try:
+            payload = {
+                'content': f'{message_prefix}🎣 {discord_webhook_name} bot\n🔄 Loop #{self.discord_loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                'username': discord_webhook_name,
+                'embeds': [{
+                    'title': '⚡ Bot Status Update',
+                    'description': f'Completed loop #{self.discord_loop_count}',
+                    'color': 0x5865F2,
+                    'timestamp': time.strftime("%Y-%m-%dT%H:%M:%S")
+                }]
+            }
+            
+            response = requests.post(webhook_url, json=payload, timeout=10)
+            if response.status_code == 200 or response.status_code == 204:
+                print(f"📤 Discord text sent (Loop #{self.discord_loop_count})")
+            else:
+                print(f"❌ Discord text failed: {response.status_code}")
+        except Exception as e:
+            print(f"❌ Error sending Discord text: {e}")
+    def _discord_screenshot_worker(self, webhook_url, message_prefix):
+        try:
+            with mss.mss() as sct:
+                monitor = sct.monitors[1]
+                screenshot = np.array(sct.grab(monitor))
 
+            screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
+
+            _, buffer = cv2.imencode(".png", screenshot)
+            img_byte_arr = io.BytesIO(buffer.tobytes())
+
+            files = {'file': ('screenshot.png', img_byte_arr, 'image/png')}
+
+            payload = {
+                'content': f'{message_prefix}🎣 **Fishing Macro** 🤖\n🔄 Loop #{self.discord_loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                'username': 'Fishing Macro'
+            }
+
+            response = requests.post(webhook_url, data=payload, files=files, timeout=10)
+
+            if response.status_code in (200, 204):
+                print(f"📤 Discord screenshot sent (Loop #{self.discord_loop_count})")
+            else:
+                print(f"❌ Discord screenshot failed: {response.status_code}")
+
+        except Exception as e:
+            print(f"❌ Error sending Discord screenshot: {e}")
+    def test_discord_webhook(self):
+        if not self.vars["discord_enabled"].get() == "on":
+            print("⚠ Discord webhook is disabled.")
+            return
+        # discord_webhook_url
+        webhook_url = self.vars["discord_webhook_url"].get().strip()
+
+        if not webhook_url.startswith("https://discord.com/api/webhooks/"):
+            print("❌ Invalid webhook URL.")
+            return
+
+        print("📤 Sending test webhook...")
+
+        thread = threading.Thread(
+            target=self._discord_text_worker,
+            args=(webhook_url, "🧪 **Webhook Test**\n"),
+            daemon=True
+        )
+        thread.start()
     # Pixel Search Functions
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
         """
@@ -2274,7 +2371,10 @@ class App(CTk):
         self.last_time = None
         gift_box_timer = 0.0
         gift_missing_time = 0.0
-        GIFT_TRACK_THRESHOLD = 0.1
+        GIFT_TRACK_THRESHOLD = float(self.vars["gift_track_threshold"].get() or 0.1)
+        note_cooldown_timer = 0.0
+        NOTE_COOLDOWN = float(self.vars["note_cooldown"].get() or 0.2)
+        gift_was_visible = False
         # Deadzone action
         deadzone_action = 0
         def hold_mouse():
@@ -2289,7 +2389,7 @@ class App(CTk):
                 mouse_down = False
         while self.macro_running: # Main macro loop
             gift_img = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
-            img = self._grab_screen_region(fish_left, fish_top - 2, fish_right, fish_bottom)
+            img = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
             if img is None:
                 return
             tracking_focus2 = self.vars["tracking_focus"].get()
@@ -2355,8 +2455,13 @@ class App(CTk):
                 max_right = None
                 pid_found = 3
             if bars_found and bar_center is not None: # Bar found
-                # ----- GIFT TRACKING LOGIC -----
-                if (bars_found and gift_box_x is not None and gift_box_timer >= GIFT_TRACK_THRESHOLD):
+                # Gift tracking (contains note cooldown)
+                note_cooldown_timer = max(0, note_cooldown_timer - scan_delay)
+                # Detect note disappearance
+                if gift_was_visible and gift_box_x is None:
+                    note_cooldown_timer = NOTE_COOLDOWN
+                gift_was_visible = gift_box_x is not None
+                if (bars_found and gift_box_x is not None and gift_box_timer >= GIFT_TRACK_THRESHOLD and note_cooldown_timer <= 0):
                     # convert shake → fish coordinate
                     shake_width = shake_right - shake_left
                     fish_width = fish_right - fish_left
@@ -2365,7 +2470,8 @@ class App(CTk):
                         fish_x = gift_screen_x
                     elif tracking_focus == 1:  # Gift + Fish
                         distance = abs(fish_x - gift_screen_x)
-                        if distance <= 400:
+                        # Only merge when gift is inside the bar center
+                        if bar_center is not None and distance <= (bar_size * 0.5):
                             fish_x = int((fish_x + gift_screen_x) / 2)
                     # tracking_focus == 2 → Fish only
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)

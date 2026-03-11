@@ -1368,8 +1368,7 @@ class App(CTk):
         if len(x_coords) > 0:
             return list(zip(x_coords, y_coords))
         return []
-    def _init_capture_buffer(self, width, height):
-        self._capture_buffer = np.empty((height, width, 3), dtype=np.uint8)
+
     def _grab_screen_region(self, left, top, right, bottom):
         width = right - left
         height = bottom - top
@@ -1377,15 +1376,12 @@ class App(CTk):
         if width <= 0 or height <= 0:
             return None
 
-        # Reuse monitor dict to avoid allocations
-        if not hasattr(self, "_monitor"):
-            self._monitor = {}
-
-        m = self._monitor
-        m["left"] = left
-        m["top"] = top
-        m["width"] = width
-        m["height"] = height
+        monitor = {
+            "left": left,
+            "top": top,
+            "width": width,
+            "height": height
+        }
 
         # Ensure MSS exists for this thread
         if not hasattr(self, "_thread_local"):
@@ -1398,15 +1394,9 @@ class App(CTk):
 
         # --- macOS ---
         if sys.platform == "darwin":
-            img = sct.grab(m)
-
-            # BGRA -> BGR directly into buffer
-            frame = np.frombuffer(img.raw, dtype=np.uint8)
-            frame = frame.reshape(img.height, img.width, 4)
-
-            self._capture_buffer[:] = frame[:, :, :3]
-
-            return self._capture_buffer
+            img = sct.grab(monitor)
+            frame = np.frombuffer(img.raw, dtype=np.uint8).reshape(img.height, img.width, 4)[:, :, :3]
+            return img
 
         # --- Windows ---
         mode = self.vars.get("capture_mode")
@@ -1420,7 +1410,7 @@ class App(CTk):
             return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
 
         # Fallback MSS
-        img = np.array(sct.grab(m))[:, :, :3]
+        img = np.array(sct.grab(monitor))[:, :, :3]
         return img
 
     def _click_at(self, x, y):
@@ -1473,7 +1463,7 @@ class App(CTk):
         right_hex,
         tolerance=15,
         tolerance2=15,
-        scan_height_ratio=0.65
+        scan_height_ratio=0.55
     ):
         if frame is None:
             return None, None
@@ -1492,8 +1482,8 @@ class App(CTk):
         tol_l = int(np.clip(tolerance, 0, 255))
         tol_r = int(np.clip(tolerance2, 0, 255))
 
-        left_edge = None
-        right_edge = None
+        bar_x_coords = None
+
         # --- LEFT BAR COLOR ---
         if left_hex is not None:
             lower_l = left_bgr - tol_l
@@ -1503,7 +1493,7 @@ class App(CTk):
             left_indices = np.where(left_mask)[0]
 
             if left_indices.size > 0:
-                left_edge = left_indices.min()
+                bar_x_coords = left_indices
 
         # --- RIGHT BAR COLOR ---
         if right_hex is not None:
@@ -1514,11 +1504,17 @@ class App(CTk):
             right_indices = np.where(right_mask)[0]
 
             if right_indices.size > 0:
-                right_edge = right_indices.max()
+                if bar_x_coords is not None:
+                    bar_x_coords = np.concatenate([bar_x_coords, right_indices])
+                else:
+                    bar_x_coords = right_indices
 
         # --- FINAL EDGE EXTRACTION ---
-        if left_edge is not None and right_edge is not None:
-            return int(left_edge), int(right_edge)
+        if bar_x_coords is not None and bar_x_coords.size > 0:
+            bar_left_x = int(np.min(bar_x_coords))
+            bar_right_x = int(np.max(bar_x_coords))
+            return bar_left_x, bar_right_x
+
         return None, None
     
     def _find_bar_edges_legacy(

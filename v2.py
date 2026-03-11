@@ -619,23 +619,9 @@ class App(CTk):
         self.vars["cast_delay"] = cast_delay_var
         cast_delay_entry = CTkEntry( normal_casting, width=120, textvariable=cast_delay_var)
         cast_delay_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
-        # Perfect Cast Settings
-        pfc1_settings = CTkFrame(scroll, border_width=2)
-        pfc1_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(pfc1_settings, text="Perfect Casting Sequence", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pfc1_settings, text="Zoom Amount:").grid( row=1, column=0, padx=12, pady=10, sticky="w")
-        perfect_cast_zoom_var = StringVar(value="4")
-        self.vars["perfect_cast_zoom"] = perfect_cast_zoom_var
-        perfect_cast_zoom_entry = CTkEntry( pfc1_settings, width=120, textvariable=perfect_cast_zoom_var)
-        perfect_cast_zoom_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc1_settings, text="Look Down Amount (pixels):").grid( row=2, column=0, padx=12, pady=10, sticky="w")
-        perfect_cast_lookdown_var = StringVar(value="1200")
-        self.vars["perfect_cast_lookdown"] = perfect_cast_lookdown_var
-        perfect_cast_lookdown_entry = CTkEntry( pfc1_settings, width=120, textvariable=perfect_cast_lookdown_var)
-        perfect_cast_lookdown_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
         # Perfect Cast Release Settings 
         pfc2_settings = CTkFrame(scroll, border_width=2 )
-        pfc2_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        pfc2_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         # ---- Perfect cast tolerance ----
         CTkLabel(pfc2_settings, text="Perfect Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(pfc2_settings, text="Green (Perfect Cast) Tolerance:").grid( row=1, column=0, padx=12, pady=10, sticky="w")
@@ -815,16 +801,9 @@ class App(CTk):
         parent.grid_columnconfigure(0, weight=1)
 
         # Discord Webhook Settings
-        discord_webhook = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        discord_webhook = CTkFrame(scroll, border_width=2)
         discord_webhook.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(
-            discord_webhook,
-            text="Discord Webhook",
-            font=CTkFont(size=16, weight="bold")
-        ).grid(row=0, column=0, columnspan=2, padx=12, pady=(10, 5), sticky="w")
+        CTkLabel(discord_webhook, text="Discord Webhook", font=CTkFont(size=16, weight="bold") ).grid(row=0, column=0, columnspan=2, padx=12, pady=(10, 5), sticky="w")
 
         discord_enabled_var = StringVar(value="off")
         self.vars["discord_enabled"] = discord_enabled_var
@@ -841,11 +820,8 @@ class App(CTk):
         self.vars["discord_webhook_name"] = discord_webhook_name_var
         CTkEntry(discord_webhook, width=120, textvariable=discord_webhook_name_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # Test webhook button
-        CTkButton(
-            discord_webhook,
-            text="Test Webhook",
-            command=self.test_discord_webhook
-        ).grid(row=4, column=0, columnspan=2, padx=12, pady=12, sticky="w")
+        CTkButton( discord_webhook, text="Test Webhook", command=self.test_discord_webhook
+                  ).grid(row=4, column=0, columnspan=2, padx=12, pady=12, sticky="w")
     # ADVANCED SETTINGS TAB
     def build_advanced_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -855,131 +831,61 @@ class App(CTk):
         parent.grid_columnconfigure(0, weight=1)
 
         # Advanced Colors
-        advanced_colors = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        advanced_colors = CTkFrame(scroll, border_width=2)
         advanced_colors.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(advanced_colors, text="Advanced Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")   
-        CTkLabel(advanced_colors, text="#RRGGBB", font=CTkFont(size=14, weight="bold")).grid(row=0, column=1, padx=12, pady=8, sticky="w")
-        CTkLabel(advanced_colors, text="Shake Color:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
-        )
-
+        
+        CTkLabel(advanced_colors, text="Shake Color:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         shake_color_var = StringVar(value="#FFFFFF")
         self.vars["shake_color"] = shake_color_var
+        CTkEntry(advanced_colors, width=120, textvariable=shake_color_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            advanced_colors,
-            width=120,
-            textvariable=shake_color_var
-        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(advanced_colors, text="Perfect Cast (Green) Color:").grid(
-            row=2, column=0, padx=12, pady=10, sticky="w"
-        )
-
+        CTkLabel(advanced_colors, text="Perfect Cast (Green) Color:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         perfect_color_var = StringVar(value="#64a04c")
         self.vars["perfect_color"] = perfect_color_var
+        CTkEntry(advanced_colors, width=120, textvariable=perfect_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            advanced_colors,
-            width=120,
-            textvariable=perfect_color_var
-        ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(advanced_colors, text="Perfect Cast (White) Color:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
-
+        CTkLabel(advanced_colors, text="Perfect Cast (White) Color:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         perfect_color2_var = StringVar(value="#d4d3ca")
         self.vars["perfect_color2"] = perfect_color2_var
+        CTkEntry(advanced_colors, width=120, textvariable=perfect_color2_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            advanced_colors,
-            width=120,
-            textvariable=perfect_color2_var
-        ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
-        gift_settings = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        gift_settings = CTkFrame(scroll, border_width=2)
         gift_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(gift_settings, text="Gift Box Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w") 
-        CTkLabel(gift_settings, text="Gift Box Color:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
-        )
 
+        CTkLabel(gift_settings, text="Gift Box Color:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         gift_box_color_var = StringVar(value="#008c8c")
         self.vars["gift_box_color"] = gift_box_color_var
+        CTkEntry(gift_settings, width=120, textvariable=gift_box_color_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            gift_settings,
-            width=120,
-            textvariable=gift_box_color_var
-        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(gift_settings, text="Gift Box Tolerance:").grid(
-            row=2, column=0, padx=12, pady=10, sticky="w"
-        )
-
+        CTkLabel(gift_settings, text="Gift Box Tolerance:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         gift_box_tolerance_var = StringVar(value="2")
         self.vars["gift_box_tolerance"] = gift_box_tolerance_var
+        CTkEntry(gift_settings, width=120, textvariable=gift_box_tolerance_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            gift_settings,
-            width=120,
-            textvariable=gift_box_tolerance_var
-        ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(gift_settings, text="Tracking Focus:").grid(
-            row=3, column=0, padx=12, pady=10, sticky="w"
-        )
+        CTkLabel(gift_settings, text="Tracking Focus:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         tracking_focus_var = StringVar(value="Fish")
         self.vars["tracking_focus"] = tracking_focus_var
-
-        tracking_cb = CTkComboBox(
-            gift_settings,
-            values=["Gift", "Gift + Fish", "Fish"],
-            variable=tracking_focus_var,
-            command=lambda v: self.set_status(f"Tracking mode set to {v}")
-        )
+        tracking_cb = CTkComboBox(gift_settings, values=["Gift", "Gift + Fish", "Fish"], 
+                                  variable=tracking_focus_var, command=lambda v: self.set_status(f"Tracking mode set to {v}"))
         tracking_cb.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["tracking_focus"] = tracking_cb
 
-        CTkLabel(gift_settings, text="Gift Box Timer:").grid(
-            row=4, column=0, padx=12, pady=10, sticky="w"
-        )
-
+        CTkLabel(gift_settings, text="Gift Box Timer:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
         gift_box_timer_var = StringVar(value="3")
         self.vars["gift_box_timer"] = gift_box_timer_var
+        CTkEntry(gift_settings, width=120, textvariable=gift_box_timer_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            gift_settings,
-            width=120,
-            textvariable=gift_box_timer_var
-        ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
         CTkLabel(gift_settings, text="Gift Track Threshold:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
-
         gift_track_threshold_var = StringVar(value="0.1")
         self.vars["gift_track_threshold"] = gift_track_threshold_var
+        CTkEntry(gift_settings, width=120, textvariable=gift_track_threshold_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            gift_settings,
-            width=120,
-            textvariable=gift_track_threshold_var
-        ).grid(row=5, column=1, padx=12, pady=10, sticky="w")
         CTkLabel(gift_settings, text="Note Cooldown:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
-
         note_cooldown_var = StringVar(value="0.2")
         self.vars["note_cooldown"] = note_cooldown_var
-
-        CTkEntry(
-            gift_settings,
-            width=120,
-            textvariable=note_cooldown_var
-        ).grid(row=6, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(gift_settings, width=120, textvariable=note_cooldown_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
@@ -1300,38 +1206,6 @@ class App(CTk):
     def open_link(self, url):
         """Open a URL in the default web browser."""
         return lambda: webbrowser.open(url)
-    def hold_right_mouse(self):
-        if not self.right_mouse_down:
-            mouse_controller.press(Button.right)
-            self.right_mouse_down = True
-    def release_right_mouse(self):
-        if self.right_mouse_down:
-            mouse_controller.release(Button.right)
-            self.right_mouse_down = False
-    def look_vertical(self, pixels): # Fix this
-        """
-        pixels > 0 → look down
-        pixels < 0 → look up
-        """
-        # 1️⃣ Always release first (important)
-        self.release_right_mouse()
-        time.sleep(0.05)
-        # 2️⃣ Optional: center mouse on screen (VERY IMPORTANT for Roblox)
-        screen_w, screen_h = self.SCREEN_WIDTH, self.SCREEN_HEIGHT
-        mouse_controller.position = (screen_w // 2, screen_h // 2)
-        time.sleep(0.05)
-        # 3️⃣ Hold right click
-        self.hold_right_mouse()
-        time.sleep(0.05)
-        # 4️⃣ Use bigger movement
-        big_move = pixels * 5  # amplify
-        mouse_controller.move(0, big_move)
-        time.sleep(0.05)
-        # 5️⃣ Release
-        self.release_right_mouse()
-        time.sleep(0.05)
-        # 6️⃣ Re-center again (prevents drift)
-        mouse_controller.position = (screen_w // 2, screen_h // 2)
     def open_dual_area_selector(self):
         self.update_idletasks()
         # Toggle OFF if already open
@@ -1494,7 +1368,8 @@ class App(CTk):
         if len(x_coords) > 0:
             return list(zip(x_coords, y_coords))
         return []
-
+    def _init_capture_buffer(self, width, height):
+        self._capture_buffer = np.empty((height, width, 3), dtype=np.uint8)
     def _grab_screen_region(self, left, top, right, bottom):
         width = right - left
         height = bottom - top
@@ -1502,12 +1377,15 @@ class App(CTk):
         if width <= 0 or height <= 0:
             return None
 
-        monitor = {
-            "left": left,
-            "top": top,
-            "width": width,
-            "height": height
-        }
+        # Reuse monitor dict to avoid allocations
+        if not hasattr(self, "_monitor"):
+            self._monitor = {}
+
+        m = self._monitor
+        m["left"] = left
+        m["top"] = top
+        m["width"] = width
+        m["height"] = height
 
         # Ensure MSS exists for this thread
         if not hasattr(self, "_thread_local"):
@@ -1520,9 +1398,15 @@ class App(CTk):
 
         # --- macOS ---
         if sys.platform == "darwin":
-            img = sct.grab(monitor)
-            frame = np.frombuffer(img.raw, dtype=np.uint8).reshape(img.height, img.width, 4)[:, :, :3]
-            return img
+            img = sct.grab(m)
+
+            # BGRA -> BGR directly into buffer
+            frame = np.frombuffer(img.raw, dtype=np.uint8)
+            frame = frame.reshape(img.height, img.width, 4)
+
+            self._capture_buffer[:] = frame[:, :, :3]
+
+            return self._capture_buffer
 
         # --- Windows ---
         mode = self.vars.get("capture_mode")
@@ -1536,7 +1420,7 @@ class App(CTk):
             return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
 
         # Fallback MSS
-        img = np.array(sct.grab(monitor))[:, :, :3]
+        img = np.array(sct.grab(m))[:, :, :3]
         return img
 
     def _click_at(self, x, y):
@@ -1589,7 +1473,7 @@ class App(CTk):
         right_hex,
         tolerance=15,
         tolerance2=15,
-        scan_height_ratio=0.55
+        scan_height_ratio=0.65
     ):
         if frame is None:
             return None, None
@@ -1608,8 +1492,8 @@ class App(CTk):
         tol_l = int(np.clip(tolerance, 0, 255))
         tol_r = int(np.clip(tolerance2, 0, 255))
 
-        bar_x_coords = None
-
+        left_edge = None
+        right_edge = None
         # --- LEFT BAR COLOR ---
         if left_hex is not None:
             lower_l = left_bgr - tol_l
@@ -1619,7 +1503,7 @@ class App(CTk):
             left_indices = np.where(left_mask)[0]
 
             if left_indices.size > 0:
-                bar_x_coords = left_indices
+                left_edge = left_indices.min()
 
         # --- RIGHT BAR COLOR ---
         if right_hex is not None:
@@ -1630,17 +1514,11 @@ class App(CTk):
             right_indices = np.where(right_mask)[0]
 
             if right_indices.size > 0:
-                if bar_x_coords is not None:
-                    bar_x_coords = np.concatenate([bar_x_coords, right_indices])
-                else:
-                    bar_x_coords = right_indices
+                right_edge = right_indices.max()
 
         # --- FINAL EDGE EXTRACTION ---
-        if bar_x_coords is not None and bar_x_coords.size > 0:
-            bar_left_x = int(np.min(bar_x_coords))
-            bar_right_x = int(np.max(bar_x_coords))
-            return bar_left_x, bar_right_x
-
+        if left_edge is not None and right_edge is not None:
+            return int(left_edge), int(right_edge)
         return None, None
     
     def _find_bar_edges_legacy(
@@ -2124,8 +2002,6 @@ class App(CTk):
         Then, compare the distances between perfect cast color and cast color
         Then, release (if failsafe reached release anyways)
         """
-        # Look up
-        self.look_vertical(350)
         # Hold click
         mouse_controller.press(Button.left)
         # Get shake area
@@ -2181,10 +2057,8 @@ class App(CTk):
                 if distance < 30: # Perfect cast release condition
                     time.sleep(release_delay)
                     mouse_controller.release(Button.left)
-                    self.look_vertical(-350)
             if time.time() - start_time > max_time: # Timer limit reached
                 mouse_controller.release(Button.left)
-                self.look_vertical(-350)
                 return
             time.sleep(float(self.vars["cast_scan_delay"].get()))
     def _execute_cast_normal(self):

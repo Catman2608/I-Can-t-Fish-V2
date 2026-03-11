@@ -1,5 +1,5 @@
 {
-    "capture_mode": "MSS",
+    "capture_mode": "DXCAM",
     "active_config": "default.json",
     "start_key": "F5",
     "change_bar_areas_key": "F6",
@@ -16,8 +16,6 @@
     "perfect_cast": "off",
     "cast_duration": "0.6",
     "cast_delay": "0.6",
-    "perfect_cast_zoom": "4",
-    "perfect_cast_lookdown": "1200",
     "perfect_cast_tolerance": "16",
     "perfect_cast2_tolerance": "5",
     "cast_scan_delay": "0.05",
@@ -46,7 +44,7 @@
     "pid_clamp": "100",
     "discord_enabled": "on",
     "discord_webhook_url": "https://discord.com/api/webhooks/1476560181147078798/-p4z4rbBB5od8h8MkYNr0N1hcEie9IAAo_kZS-96HwFfWqs6xYFHfl0tILfqS6uJDsoS",
-    "discord_webhook_name": "IRUS COMET",
+    "discord_webhook_name": "I Can't Fish",
     "shake_color": "#FFFFFF",
     "perfect_color": "#63ae4b",
     "perfect_color2": "#d4d3ca",
@@ -56,7 +54,7 @@
     "gift_box_timer": "3",
     "gift_track_threshold": "0.1",
     "note_cooldown": "0.2",
-    "combobox_capture_mode": "MSS",
+    "combobox_capture_mode": "DXCAM",
     "combobox_active_config": "default.json",
     "combobox_shake_mode": "Navigation",
     "combobox_tracking_focus": "Fish"

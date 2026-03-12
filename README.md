@@ -12,5 +12,3 @@ Above the green code button, find the Fork button.
 2. Look at the left, you will find Build Windows EXE and Build macOS DMG
 3. Select your operating system
 4. Look at the right, click run workflow -> run workflow
-## Notes with GitHub copilot
-Currently, GitHub copilot usages aren't resetting normally. For now, try to use the standard ChatGPT or Microsoft Copilot until GitHub fixes this problem.

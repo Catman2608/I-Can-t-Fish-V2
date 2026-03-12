@@ -45,6 +45,10 @@
     "discord_enabled": "on",
     "discord_webhook_url": "https://discord.com/api/webhooks/1476560181147078798/-p4z4rbBB5od8h8MkYNr0N1hcEie9IAAo_kZS-96HwFfWqs6xYFHfl0tILfqS6uJDsoS",
     "discord_webhook_name": "I Can't Fish",
+    "auto_totem_mode": "Time",
+    "totem_delay": "900",
+    "totem_cycles": "70",
+    "use_sundial_mode": "Disabled",
     "shake_color": "#FFFFFF",
     "perfect_color": "#63ae4b",
     "perfect_color2": "#d4d3ca",
@@ -57,5 +61,7 @@
     "combobox_capture_mode": "DXCAM",
     "combobox_active_config": "default.json",
     "combobox_shake_mode": "Navigation",
+    "combobox_auto_totem_mode": "Time",
+    "combobox_use_sundial_mode": "Disabled",
     "combobox_tracking_focus": "Fish"
 }

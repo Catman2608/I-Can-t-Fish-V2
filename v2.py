@@ -424,6 +424,7 @@ class App(CTk):
         self.tabs.add("Shake")
         self.tabs.add("Fish")
         self.tabs.add("Logging")
+        self.tabs.add("Utilities")
         self.tabs.add("Advanced")
 
         # Build tabs
@@ -433,6 +434,7 @@ class App(CTk):
         self.build_shake_tab(self.tabs.tab("Shake"))
         self.build_fishing_tab(self.tabs.tab("Fish"))
         self.build_logging_tab(self.tabs.tab("Logging"))
+        self.build_utilities_tab(self.tabs.tab("Utilities"))
         self.build_advanced_tab(self.tabs.tab("Advanced"))
 
         # Grid behavior
@@ -543,11 +545,11 @@ class App(CTk):
         self.vars["auto_zoom_in"] = auto_zoom_var
         auto_zoom_cb = CTkCheckBox(automation, text="Auto Zoom In", variable=auto_zoom_var, onvalue="on", offvalue="off")
         auto_zoom_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
-        fish_overlay_var = StringVar(value="off")
         # Overlay Options 
         overlay_options = CTkFrame(scroll, border_width=2)
         overlay_options.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        fish_overlay_var = StringVar(value="off")
         self.vars["fish_overlay"] = fish_overlay_var
         fish_overlay_cb = CTkCheckBox(overlay_options, text="Fish Overlay", variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
@@ -677,7 +679,6 @@ class App(CTk):
         shake_failsafe_var = StringVar(value="20")
         self.vars["shake_failsafe"] = shake_failsafe_var
         CTkEntry( shake_configuration, width=120, textvariable=shake_failsafe_var ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
-
     # FISHING SETTINGS TAB
     def build_fishing_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -821,6 +822,55 @@ class App(CTk):
         # Test webhook button
         CTkButton( discord_webhook, text="Test Webhook", command=self.test_discord_webhook
                   ).grid(row=4, column=0, columnspan=2, padx=12, pady=12, sticky="w")
+    # UTILITIES TAB
+    def build_utilities_tab(self, parent):
+        scroll = CTkScrollableFrame(parent)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        # VERY important
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
+        # Auto Totem
+        auto_totem = CTkFrame(scroll, border_width=2)
+        auto_totem.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(auto_totem, text="Auto Totem", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        
+        CTkLabel(auto_totem, text="Auto Totem Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
+        auto_totem_mode_var = StringVar(value="Time")
+        self.vars["auto_totem_mode"] = auto_totem_mode_var
+        auto_totem_cb = CTkComboBox(auto_totem, values=["Time", "Cycles", "Disabled"], 
+                               variable=auto_totem_mode_var, command=lambda v: self.set_status(f"Auto Totem mode: {v}")
+                               )
+        auto_totem_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["auto_totem_mode"] = auto_totem_cb
+        
+        CTkLabel(auto_totem, text="Totem Delay (seconds):").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        totem_delay_var = StringVar(value="900")
+        self.vars["totem_delay"] = totem_delay_var
+        CTkEntry(auto_totem, width=120, textvariable=totem_delay_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(auto_totem, text="Totem Cycles:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        totem_cycles_var = StringVar(value="70")
+        self.vars["totem_cycles"] = totem_cycles_var
+        CTkEntry(auto_totem, width=120, textvariable=totem_cycles_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(auto_totem, text="Use Sundial When:").grid(row=4, column=0, padx=12, pady=10, sticky="w" )
+        use_sundial_mode_var = StringVar(value="Disabled")
+        self.vars["use_sundial_mode"] = use_sundial_mode_var
+        use_sundial_cb = CTkComboBox(auto_totem, values=["Day", "Night", "Disabled"], 
+                               variable=use_sundial_mode_var, command=lambda v: self.set_status(f"Macro now uses sundial totem when {v}")
+                               )
+        use_sundial_cb.grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["use_sundial_mode"] = use_sundial_cb
+
+        # Auto Reconnect
+        auto_reconnect = CTkFrame(scroll, border_width=2)
+        auto_reconnect.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(auto_reconnect, text="Auto Reconnect", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+
+        auto_reconnect_var = StringVar(value="off")
+        self.vars["auto_reconnect"] = auto_reconnect_var
+        auto_reconnect_cb = CTkCheckBox(auto_reconnect, text="Auto Reconnect", variable=auto_reconnect_var, onvalue="on", offvalue="off")
+        auto_reconnect_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # ADVANCED SETTINGS TAB
     def build_advanced_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -1940,10 +1990,15 @@ class App(CTk):
                 time.sleep(0.05)
             mouse_controller.scroll(0, -1)
             time.sleep(0.1)
-
+        # Set current cycle to 0
+        current_cycle = 0
+        cycle = 0
         # 🔁 MAIN MACRO LOOP
         while self.macro_running:
-
+            # Check Reconnect (not implemented yet)
+            # Check Totem
+            if not self.vars["auto_totem_mode"].get() == "Disabled":
+                self.execute_totem(cycle)
             # 1️⃣ Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
@@ -1993,9 +2048,13 @@ class App(CTk):
 
             # 4️⃣ Fish (minigame)
             self.set_status("Fishing")
-            self._enter_minigame()
+            cycle = self._enter_minigame(current_cycle)
             # ⬅️ When minigame ends, loop repeats from Select Rod
-
+    def execute_totem(self, cycle):
+        required_cycle = float(self.vars["totem_cycles"].get())
+        condition = cycle % required_cycle
+        if condition == 0:
+            print("Using your totem")
     def _execute_cast_perfect(self):
         """
         Find perfect cast color and cast color
@@ -2197,7 +2256,7 @@ class App(CTk):
             attempts += 1
             time.sleep(scan_delay)
 
-    def _enter_minigame(self):
+    def _enter_minigame(self, cycle):
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
         if isinstance(shake, dict):
@@ -2297,7 +2356,8 @@ class App(CTk):
                     hold_mouse()
                     time.sleep(0.003)
                     release_mouse()
-                    return
+                    cycle = cycle + 1
+                    return cycle
                 else:
                     fish_x = self.last_fish_x
             # ---- STABILIZE FRAME ----

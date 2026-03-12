@@ -601,55 +601,71 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+        # Casting Mode (Combobox)
+        casting_mode = CTkFrame(scroll, border_width=2)
+        casting_mode.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(casting_mode, text="Casting Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
+        casting_mode_var = StringVar(value="Normal")
+        self.vars["casting_mode"] = casting_mode_var
+        casting_cb = CTkComboBox(casting_mode, values=["Perfect", "Normal"], 
+                               variable=casting_mode_var, command=lambda v: self.set_status(f"Casting Mode: {v}")
+                               )
+        casting_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["casting_mode"] = casting_cb
         # Normal Casting Group
-        normal_casting = CTkFrame(scroll, border_width=2 )
-        normal_casting.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        normal_casting = CTkFrame(scroll, border_width=2)
+        normal_casting.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(normal_casting, text="Normal Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        perfect_cast_var = StringVar(value="off")
-        self.vars["perfect_cast"] = perfect_cast_var
-        CTkCheckBox( normal_casting, text="Perfect Cast (slower)", variable=perfect_cast_var, 
-                    onvalue="on", offvalue="off"
-                    ).grid(row=1, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(normal_casting, text="Cast duration").grid( row=2, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(normal_casting, text="Cast duration").grid(row=1, column=0, padx=12, pady=8, sticky="w")
         cast_duration_var = StringVar(value="0.6")
         self.vars["cast_duration"] = cast_duration_var
-        cast_duration_entry = CTkEntry( normal_casting, width=120, textvariable=cast_duration_var)
-        cast_duration_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
-        CTkLabel(normal_casting, text="Cast Delay").grid( row=3, column=0, padx=12, pady=8, sticky="w")
+        cast_duration_entry = CTkEntry(normal_casting, width=120, textvariable=cast_duration_var)
+        cast_duration_entry.grid(row=1, column=1, padx=12, pady=8, sticky="w")
+        CTkLabel(normal_casting, text="Cast Delay").grid(row=2, column=0, padx=12, pady=8, sticky="w")
         cast_delay_var = StringVar(value="0.6")
         self.vars["cast_delay"] = cast_delay_var
-        cast_delay_entry = CTkEntry( normal_casting, width=120, textvariable=cast_delay_var)
-        cast_delay_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
-        # Perfect Cast Release Settings 
-        pfc2_settings = CTkFrame(scroll, border_width=2 )
-        pfc2_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        # ---- Perfect cast tolerance ----
-        CTkLabel(pfc2_settings, text="Perfect Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(pfc2_settings, text="Green (Perfect Cast) Tolerance:").grid( row=1, column=0, padx=12, pady=10, sticky="w")
-        perfect_cast_tolerance_var = StringVar(value="18")
+        cast_delay_entry = CTkEntry(normal_casting, width=120, textvariable=cast_delay_var)
+        cast_delay_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
+        # Perfect Cast Settings 
+        perfect_casting = CTkFrame(scroll, border_width=2)
+        perfect_casting.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+
+        CTkLabel(perfect_casting, text="Perfect Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(perfect_casting, text="Green (Perfect Cast) Tolerance:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
+        perfect_cast_tolerance_var = StringVar(value="14")
         self.vars["perfect_cast_tolerance"] = perfect_cast_tolerance_var
-        perfect_cast_tolerance_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_cast_tolerance_var)
+        perfect_cast_tolerance_entry = CTkEntry(perfect_casting, width=120, textvariable=perfect_cast_tolerance_var)
         perfect_cast_tolerance_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="White (Perfect Cast) Tolerance:").grid( row=2, column=0, padx=12, pady=10, sticky="w")
-        perfect_cast2_tolerance_var = StringVar(value="16")
+        CTkLabel(perfect_casting, text="White (Perfect Cast) Tolerance:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        perfect_cast2_tolerance_var = StringVar(value="12")
         self.vars["perfect_cast2_tolerance"] = perfect_cast2_tolerance_var
-        perfect_cast2_tolerance_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_cast2_tolerance_var)
+        perfect_cast2_tolerance_entry = CTkEntry(perfect_casting, width=120, textvariable=perfect_cast2_tolerance_var)
         perfect_cast2_tolerance_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="Perfect Cast Scan FPS:").grid( row=3, column=0, padx=12, pady=10, sticky="w")
+        CTkLabel(perfect_casting, text="Perfect Cast Scan FPS:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         cast_scan_delay_var = StringVar(value="0.05")
         self.vars["cast_scan_delay"] = cast_scan_delay_var
-        cast_scan_delay_entry = CTkEntry( pfc2_settings, width=120, textvariable=cast_scan_delay_var)
+        cast_scan_delay_entry = CTkEntry(perfect_casting, width=120, textvariable=cast_scan_delay_var)
         cast_scan_delay_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="Perfect Cast Release Delay:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
-        perfect_release_delay_var = StringVar(value="0.05")
-        self.vars["perfect_release_delay"] = perfect_release_delay_var
-        perfect_release_delay_entry = CTkEntry( pfc2_settings, width=120, textvariable=perfect_release_delay_var)
-        perfect_release_delay_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pfc2_settings, text="Failsafe Release Timeout:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
-        perfect_max_time_var = StringVar(value="0.05")
+        CTkLabel(perfect_casting, text="Failsafe Release Timeout:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
+        perfect_max_time_var = StringVar(value="3.5")
         self.vars["perfect_max_time"] = perfect_max_time_var
-        perfect_max_time_entry = CTkEntry(pfc2_settings, width=120, textvariable=perfect_max_time_var)
-        perfect_max_time_entry.grid(row=5, column=1, padx=12, pady=10, sticky="w")
+        perfect_max_time_entry = CTkEntry(perfect_casting, width=120, textvariable=perfect_max_time_var)
+        perfect_max_time_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(perfect_casting, text="Perfect Cast Release Method:").grid(row=5, column=0, padx=12, pady=10, sticky="w" )
+        release_method_var = StringVar(value="Simple")
+        self.vars["release_method"] = release_method_var
+        release_method_cb = CTkComboBox(perfect_casting, values=["Velocity-based", "Simple"], 
+                               variable=release_method_var, command=lambda v: self.set_status(f"Perfect Cast Release Method: {v}")
+                               )
+        release_method_cb.grid(row=5, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["release_method"] = release_method_cb
+
+        CTkLabel(perfect_casting, text="Perfect Cast Release Delay:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
+        perfect_release_delay_var = StringVar(value="0")
+        self.vars["perfect_release_delay"] = perfect_release_delay_var
+        perfect_release_delay_entry = CTkEntry(perfect_casting, width=120, textvariable=perfect_release_delay_var)
+        perfect_release_delay_entry.grid(row=6, column=1, padx=12, pady=10, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         shake_configuration = CTkFrame(

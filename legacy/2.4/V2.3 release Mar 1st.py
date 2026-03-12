@@ -1,11 +1,8 @@
-# Compile Feb 23th if you want to compile a stable version of V2.2. This version is version 2.3.
-
 # Initialization
 from customtkinter import *
 import tkinter as tk
-from PIL import Image, ImageTk
 import os
-import glob
+import subprocess
 # Keyboard and Mouse
 from pynput import keyboard, mouse
 from pynput.keyboard import Controller as KeyboardController
@@ -48,13 +45,22 @@ def get_base_path():
     if getattr(sys, 'frozen', False):
         return sys._MEIPASS
     return os.path.dirname(os.path.abspath(__file__))
-user_config_dir = os.path.join(
-    os.path.expanduser("~"),
-    "Library",
-    "Application Support",
-    "IcantFishV2",
-    "configs"
-)
+if sys.platform == "darwin":
+    user_config_dir = os.path.join(
+        os.path.expanduser("~"),
+        "Library",
+        "Application Support",
+        "IcantFishV2",
+        "configs"
+    )
+else:
+    user_config_dir = os.path.join(
+        os.path.expanduser("~"),
+        "AppData",
+        "Roaming",
+        "IcantFishV2",
+        "configs"
+    )
 
 os.makedirs(user_config_dir, exist_ok=True)
 BASE_PATH = get_base_path()
@@ -65,6 +71,15 @@ if sys.platform == "darwin" and getattr(sys, "frozen", False):
         os.path.expanduser("~"),
         "Library",
         "Application Support",
+        "IcantFishV2",
+        "configs"
+    )
+elif sys.platform == "win32" and getattr(sys, "frozen", False):
+    # Only use AppData/Roaming when bundled
+    USER_CONFIG_DIR = os.path.join(
+        os.path.expanduser("~"),
+        "AppData",
+        "Roaming",
         "IcantFishV2",
         "configs"
     )
@@ -316,8 +331,8 @@ class App(CTk):
         CTkButton( configs, text="Change Bar Areas", corner_radius=32, 
                   command=self.open_dual_area_selector
                   ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
-        CTkButton( configs, text="Fix Bar Areas", 
-                  corner_radius=32, command=self.fix_bar_areas
+        CTkButton( configs, text="Open Configs Folder", 
+                  corner_radius=32, command=self.open_configs_folder
         ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
@@ -832,14 +847,14 @@ class App(CTk):
                 "last_rod": self.current_rod_name,
                 "bar_areas": clean_bar_areas,
 
-                # 🔥 Save hotkeys
+                # IMPORTANT: Save hotkeys
                 "start_key": self.vars["start_key"].get(),
                 "screenshot_key": self.vars["screenshot_key"].get(),
                 "stop_key": self.vars["stop_key"].get()
             }
             with open("last_config.json", "w") as f:
                 json.dump(data, f, indent=4)
-            # 🔥 Immediately update active hotkeys
+            # IMPORTANT: Immediately update active hotkeys
             self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
             self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
             self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
@@ -955,7 +970,7 @@ class App(CTk):
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
                     self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
-                    # 🔥 Load hotkeys if present
+                    # IMPORTANT: Load hotkeys if present
                     start_key = data.get("start_key", "F5")
                     screenshot_key = data.get("screenshot_key", "F8")
                     stop_key = data.get("stop_key", "F7")
@@ -1077,7 +1092,7 @@ class App(CTk):
 
         print("Picked:", hex_color)
 
-        # 🔥 Store it somewhere neutral
+        # IMPORTANT: Store it somewhere neutral
         self.last_picked_color = hex_color
 
         # Optional: show small popup preview
@@ -1249,84 +1264,14 @@ class App(CTk):
             area=fish_area,
             callback=on_fish_done
        )
-    def fix_bar_areas(self):
-        self.set_status("Fixing bar areas...")
-
-        # Hide window
-        self.withdraw()
-        self.update()
-        time.sleep(0.15)
-
-        # Capture screen
-        with mss.mss() as sct:
-            monitor = sct.monitors[1]
-            shot = sct.grab(monitor)
-            frame = np.array(shot)[:, :, :3]
-
-        screen_h, screen_w = frame.shape[:2]
-
-        # Get fish area (scan only here)
-        fish = self.bar_areas.get("fish")
-        if not isinstance(fish, dict):
-            self.set_status("fish area not set")
-            self.deiconify()
-            return
-
-        x1 = fish["x"]
-        y1 = fish["y"]
-        x2 = x1 + fish["width"]
-        y2 = y1 + fish["height"]
-
-        roi = frame[y1:y2, x1:x2]
-
-        # Convert colors
-        fish_bgr = self._hex_to_bgr(self.vars["fish_color"].get())
-        bar_bgr  = self._hex_to_bgr(self.vars["left_bar_color"].get())
-
-        if fish_bgr is None or bar_bgr is None:
-            self.set_status("Invalid color settings")
-            self.deiconify()
-            return
-
-        bar_color = np.array(bar_bgr)
-        tolerance = int(self.vars["tolerance"].get() or 8)
-
-        bar_top = None
-        bar_bottom = None
-
-        # Scan only ROI
-        for y in range(roi.shape[0]):
-            row = roi[y]
-
-            matches = np.where(
-                np.all(np.abs(row - bar_color) <= tolerance, axis=1)
-            )[0]
-
-            if len(matches) > 5:  # require small cluster
-                if bar_top is None:
-                    bar_top = y
-                bar_bottom = y
-
-        if bar_top is None or bar_bottom is None:
-            self.set_status("Bar auto-detect failed")
-            self.deiconify()
-            return
-
-        bar_height = bar_bottom - bar_top
-
-        # Update fish area aligned to fish X
-        self.bar_areas["fish"] = {
-            "x": x1,
-            "y": y1 + bar_top,
-            "width": fish["width"],
-            "height": bar_height
-        }
-
-        self.save_misc_settings()
-        self.set_status("Bar areas auto-fixed")
-
-        self.deiconify()
-        self.lift()
+    def open_configs_folder(self):
+        folder = USER_CONFIG_DIR
+        if sys.platform == "win32":
+            os.startfile(folder)
+        elif sys.platform == "darwin":  # macOS
+            subprocess.run(["open", folder])
+        else:  # Linux
+            subprocess.run(["xdg-open", folder])
     # Image processing and interaction functions
     def _find_template(self, frame, template, confidence=0.85):
         if template is None or frame is None:

@@ -2412,7 +2412,7 @@ class App(CTk):
                     arrow_indicator_x = raw_arrow_x
 
                 elif self.last_arrow_x is not None and self.last_arrow_time is not None:
-                    # 🔥 THIS is what prevents the "stuck arrow"
+                    # IMPORTANT: THIS is what prevents the "stuck arrow"
                     dt = now - self.last_arrow_time
                     arrow_indicator_x = self.last_arrow_x + self.arrow_velocity * dt
                 if self.vars["fish_overlay"].get() == "on":

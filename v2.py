@@ -1,7 +1,6 @@
 # Initialization
 from customtkinter import *
 import tkinter as tk
-from PIL import Image, ImageTk
 import os
 import subprocess
 # Keyboard and Mouse
@@ -391,9 +390,9 @@ class App(CTk):
 
         CTkButton(
             button_frame,
-            text="YouTube",
+            text="Upcoming Features",
             corner_radius=32,
-            command=self.open_link("https://www.youtube.com/@HexaTitanGaming")
+            command=self.open_link("https://docs.google.com/document/d/1WwWWMR-eN-R-GO42IioToHpWTgiXkLoiNE_4NeE-GsU/edit?tab=t.0")
        ).pack(side="left", padx=6)
 
         CTkButton(
@@ -946,7 +945,7 @@ class App(CTk):
                 "last_rod": self.current_rod_name,
                 "bar_areas": clean_bar_areas,
 
-                # 🔥 Save hotkeys
+                # IMPORTANT: Save hotkeys
                 "start_key": self.vars["start_key"].get(),
                 "change_bar_areas_key": self.vars["change_bar_areas_key"].get(),
                 "screenshot_key": self.vars["screenshot_key"].get(),
@@ -954,7 +953,7 @@ class App(CTk):
             }
             with open("last_config.json", "w") as f:
                 json.dump(data, f, indent=4)
-            # 🔥 Immediately update active hotkeys
+            # IMPORTANT: Immediately update active hotkeys
             self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
             self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
             self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
@@ -1069,7 +1068,7 @@ class App(CTk):
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
                     self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
-                    # 🔥 Load hotkeys if present
+                    # IMPORTANT: Load hotkeys if present
                     start_key = data.get("start_key", "F5")
                     change_key = data.get("change_bar_areas_key", "F6")
                     screenshot_key = data.get("screenshot_key", "F8")
@@ -1110,7 +1109,6 @@ class App(CTk):
                 threading.Thread(target=self.start_macro, daemon=True).start()
 
             elif key == self.hotkey_change_areas:
-                # quick toggle area selector, regardless of macro state
                 self.open_dual_area_selector()
 
             elif key == self.hotkey_screenshot:
@@ -1189,7 +1187,7 @@ class App(CTk):
             r = img.raw[2]
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
         print("Picked:", hex_color)
-        # 🔥 Store it somewhere neutral
+        # IMPORTANT: Store it somewhere neutral
         self.last_picked_color = hex_color
         # Optional: show small popup preview
         self._show_color_preview(hex_color)
@@ -1309,6 +1307,8 @@ class App(CTk):
         except Exception as e:
             print(f"❌ Error sending Discord screenshot: {e}")
     def test_discord_webhook(self):
+        self.send_discord_webhook("**Discord Webhook is working**")
+    def send_discord_webhook(self, text):
         if not self.vars["discord_enabled"].get() == "on":
             print("⚠ Discord webhook is disabled.")
             return
@@ -1323,7 +1323,7 @@ class App(CTk):
 
         thread = threading.Thread(
             target=self._discord_text_worker,
-            args=(webhook_url, "🧪 **Webhook Test**\n"),
+            args=(webhook_url, f"{text}\n"),
             daemon=True
         )
         thread.start()

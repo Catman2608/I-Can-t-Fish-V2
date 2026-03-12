@@ -888,14 +888,14 @@ class App(CTk):
                 "last_rod": self.current_rod_name,
                 "bar_areas": clean_bar_areas,
 
-                # 🔥 Save hotkeys
+                # IMPORTANT: Save hotkeys
                 "start_key": self.vars["start_key"].get(),
                 "screenshot_key": self.vars["screenshot_key"].get(),
                 "stop_key": self.vars["stop_key"].get()
             }
             with open("last_config.json", "w") as f:
                 json.dump(data, f, indent=4)
-            # 🔥 Immediately update active hotkeys
+            # IMPORTANT: Immediately update active hotkeys
             self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
             self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
             self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
@@ -1011,7 +1011,7 @@ class App(CTk):
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
                     self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
-                    # 🔥 Load hotkeys if present
+                    # IMPORTANT: Load hotkeys if present
                     start_key = data.get("start_key", "F5")
                     screenshot_key = data.get("screenshot_key", "F8")
                     stop_key = data.get("stop_key", "F7")

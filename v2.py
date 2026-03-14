@@ -33,7 +33,9 @@ try:
 except Exception:
     dxcam = None
 import mss
-# PyAutoGUI is used directly for mouse/keyboard control (no controller objects needed)
+# PyAutoGUI pauses and failsafe
+pyautogui.PAUSE = 0.003
+pyautogui.FAILSAFE = False
 # Set appearance
 set_default_color_theme("blue")
 # from AppKit import NSEvent
@@ -332,14 +334,10 @@ class App(CTk):
 
         # Hotkey variables (stored as lowercase strings, e.g. "f5")
         self.hotkey_start = "f5"
+        self.hotkey_change_areas = "f6"
         self.hotkey_stop = "f7"
-        self.hotkey_change_areas = "f6"            # added for the bar area selector
-        self.hotkey_reserved = "f8"
+        self.hotkey_screenshot = "f8"
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
-
-        # Logging-related variables
-        # loop counter used by Discord webhook worker; must start at zero
-        self.discord_loop_count = 0
 
         # MSS and DXCAM-related variables
         self.sct = mss.mss()
@@ -416,7 +414,7 @@ class App(CTk):
         self.tabs.add("Shake")
         self.tabs.add("Fish")
         self.tabs.add("Logging")
-        self.tabs.add("Utilities")
+        # self.tabs.add("Utilities")
         self.tabs.add("Advanced")
 
         # Build tabs
@@ -426,7 +424,7 @@ class App(CTk):
         self.build_shake_tab(self.tabs.tab("Shake"))
         self.build_fishing_tab(self.tabs.tab("Fish"))
         self.build_logging_tab(self.tabs.tab("Logging"))
-        self.build_utilities_tab(self.tabs.tab("Utilities"))
+        # self.build_utilities_tab(self.tabs.tab("Utilities"))
         self.build_advanced_tab(self.tabs.tab("Advanced"))
 
         # Grid behavior
@@ -1233,47 +1231,85 @@ class App(CTk):
     def _pick_colors(self):
         """Live eyedropper tool without freezing screen."""
         self.eyedropper = tk.Toplevel(self)
-        # Fill screen but NOT true fullscreen
+
         w = self.winfo_screenwidth()
         h = self.winfo_screenheight()
+
         self.eyedropper.geometry(f"{w}x{h}+0+0")
         self.eyedropper.attributes("-alpha", 0.01)
         self.eyedropper.attributes("-topmost", True)
         self.eyedropper.config(cursor="crosshair")
+
+        # Create ONE capture object
+        self.capture_mode = "mss"
+
+        if sys.platform == "win32" and getattr(self, "dxcam_enabled", False):
+            try:
+                import dxcam
+                self.cam = dxcam.create()
+                self.capture_mode = "dxcam"
+            except Exception:
+                self.sct = mss.mss()
+                self.capture_mode = "mss"
+        else:
+            self.sct = mss.mss()
+
+        self.eyedropper.bind("<Motion>", self._update_hover_color)
         self.eyedropper.bind("<Button-1>", self._on_pick_color)
-        self.eyedropper.bind("<Escape>", lambda e: self.eyedropper.destroy())
+        self.eyedropper.bind("<Escape>", self._close_eyedropper)
     def _on_pick_color(self, event):
-        """Capture pixel color at mouse position."""
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
-        with mss.mss() as sct:
-            monitor = {
-                "left": x,
-                "top": y,
-                "width": 1,
-                "height": 1
-            }
-            img = sct.grab(monitor)
-            # BGRA → BGR
+
+        if self.capture_mode == "dxcam":
+            frame = self.cam.grab(region=(x, y, x+1, y+1))
+            if frame is None:
+                return
+            b, g, r = frame[0][0]
+
+        else:
+            monitor = {"left": x, "top": y, "width": 1, "height": 1}
+            img = self.sct.grab(monitor)
             b = img.raw[0]
             g = img.raw[1]
             r = img.raw[2]
+
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
-        print("Picked:", hex_color)
-        # IMPORTANT: Store it somewhere neutral
+
+        self.set_status(f"Picked: {hex_color}")
         self.last_picked_color = hex_color
-        # Optional: show small popup preview
-        self._show_color_preview(hex_color)
-        self.eyedropper.destroy()
-    def _show_color_preview(self, hex_color):
-        preview = tk.Toplevel(self)
-        preview.title("Picked Color")
-        preview.geometry("220x120")
-        preview.attributes("-topmost", True)
-        tk.Label(preview, text=hex_color, font=("Arial", 12)).pack(pady=10)
-        color_box = tk.Frame(preview, bg=hex_color, width=100, height=40)
-        color_box.pack(pady=5)
-        tk.Button(preview, text="Close", command=preview.destroy).pack(pady=5)
+
+        self._close_eyedropper()
+    def _update_hover_color(self, event):
+        x = self.winfo_pointerx()
+        y = self.winfo_pointery()
+
+        if self.capture_mode == "dxcam":
+            frame = self.cam.grab(region=(x, y, x+1, y+1))
+            if frame is None:
+                return
+            b, g, r = frame[0][0]
+
+        else:  # MSS
+            monitor = {"left": x, "top": y, "width": 1, "height": 1}
+            img = self.sct.grab(monitor)
+            b = img.raw[0]
+            g = img.raw[1]
+            r = img.raw[2]
+
+        hex_color = f"#{r:02X}{g:02X}{b:02X}"
+
+        self.set_status(f"Hover: {hex_color}  |  Click to pick")
+    def _close_eyedropper(self, event=None):
+        if hasattr(self, "sct"):
+            self.sct.close()
+
+        if hasattr(self, "cam"):
+            self.cam.stop()
+
+        if self.eyedropper:
+            self.eyedropper.destroy()
+    # Misc-related functions
     def open_link(self, url):
         """Open a URL in the default web browser."""
         return lambda: webbrowser.open(url)
@@ -1330,16 +1366,16 @@ class App(CTk):
         else:  # Linux
             subprocess.run(["xdg-open", folder])
     # Logging-related functions
-    def _discord_text_worker(self, webhook_url, message_prefix):
+    def _discord_text_worker(self, webhook_url, message_prefix, loop_count):
         """Worker function to send text webhook."""
         discord_webhook_name = self.vars["discord_webhook_name"].get()
         try:
             payload = {
-                'content': f'{message_prefix}🎣 {discord_webhook_name} bot\n🔄 Loop #{self.discord_loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                'content': f'{message_prefix}🎣 {discord_webhook_name} bot\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
                 'username': discord_webhook_name,
                 'embeds': [{
                     'title': '⚡ Bot Status Update',
-                    'description': f'Completed loop #{self.discord_loop_count}',
+                    'description': f'Completed loop #{loop_count}',
                     'color': 0x5865F2,
                     'timestamp': time.strftime("%Y-%m-%dT%H:%M:%S")
                 }]
@@ -1347,12 +1383,12 @@ class App(CTk):
             
             response = requests.post(webhook_url, json=payload, timeout=10)
             if response.status_code == 200 or response.status_code == 204:
-                print(f"📤 Discord text sent (Loop #{self.discord_loop_count})")
+                self.set_status(f"Discord text sent (Loop #{loop_count})")
             else:
-                print(f"❌ Discord text failed: {response.status_code}")
+                self.set_status(f"Error: Discord text failed: {response.status_code}")
         except Exception as e:
-            print(f"❌ Error sending Discord text: {e}")
-    def _discord_screenshot_worker(self, webhook_url, message_prefix):
+            self.set_status(f"Error sending Discord text: {e}")
+    def _discord_screenshot_worker(self, webhook_url, message_prefix, loop_count):
         try:
             with mss.mss() as sct:
                 monitor = sct.monitors[1]
@@ -1366,37 +1402,37 @@ class App(CTk):
             files = {'file': ('screenshot.png', img_byte_arr, 'image/png')}
 
             payload = {
-                'content': f'{message_prefix}🎣 **Fishing Macro** 🤖\n🔄 Loop #{self.discord_loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                'content': f'{message_prefix}🎣 **Fishing Macro** 🤖\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
                 'username': 'Fishing Macro'
             }
 
             response = requests.post(webhook_url, data=payload, files=files, timeout=10)
 
             if response.status_code in (200, 204):
-                print(f"📤 Discord screenshot sent (Loop #{self.discord_loop_count})")
+                self.set_status(f"Discord screenshot sent (Loop #{loop_count})")
             else:
-                print(f"❌ Discord screenshot failed: {response.status_code}")
+                self.set_status(f"Error: Discord screenshot failed: {response.status_code}")
 
         except Exception as e:
-            print(f"❌ Error sending Discord screenshot: {e}")
+            self.set_status(f"Error: sending Discord screenshot: {e}")
     def test_discord_webhook(self):
-        self.send_discord_webhook("**Discord Webhook is working**")
-    def send_discord_webhook(self, text):
+        self.send_discord_webhook("**Discord Webhook is working**", 0)
+    def send_discord_webhook(self, text, loop_count):
         if not self.vars["discord_enabled"].get() == "on":
-            print("⚠ Discord webhook is disabled.")
+            self.set_status("⚠ Discord webhook is disabled.")
             return
         # discord_webhook_url
         webhook_url = self.vars["discord_webhook_url"].get().strip()
 
         if not webhook_url.startswith("https://discord.com/api/webhooks/"):
-            print("❌ Invalid webhook URL.")
+            self.set_status("Error: Invalid webhook URL.")
             return
 
-        print("📤 Sending test webhook...")
+        self.set_status("Sending test webhook...")
 
         thread = threading.Thread(
             target=self._discord_text_worker,
-            args=(webhook_url, f"{text}\n"),
+            args=(webhook_url, f"{text}\n", loop_count),
             daemon=True
         )
         thread.start()
@@ -1497,16 +1533,15 @@ class App(CTk):
         return img
 
     def _click_at(self, x, y):
-        pyautogui.moveTo(x, y)
+        pyautogui.moveTo(x, y, duration=0)
+        time.sleep(0.03)
+
+        pyautogui.moveRel(1, 0)
+        time.sleep(0.01)
+        pyautogui.moveRel(-1, 0)
         time.sleep(0.01)
 
-        # micro-jitter
-        pyautogui.moveTo(x + 3, y + 3)
-        pyautogui.moveTo(x, y)
-
-        pyautogui.mouseDown(button='left')
-        time.sleep(0.04)
-        pyautogui.mouseUp(button='left')
+        pyautogui.click()
 
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
@@ -2021,20 +2056,20 @@ class App(CTk):
             # Check Reconnect (not implemented yet)
             # Check Totem
             # Send Discord Webhook
-            self.send_discord_webhook(f"Cycle {cycle}")
-            if not self.vars["auto_totem_mode"].get() == "Disabled":
-                self.execute_totem(cycle)
-            # 1️⃣ Select rod
+            self.send_discord_webhook("Loop completed", cycle)
+            # if not self.vars["auto_totem_mode"].get() == "Disabled":
+            #     self.execute_totem(cycle)
+            # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
                 self.set_status("Selecting rod")
-                pyautogui.keyDown('2')
+                keyboard_lib.press('2')
                 time.sleep(0.05)
-                pyautogui.keyUp('2')
+                keyboard_lib.release('2')
                 time.sleep(bag_delay)
-                pyautogui.keyDown('1')
+                keyboard_lib.press('1')
                 time.sleep(0.05)
-                pyautogui.keyUp('1')
+                keyboard_lib.release('1')
                 time.sleep(0.2)
             # 2: Fish Overlay
             if self.vars["fish_overlay"].get() == "on":
@@ -2044,7 +2079,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 2️⃣ Cast
+            # 2. Cast
             self.set_status("Casting")
             if self.vars["casting_mode"].get() == "Perfect":
                 self._execute_cast_perfect()
@@ -2061,7 +2096,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 3️⃣ Shake
+            # 3. Shake
             self.set_status("Shaking")
             if self.vars["shake_mode"].get() == "Click":
                 self._execute_shake_click()
@@ -2201,7 +2236,7 @@ class App(CTk):
             if detection_area is None:
                 time.sleep(scan_delay)
                 continue
-            # 2️⃣ Look for shake pixel
+            # 2. Look for shake pixel
             shake_pixel = self._find_shake_pixel(shake_area, shake_hex, tolerance)
             if shake_pixel:
                 x, y = shake_pixel
@@ -2209,7 +2244,7 @@ class App(CTk):
                 screen_y = shake_top + y
                 self._click_at(screen_x, screen_y)
 
-            # 2️⃣.5 Stable fish detection
+            # 2..5 Stable fish detection
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
@@ -2222,7 +2257,7 @@ class App(CTk):
                 else:
                     break
 
-            # 3️⃣ Fish detected → enter minigame
+            # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
                 pyautogui.mouseDown(button='left')
@@ -2251,12 +2286,12 @@ class App(CTk):
         failsafe = int(self.vars["shake_failsafe"].get() or 20)
         attempts = 0
         while self.macro_running and attempts < failsafe:
-            # 1️⃣ Navigation shake (Enter key)
-            pyautogui.keyDown('enter')
+            # 1. Navigation shake (Enter key)
+            keyboard_lib.press('enter')
             time.sleep(0.03)
-            pyautogui.keyUp('enter')
+            keyboard_lib.release('enter')
             time.sleep(scan_delay)
-            # 2️⃣ Stable fish detection (old logic preserved)
+            # 2. Stable fish detection (old logic preserved)
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(
@@ -2272,7 +2307,7 @@ class App(CTk):
                     time.sleep(0.005)
                 else:
                     break
-            # 3️⃣ Fish detected → enter minigame
+            # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
                 pyautogui.mouseDown(button='left')
@@ -2281,7 +2316,6 @@ class App(CTk):
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
-
     def _enter_minigame(self, cycle):
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
@@ -2324,11 +2358,9 @@ class App(CTk):
         pid_clamp = float(self.vars["pid_clamp"].get() or 100)
         use_centroid = self.vars["centroid_tracking"].get()
         mouse_down = False
-        # initialise/zero PD state before entering the tracking loop
+        # Initialize/zero PD state before entering the tracking loop
         self.prev_error = 0.0
         self.last_time = None
-        gift_box_timer = 0.0
-        gift_missing_time = 0.0
         tracking_focus2 = self.vars["tracking_focus"].get()
         if tracking_focus2 == "Gift":
             tracking_focus = 0

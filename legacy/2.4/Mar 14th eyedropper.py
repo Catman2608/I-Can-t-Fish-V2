@@ -34,7 +34,7 @@ except Exception:
     dxcam = None
 import mss
 # PyAutoGUI pauses and failsafe
-pyautogui.PAUSE = 0.003
+pyautogui.PAUSE = 0
 pyautogui.FAILSAFE = False
 # Set appearance
 set_default_color_theme("blue")
@@ -414,7 +414,7 @@ class App(CTk):
         self.tabs.add("Shake")
         self.tabs.add("Fish")
         self.tabs.add("Logging")
-        # self.tabs.add("Utilities")
+        self.tabs.add("Utilities")
         self.tabs.add("Advanced")
 
         # Build tabs
@@ -424,7 +424,7 @@ class App(CTk):
         self.build_shake_tab(self.tabs.tab("Shake"))
         self.build_fishing_tab(self.tabs.tab("Fish"))
         self.build_logging_tab(self.tabs.tab("Logging"))
-        # self.build_utilities_tab(self.tabs.tab("Utilities"))
+        self.build_utilities_tab(self.tabs.tab("Utilities"))
         self.build_advanced_tab(self.tabs.tab("Advanced"))
 
         # Grid behavior
@@ -1240,36 +1240,23 @@ class App(CTk):
         self.eyedropper.attributes("-topmost", True)
         self.eyedropper.config(cursor="crosshair")
 
-        # Create ONE capture object
-        self.capture_mode = "mss"
-
-        if sys.platform == "win32" and getattr(self, "dxcam_enabled", False):
-            try:
-                import dxcam
-                self.cam = dxcam.create()
-                self.capture_mode = "dxcam"
-            except Exception:
-                self.sct = mss.mss()
-                self.capture_mode = "mss"
-        else:
-            self.sct = mss.mss()
-
-        self.eyedropper.bind("<Motion>", self._update_hover_color)
         self.eyedropper.bind("<Button-1>", self._on_pick_color)
-        self.eyedropper.bind("<Escape>", self._close_eyedropper)
+        self.eyedropper.bind("<Motion>", self._update_hover_color)
+        self.eyedropper.bind("<Escape>", lambda e: self.eyedropper.destroy())
     def _on_pick_color(self, event):
+        """Capture pixel color at mouse position."""
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
 
-        if self.capture_mode == "dxcam":
-            frame = self.cam.grab(region=(x, y, x+1, y+1))
-            if frame is None:
-                return
-            b, g, r = frame[0][0]
+        with mss.mss() as sct:
+            monitor = {
+                "left": x,
+                "top": y,
+                "width": 1,
+                "height": 1
+            }
 
-        else:
-            monitor = {"left": x, "top": y, "width": 1, "height": 1}
-            img = self.sct.grab(monitor)
+            img = sct.grab(monitor)
             b = img.raw[0]
             g = img.raw[1]
             r = img.raw[2]
@@ -1277,22 +1264,24 @@ class App(CTk):
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
 
         self.set_status(f"Picked: {hex_color}")
+
         self.last_picked_color = hex_color
 
-        self._close_eyedropper()
+        self.eyedropper.destroy()
     def _update_hover_color(self, event):
+        """Show color under cursor while hovering."""
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
 
-        if self.capture_mode == "dxcam":
-            frame = self.cam.grab(region=(x, y, x+1, y+1))
-            if frame is None:
-                return
-            b, g, r = frame[0][0]
+        with mss.mss() as sct:
+            monitor = {
+                "left": x,
+                "top": y,
+                "width": 1,
+                "height": 1
+            }
 
-        else:  # MSS
-            monitor = {"left": x, "top": y, "width": 1, "height": 1}
-            img = self.sct.grab(monitor)
+            img = sct.grab(monitor)
             b = img.raw[0]
             g = img.raw[1]
             r = img.raw[2]
@@ -1300,15 +1289,6 @@ class App(CTk):
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
 
         self.set_status(f"Hover: {hex_color}  |  Click to pick")
-    def _close_eyedropper(self, event=None):
-        if hasattr(self, "sct"):
-            self.sct.close()
-
-        if hasattr(self, "cam"):
-            self.cam.stop()
-
-        if self.eyedropper:
-            self.eyedropper.destroy()
     # Misc-related functions
     def open_link(self, url):
         """Open a URL in the default web browser."""
@@ -1533,15 +1513,16 @@ class App(CTk):
         return img
 
     def _click_at(self, x, y):
-        pyautogui.moveTo(x, y, duration=0)
-        time.sleep(0.03)
-
-        pyautogui.moveRel(1, 0)
-        time.sleep(0.01)
-        pyautogui.moveRel(-1, 0)
+        pyautogui.moveTo(x, y)
         time.sleep(0.01)
 
-        pyautogui.click()
+        # micro-jitter
+        pyautogui.moveTo(x + 3, y + 3)
+        pyautogui.moveTo(x, y)
+
+        pyautogui.mouseDown(button='left')
+        time.sleep(0.04)
+        pyautogui.mouseUp(button='left')
 
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
@@ -2057,19 +2038,19 @@ class App(CTk):
             # Check Totem
             # Send Discord Webhook
             self.send_discord_webhook("Loop completed", cycle)
-            # if not self.vars["auto_totem_mode"].get() == "Disabled":
-            #     self.execute_totem(cycle)
+            if not self.vars["auto_totem_mode"].get() == "Disabled":
+                self.execute_totem(cycle)
             # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
                 self.set_status("Selecting rod")
-                keyboard_lib.press('2')
+                pyautogui.keyDown('2')
                 time.sleep(0.05)
-                keyboard_lib.release('2')
+                pyautogui.keyUp('2')
                 time.sleep(bag_delay)
-                keyboard_lib.press('1')
+                pyautogui.keyDown('1')
                 time.sleep(0.05)
-                keyboard_lib.release('1')
+                pyautogui.keyUp('1')
                 time.sleep(0.2)
             # 2: Fish Overlay
             if self.vars["fish_overlay"].get() == "on":
@@ -2287,9 +2268,9 @@ class App(CTk):
         attempts = 0
         while self.macro_running and attempts < failsafe:
             # 1. Navigation shake (Enter key)
-            keyboard_lib.press('enter')
-            time.sleep(0.03)
-            keyboard_lib.release('enter')
+            pyautogui.keyDown('enter')
+            time.sleep(0.05)
+            pyautogui.keyUp('enter')
             time.sleep(scan_delay)
             # 2. Stable fish detection (old logic preserved)
             stable = 0
@@ -2316,6 +2297,7 @@ class App(CTk):
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
+
     def _enter_minigame(self, cycle):
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
@@ -2358,9 +2340,11 @@ class App(CTk):
         pid_clamp = float(self.vars["pid_clamp"].get() or 100)
         use_centroid = self.vars["centroid_tracking"].get()
         mouse_down = False
-        # Initialize/zero PD state before entering the tracking loop
+        # initialise/zero PD state before entering the tracking loop
         self.prev_error = 0.0
         self.last_time = None
+        gift_box_timer = 0.0
+        gift_missing_time = 0.0
         tracking_focus2 = self.vars["tracking_focus"].get()
         if tracking_focus2 == "Gift":
             tracking_focus = 0

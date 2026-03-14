@@ -7,7 +7,7 @@
     "screenshot_key": "F8",
     "auto_select_rod": "on",
     "auto_zoom_in": "off",
-    "fish_overlay": "on",
+    "fish_overlay": "off",
     "bar_size": "on",
     "bag_delay": "0.2",
     "casting_delay2": "0.0",
@@ -46,11 +46,6 @@
     "discord_enabled": "on",
     "discord_webhook_url": "https://discord.com/api/webhooks/1476560181147078798/-p4z4rbBB5od8h8MkYNr0N1hcEie9IAAo_kZS-96HwFfWqs6xYFHfl0tILfqS6uJDsoS",
     "discord_webhook_name": "I Can't Fish",
-    "auto_totem_mode": "Time",
-    "totem_delay": "900",
-    "totem_cycles": "70",
-    "use_sundial_mode": "Disabled",
-    "auto_reconnect": "off",
     "shake_color": "#FFFFFF",
     "perfect_color": "#5da447",
     "perfect_color2": "#d4d3ca",
@@ -64,7 +59,5 @@
     "combobox_casting_mode": "Normal",
     "combobox_release_method": "Simple",
     "combobox_shake_mode": "Navigation",
-    "combobox_auto_totem_mode": "Time",
-    "combobox_use_sundial_mode": "Disabled",
     "combobox_tracking_focus": "Gift"
 }

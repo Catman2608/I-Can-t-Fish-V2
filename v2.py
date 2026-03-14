@@ -4,16 +4,12 @@ import tkinter as tk
 import os
 import subprocess
 # Keyboard and Mouse
-from pynput import keyboard, mouse
-from pynput.keyboard import Controller as KeyboardController
-from pynput.mouse import Controller as MouseController
-# Mouse Button
-from pynput.mouse import Button
+import pyautogui
+import keyboard as keyboard_lib
 # Web browsing
 import webbrowser
 # Key Listeners
 import threading
-from pynput.keyboard import Listener as KeyListener, Key
 macro_running = False
 macro_thread = None
 # Key Inputs must be on seperate thread
@@ -33,13 +29,11 @@ try:
         import dxcam
     else:
         dxcam = None
-        # macOS DPI awareness requires PyAutoGUI code but I use pynput.
+        # macOS DPI awareness handled by PyAutoGUI.
 except Exception:
     dxcam = None
 import mss
-# Initialize controllers
-keyboard_controller = KeyboardController()
-mouse_controller = MouseController()
+# PyAutoGUI is used directly for mouse/keyboard control (no controller objects needed)
 # Set appearance
 set_default_color_theme("blue")
 # from AppKit import NSEvent
@@ -336,11 +330,11 @@ class App(CTk):
         self.overlay_canvas = None
         self.pid_source = None  # "bar" or "arrow"
 
-        # Hotkey variables
-        self.hotkey_start = Key.f5
-        self.hotkey_stop = Key.f7
-        self.hotkey_change_areas = Key.f6            # added for the bar area selector
-        self.hotkey_reserved = Key.f8
+        # Hotkey variables (stored as lowercase strings, e.g. "f5")
+        self.hotkey_start = "f5"
+        self.hotkey_stop = "f7"
+        self.hotkey_change_areas = "f6"            # added for the bar area selector
+        self.hotkey_reserved = "f8"
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
 
         # Logging-related variables
@@ -350,10 +344,8 @@ class App(CTk):
         # MSS and DXCAM-related variables
         self.sct = mss.mss()
 
-        # Start hotkey listener
-        self.key_listener = KeyListener(on_press=self.on_key_press)
-        self.key_listener.daemon = True
-        self.key_listener.start()
+        # Start hotkey listener using the `keyboard` library
+        self._register_hotkeys()
 
         # Status Bar 
         self.grid_columnconfigure(0, weight=1)
@@ -845,9 +837,11 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+        # Warning
+        CTkLabel(scroll, text="These tools are not implemented yet", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Auto Totem
         auto_totem = CTkFrame(scroll, border_width=2)
-        auto_totem.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        auto_totem.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(auto_totem, text="Auto Totem", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         
         CTkLabel(auto_totem, text="Auto Totem Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
@@ -880,7 +874,7 @@ class App(CTk):
 
         # Auto Reconnect
         auto_reconnect = CTkFrame(scroll, border_width=2)
-        auto_reconnect.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        auto_reconnect.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(auto_reconnect, text="Auto Reconnect", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
 
         auto_reconnect_var = StringVar(value="off")
@@ -937,20 +931,15 @@ class App(CTk):
         tracking_cb.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["tracking_focus"] = tracking_cb
 
-        CTkLabel(gift_settings, text="Gift Box Timer:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
-        gift_box_timer_var = StringVar(value="3")
-        self.vars["gift_box_timer"] = gift_box_timer_var
-        CTkEntry(gift_settings, width=120, textvariable=gift_box_timer_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(gift_settings, text="Ratio Before Tracking:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
+        gift_track_ratio_var = StringVar(value="0.1")
+        self.vars["gift_track_ratio"] = gift_track_ratio_var
+        CTkEntry(gift_settings, width=120, textvariable=gift_track_ratio_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(gift_settings, text="Gift Track Threshold:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
-        gift_track_threshold_var = StringVar(value="0.1")
-        self.vars["gift_track_threshold"] = gift_track_threshold_var
-        CTkEntry(gift_settings, width=120, textvariable=gift_track_threshold_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(gift_settings, text="Note Cooldown:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
+        CTkLabel(gift_settings, text="Note Cooldown:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
         note_cooldown_var = StringVar(value="0.2")
         self.vars["note_cooldown"] = note_cooldown_var
-        CTkEntry(gift_settings, width=120, textvariable=note_cooldown_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(gift_settings, width=120, textvariable=note_cooldown_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
@@ -1020,10 +1009,11 @@ class App(CTk):
             with open("last_config.json", "w") as f:
                 json.dump(data, f, indent=4)
             # IMPORTANT: Immediately update active hotkeys
-            self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
+            self.hotkey_start      = self._string_to_key(self.vars["start_key"].get())
             self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
             self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
-            self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
+            self.hotkey_stop       = self._string_to_key(self.vars["stop_key"].get())
+            self._register_hotkeys()
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -1145,11 +1135,12 @@ class App(CTk):
                     self.vars["screenshot_key"].set(screenshot_key)
                     self.vars["stop_key"].set(stop_key)
 
-                    # Convert to pynput keys
-                    self.hotkey_start = self._string_to_key(start_key)
+                    # Convert to hotkey strings and re-register
+                    self.hotkey_start        = self._string_to_key(start_key)
                     self.hotkey_change_areas = self._string_to_key(change_key)
-                    self.hotkey_screenshot = self._string_to_key(screenshot_key)
-                    self.hotkey_stop = self._string_to_key(stop_key)
+                    self.hotkey_screenshot   = self._string_to_key(screenshot_key)
+                    self.hotkey_stop         = self._string_to_key(stop_key)
+                    self._register_hotkeys()
             else:
                 self.current_rod_name = "Basic Rod"
                 self.bar_areas = {"fish": None, "shake": None}
@@ -1158,31 +1149,47 @@ class App(CTk):
             self.bar_areas = {"fish": None, "shake": None}
     # Macro functions
     def _string_to_key(self, key_string):
-        key_string = key_string.strip().lower()
+        """Normalise a hotkey string to lowercase (used by the keyboard library)."""
+        return key_string.strip().lower()
+
+    def _register_hotkeys(self):
+        """Register all hotkeys using the `keyboard` library."""
+        try:
+            keyboard_lib.unhook_all()
+        except Exception:
+            pass
+
+        def _on_start():
+            self.on_key_press("start")
+        def _on_change():
+            self.on_key_press("change_areas")
+        def _on_screenshot():
+            self.on_key_press("screenshot")
+        def _on_stop():
+            self.on_key_press("stop")
 
         try:
-            return Key[key_string]
-        except KeyError:
-            return key_string  # normal character keys
-    def on_key_press(self, key):
+            keyboard_lib.add_hotkey(self.hotkey_start,    _on_start,      suppress=False)
+            keyboard_lib.add_hotkey(self.hotkey_change_areas, _on_change,  suppress=False)
+            keyboard_lib.add_hotkey(self.hotkey_screenshot,   _on_screenshot, suppress=False)
+            keyboard_lib.add_hotkey(self.hotkey_stop,     _on_stop,       suppress=False)
+        except Exception as e:
+            print("Hotkey registration error:", e)
+
+    def on_key_press(self, action):
         try:
-            if key == self.hotkey_start and not self.macro_running:
+            if action == "start" and not self.macro_running:
                 config_name = self.vars["active_config"].get()
                 self.save_settings(config_name)
-
                 self.macro_running = True
                 self.after(0, self.withdraw)
                 threading.Thread(target=self.start_macro, daemon=True).start()
-
-            elif key == self.hotkey_change_areas:
+            elif action == "change_areas":
                 self.open_dual_area_selector()
-
-            elif key == self.hotkey_screenshot:
+            elif action == "screenshot":
                 self._take_debug_screenshot()
-
-            elif key == self.hotkey_stop:
+            elif action == "stop":
                 self.stop_macro()
-
         except Exception as e:
             print("Hotkey error:", e)
     def set_status(self, text, key=None):
@@ -1490,16 +1497,16 @@ class App(CTk):
         return img
 
     def _click_at(self, x, y):
-        mouse_controller.position = (x, y)
+        pyautogui.moveTo(x, y)
         time.sleep(0.01)
 
         # micro-jitter
-        mouse_controller.position = (x + 3, y + 3)
-        mouse_controller.position = (x, y)
+        pyautogui.moveTo(x + 3, y + 3)
+        pyautogui.moveTo(x, y)
 
-        mouse_controller.press(Button.left)
+        pyautogui.mouseDown(button='left')
         time.sleep(0.04)
-        mouse_controller.release(Button.left)
+        pyautogui.mouseUp(button='left')
 
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
@@ -1999,12 +2006,12 @@ class App(CTk):
         self.set_status("Macro Status: Running")
 
         # Initial camera alignment (ONLY ONCE)
-        mouse_controller.position = (shake_x, shake_y)
+        pyautogui.moveTo(shake_x, shake_y)
         if self.vars["auto_zoom_in"].get() == "on":
             for _ in range(20):
-                mouse_controller.scroll(0, 1)
+                pyautogui.scroll(1)
                 time.sleep(0.05)
-            mouse_controller.scroll(0, -1)
+            pyautogui.scroll(-1)
             time.sleep(0.1)
         # Set current cycle to 0
         current_cycle = 0
@@ -2013,19 +2020,21 @@ class App(CTk):
         while self.macro_running:
             # Check Reconnect (not implemented yet)
             # Check Totem
+            # Send Discord Webhook
+            self.send_discord_webhook(f"Cycle {cycle}")
             if not self.vars["auto_totem_mode"].get() == "Disabled":
                 self.execute_totem(cycle)
             # 1️⃣ Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
                 self.set_status("Selecting rod")
-                keyboard_controller.press("2")
+                pyautogui.keyDown('2')
                 time.sleep(0.05)
-                keyboard_controller.release("2")
+                pyautogui.keyUp('2')
                 time.sleep(bag_delay)
-                keyboard_controller.press("1")
+                pyautogui.keyDown('1')
                 time.sleep(0.05)
-                keyboard_controller.release("1")
+                pyautogui.keyUp('1')
                 time.sleep(0.2)
             # 2: Fish Overlay
             if self.vars["fish_overlay"].get() == "on":
@@ -2037,7 +2046,7 @@ class App(CTk):
 
             # 2️⃣ Cast
             self.set_status("Casting")
-            if self.vars["perfect_cast"].get() == "on":
+            if self.vars["casting_mode"].get() == "Perfect":
                 self._execute_cast_perfect()
             else:
                 self._execute_cast_normal()
@@ -2070,7 +2079,7 @@ class App(CTk):
         required_cycle = float(self.vars["totem_cycles"].get())
         condition = cycle % required_cycle
         if condition == 0:
-            print("Using your totem")
+            pass # not implemented yet
     def _execute_cast_perfect(self):
         """
         Find perfect cast color and cast color
@@ -2078,7 +2087,7 @@ class App(CTk):
         Then, release (if failsafe reached release anyways)
         """
         # Hold click
-        mouse_controller.press(Button.left)
+        pyautogui.mouseDown(button='left')
         # Get shake area
         shake = self.bar_areas.get("shake")
         if isinstance(shake, dict):
@@ -2115,7 +2124,7 @@ class App(CTk):
             green_pixels = self._pixel_search(frame, green_color, green_tolerance)
             if not green_pixels:
                 if time.time() - start_time > max_time:
-                    mouse_controller.release(Button.left)
+                    pyautogui.mouseUp(button='left')
                     return
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
@@ -2126,25 +2135,26 @@ class App(CTk):
             if not white_pixels:
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
-            white_x, white_y = min(white_pixels, key=lambda p: p[1])
+            white_x, white_y = min(white_pixels, key=lambda p: abs(p[1] - green_y))
             if white_pixels and green_pixels: # If white and green found
                 distance = abs(green_y - white_y)
                 if distance < 30: # Perfect cast release condition
                     time.sleep(release_delay)
-                    mouse_controller.release(Button.left)
+                    pyautogui.mouseUp(button='left')
+                    return
             if time.time() - start_time > max_time: # Timer limit reached
-                mouse_controller.release(Button.left)
+                pyautogui.mouseUp(button='left')
                 return
             time.sleep(float(self.vars["cast_scan_delay"].get()))
     def _execute_cast_normal(self):
         """Hold left click for user cast delay"""
         delay2 = float(self.vars["casting_delay2"].get() or 0.0)
         time.sleep(delay2)  # wait for cast to register in other games
-        mouse_controller.press(Button.left)
+        pyautogui.mouseDown(button='left')
         duration = float(self.vars["cast_duration"].get() or 0.6)
         delay = float(self.vars["cast_delay"].get() or 0.2)
         time.sleep(duration)  # adjust cast strength
-        mouse_controller.release(Button.left)
+        pyautogui.mouseUp(button='left')
         time.sleep(delay)  # wait for cast to register in fisch
 
     def _execute_shake_click(self):
@@ -2215,9 +2225,9 @@ class App(CTk):
             # 3️⃣ Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
-                mouse_controller.press(Button.left)
+                pyautogui.mouseDown(button='left')
                 time.sleep(0.003)
-                mouse_controller.release(Button.left)
+                pyautogui.mouseUp(button='left')
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
@@ -2242,9 +2252,9 @@ class App(CTk):
         attempts = 0
         while self.macro_running and attempts < failsafe:
             # 1️⃣ Navigation shake (Enter key)
-            keyboard_controller.press(Key.enter)
+            pyautogui.keyDown('enter')
             time.sleep(0.03)
-            keyboard_controller.release(Key.enter)
+            pyautogui.keyUp('enter')
             time.sleep(scan_delay)
             # 2️⃣ Stable fish detection (old logic preserved)
             stable = 0
@@ -2265,9 +2275,9 @@ class App(CTk):
             # 3️⃣ Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
-                mouse_controller.press(Button.left)
+                pyautogui.mouseDown(button='left')
                 time.sleep(0.003)
-                mouse_controller.release(Button.left)
+                pyautogui.mouseUp(button='left')
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
@@ -2303,8 +2313,7 @@ class App(CTk):
         # Gift box color and timer settings
         gift_box_hex = self.vars["gift_box_color"].get()
         gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
-        gift_missing_tolerance = float(self.vars["gift_box_timer"].get())
-        gift_missing_tolerance = gift_missing_tolerance - 0.1
+        gift_track_ratio = float(self.vars["gift_track_ratio"].get())
         # Arrow tracking variables
         arrow_hex = self.vars["arrow_color"].get()
         arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
@@ -2320,48 +2329,35 @@ class App(CTk):
         self.last_time = None
         gift_box_timer = 0.0
         gift_missing_time = 0.0
-        GIFT_TRACK_THRESHOLD = float(self.vars["gift_track_threshold"].get() or 0.1)
-        note_cooldown_timer = 0.0
-        NOTE_COOLDOWN = float(self.vars["note_cooldown"].get() or 0.2)
-        gift_was_visible = False
+        tracking_focus2 = self.vars["tracking_focus"].get()
+        if tracking_focus2 == "Gift":
+            tracking_focus = 0
+        elif tracking_focus2 == "Gift + Fish":
+            tracking_focus = 1
+        else:
+            tracking_focus = 2
         # Deadzone action
         deadzone_action = 0
         def hold_mouse():
             nonlocal mouse_down
             if not mouse_down:
-                mouse_controller.press(Button.left)
+                pyautogui.mouseDown(button='left')
                 mouse_down = True
         def release_mouse():
             nonlocal mouse_down
             if mouse_down:
-                mouse_controller.release(Button.left)
+                pyautogui.mouseUp(button='left')
                 mouse_down = False
         while self.macro_running: # Main macro loop
             gift_img = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
             img = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
             if img is None:
                 return
-            tracking_focus2 = self.vars["tracking_focus"].get()
-            if tracking_focus2 == "Gift":
-                tracking_focus = 0
-            elif tracking_focus2 == "Gift + Fish":
-                tracking_focus = 1
-            else:
-                tracking_focus = 2
             fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
             # ---- Arrow ----
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             # ---- Gift box ----
-            gift_box_x = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
-            if gift_box_x is not None:
-                gift_box_timer += scan_delay
-                gift_missing_time = 0.0
-            else:
-                gift_missing_time += scan_delay
-                # Only reset if missing for too long
-                if gift_missing_time >= gift_missing_tolerance:
-                    gift_box_timer = 0.0
-                    gift_missing_time = 0.0
+            gift_box_pos = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
             # ---- FISH HANDLING ----
             if fish_x is not None:
                 self.last_fish_x = fish_x
@@ -2405,51 +2401,46 @@ class App(CTk):
                 max_right = None
                 pid_found = 3
             if bars_found and bar_center is not None: # Bar found
-                # Gift tracking (contains note cooldown)
-                note_cooldown_timer = max(0, note_cooldown_timer - scan_delay)
-                # Detect note disappearance
-                if gift_was_visible and gift_box_x is None:
-                    note_cooldown_timer = NOTE_COOLDOWN
-                gift_was_visible = gift_box_x is not None
-                if (bars_found and gift_box_x is not None and gift_box_timer >= GIFT_TRACK_THRESHOLD and note_cooldown_timer <= 0):
-                    # convert shake → fish coordinate
+                # Gift tracking logic
+                if gift_box_pos is not None:
+                    ## Step 1: Convert note to screen coordinates
                     shake_width = shake_right - shake_left
                     fish_width = fish_right - fish_left
-                    gift_screen_x = int((gift_box_x[0] / shake_width) * fish_width) + fish_left
-                    if tracking_focus == 0:  # Gift only
+                    gift_screen_x = int((gift_box_pos[0] / shake_width) * fish_width) + fish_left
+                    gift_screen_y = gift_box_pos[1] - shake_top
+                    gift_screen_y_ratio = gift_screen_y / (shake_bottom - shake_top)
+                if gift_box_pos is not None and tracking_focus == 0:
+                    if gift_screen_y_ratio >= gift_track_ratio:
                         fish_x = gift_screen_x
-                    elif tracking_focus == 1:  # Gift + Fish
-                        distance = abs(fish_x - gift_screen_x)
-                        # Only merge when gift is inside the bar center
-                        if bar_center is not None and distance <= (bar_size * 0.5):
-                            fish_x = int((fish_x + gift_screen_x) / 2)
-                    # tracking_focus == 2 → Fish only
+                        pid_found = 3
+                elif tracking_focus == 1:
+                    pass
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left, show_bar_center=True))
+                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
                         else:
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left))
-                        self.after(0, lambda: self.draw_overlay(bar_center=max_left, box_size=15, color="lightblue", canvas_offset=fish_left))
-                        self.after(0, lambda: self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left))
+                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                        self.after(0, lambda _ml=max_left, _fl=fish_left: self.draw_overlay(bar_center=_ml, box_size=15, color="lightblue", canvas_offset=_fl))
+                        self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
                     pid_found = 1
                 elif max_right is not None and fish_x >= max_right:
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left, show_bar_center=True))
+                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
                         else:
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left))
-                        self.after(0, lambda: self.draw_overlay(bar_center=max_right, box_size=15, color="lightblue", canvas_offset=fish_left))
-                        self.after(0, lambda: self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left))
+                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                        self.after(0, lambda _mr=max_right, _fl=fish_left: self.draw_overlay(bar_center=_mr, box_size=15, color="lightblue", canvas_offset=_fl))
+                        self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
                     pid_found = 2
                 else:
                     if self.vars["fish_overlay"].get() == "on":
                         # Main code
                         if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=bar_size, color="green", canvas_offset=fish_left, show_bar_center=True))
+                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
                         else:
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=40, color="green", canvas_offset=fish_left))
-                        self.after(0, lambda: self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left))
+                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                        self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
                     pid_found = 0
             elif arrow_center:
                 capture_width = fish_right - fish_left

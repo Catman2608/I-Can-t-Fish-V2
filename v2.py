@@ -4,12 +4,16 @@ import tkinter as tk
 import os
 import subprocess
 # Keyboard and Mouse
-import pyautogui
-import keyboard as keyboard_lib
+from pynput import keyboard, mouse
+from pynput.keyboard import Controller as KeyboardController
+from pynput.mouse import Controller as MouseController
+# Mouse Button
+from pynput.mouse import Button
 # Web browsing
 import webbrowser
 # Key Listeners
 import threading
+from pynput.keyboard import Listener as KeyListener, Key
 macro_running = False
 macro_thread = None
 # Key Inputs must be on seperate thread
@@ -29,13 +33,13 @@ try:
         import dxcam
     else:
         dxcam = None
-        # macOS DPI awareness handled by PyAutoGUI.
+        # macOS DPI awareness requires PyAutoGUI code but I use pynput.
 except Exception:
     dxcam = None
 import mss
-# PyAutoGUI pauses and failsafe
-pyautogui.PAUSE = 0.003
-pyautogui.FAILSAFE = False
+# Initialize controllers
+keyboard_controller = KeyboardController()
+mouse_controller = MouseController()
 # Set appearance
 set_default_color_theme("blue")
 # from AppKit import NSEvent
@@ -45,43 +49,27 @@ def get_base_path():
         return sys._MEIPASS
     return os.path.dirname(os.path.abspath(__file__))
 if sys.platform == "darwin":
-    user_config_dir = os.path.join(
-        os.path.expanduser("~"),
-        "Library",
-        "Application Support",
-        "IcantFishV2",
-        "configs"
-    )
+    user_config_dir = os.path.join(os.path.expanduser("~"), 
+                                   "Library", "Application Support", 
+                                   "IcantFishV2", "configs")
 else:
-    user_config_dir = os.path.join(
-        os.path.expanduser("~"),
-        "AppData",
-        "Roaming",
-        "IcantFishV2",
-        "configs"
-    )
+    user_config_dir = os.path.join(os.path.expanduser("~"),
+                                   "AppData","Roaming",
+                                   "IcantFishV2","configs")
 
 os.makedirs(user_config_dir, exist_ok=True)
 BASE_PATH = get_base_path()
 
 if sys.platform == "darwin" and getattr(sys, "frozen", False):
     # Only use Application Support when bundled
-    USER_CONFIG_DIR = os.path.join(
-        os.path.expanduser("~"),
-        "Library",
-        "Application Support",
-        "IcantFishV2",
-        "configs"
-    )
+    USER_CONFIG_DIR = os.path.join(os.path.expanduser("~"), "Library", 
+                                   "Application Support", "IcantFishV2", 
+                                   "configs")
 elif sys.platform == "win32" and getattr(sys, "frozen", False):
     # Only use AppData/Roaming when bundled
-    USER_CONFIG_DIR = os.path.join(
-        os.path.expanduser("~"),
-        "AppData",
-        "Roaming",
-        "IcantFishV2",
-        "configs"
-    )
+    USER_CONFIG_DIR = os.path.join(os.path.expanduser("~"), "AppData",
+                                   "Roaming", "IcantFishV2",
+                                   "configs")
 else:
     # During development, use local project folder
     USER_CONFIG_DIR = os.path.join(BASE_PATH, "configs")
@@ -103,10 +91,7 @@ class DualAreaSelector:
         self.window.attributes("-topmost", True)
 
         self.window.configure(bg="black")
-        if sys.platform == "win32":
-            self.window.attributes("-transparentcolor", "black")
-        else:
-            self.window.attributes("-alpha", 0.3)  # semi transparent
+        self.window.attributes("-alpha", 0.5)
         w = self.window.winfo_screenwidth()
         h = self.window.winfo_screenheight()
         self.window.geometry(f"{w}x{h}+0+0")
@@ -143,8 +128,8 @@ class DualAreaSelector:
 
         self.canvas.delete("all")
 
-        self.draw_area(self.shake, "#f44336")
-        self.draw_area(self.fish, "#2196F3")
+        self.draw_area(self.shake, "#ff6b35")
+        self.draw_area(self.fish, "#7ed321")
 
     def draw_area(self, area, color):
 
@@ -153,58 +138,36 @@ class DualAreaSelector:
         x2 = x1 + area["width"]
         y2 = y1 + area["height"]
 
-        self.canvas.create_rectangle(
-            x1, y1, x2, y2,
-            outline=color,
-            width=3,
-            fill=color,
-            stipple="gray25"
-        )
+        self.canvas.create_rectangle(x1, y1, x2, y2, 
+                                     outline=color, width=3, 
+                                     fill=color, stipple="gray25")
 
         for x, y in [(x1,y1),(x2,y1),(x1,y2),(x2,y2)]:
-            self.canvas.create_rectangle(
-                x-self.HANDLE_SIZE,
-                y-self.HANDLE_SIZE,
-                x+self.HANDLE_SIZE,
-                y+self.HANDLE_SIZE,
-                fill="white",
-                outline=""
-            )
-
-    # ---------------- HIT TEST ----------------
-
+            self.canvas.create_rectangle(x-self.HANDLE_SIZE, y-self.HANDLE_SIZE,
+                                         x+self.HANDLE_SIZE,y+self.HANDLE_SIZE, 
+                                         fill="white",outline="")
+    # Resizer / hit test
     def inside(self, x, y, area):
-
         return (
             area["x"] <= x <= area["x"] + area["width"] and
             area["y"] <= y <= area["y"] + area["height"]
         )
 
     def get_handle(self, x, y, area):
-
         x1 = area["x"]
         y1 = area["y"]
         x2 = x1 + area["width"]
         y2 = y1 + area["height"]
-
-        handles = {
-            "nw": (x1,y1),
-            "ne": (x2,y1),
-            "sw": (x1,y2),
-            "se": (x2,y2)
-        }
-
+        handles = { "nw": (x1,y1), "ne": (x2,y1), 
+                   "sw": (x1,y2), "se": (x2,y2) }
         for name,(hx,hy) in handles.items():
 
             if abs(x-hx) <= self.HANDLE_SIZE and abs(y-hy) <= self.HANDLE_SIZE:
                 return name
 
         return None
-
-    # ---------------- MOUSE ----------------
-
+    # Detect mouse input from user
     def mouse_down(self, e):
-
         self.start_x = e.x
         self.start_y = e.y
 
@@ -223,10 +186,8 @@ class DualAreaSelector:
                 return
 
     def mouse_drag(self, e):
-
         if not self.dragging and not self.resize_corner:
             return
-
         dx = e.x - self.start_x
         dy = e.y - self.start_y
 
@@ -246,30 +207,22 @@ class DualAreaSelector:
                 a["height"] -= dy
 
         elif self.dragging:
-
             a = self.active_area
             a["x"] += dx
             a["y"] += dy
-
         self.start_x = e.x
         self.start_y = e.y
-
         self.draw_boxes()
 
     def mouse_up(self, e):
-
         self.dragging = None
         self.resize_corner = None
         self.active_area = None
 
     def mouse_move(self, e):
-
         for area in [self.fish,self.shake]:
-
             handle = self.get_handle(e.x,e.y,area)
-
             if handle:
-
                 cursor = {
                     "nw":"size_nw_se",
                     "se":"size_nw_se",
@@ -286,8 +239,7 @@ class DualAreaSelector:
 
         self.canvas.config(cursor="")
 
-    # ---------------- SAVE ----------------
-
+    # Save
     def close(self):
 
         self.callback(self.shake,self.fish)
@@ -313,7 +265,7 @@ class App(CTk):
         self.macro_running = False
         self.macro_thread = None
 
-        # PD state variables (changed from PID)
+        # P/D state variables
         self.prev_error = 0.0      # previous error term
         self.last_time = None      # timestamp of last PD sample
         self.prev_measurement = None
@@ -332,18 +284,20 @@ class App(CTk):
         self.overlay_canvas = None
         self.pid_source = None  # "bar" or "arrow"
 
-        # Hotkey variables (stored as lowercase strings, e.g. "f5")
-        self.hotkey_start = "f5"
-        self.hotkey_change_areas = "f6"
-        self.hotkey_stop = "f7"
-        self.hotkey_screenshot = "f8"
+        # Hotkey variables
+        self.hotkey_start = Key.f5
+        self.hotkey_stop = Key.f7
+        self.hotkey_change_areas = Key.f6            # added for the bar area selector
+        self.hotkey_reserved = Key.f8
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
 
         # MSS and DXCAM-related variables
         self.sct = mss.mss()
 
-        # Start hotkey listener using the `keyboard` library
-        self._register_hotkeys()
+        # Start hotkey listener
+        self.key_listener = KeyListener(on_press=self.on_key_press)
+        self.key_listener.daemon = True
+        self.key_listener.start()
 
         # Status Bar 
         self.grid_columnconfigure(0, weight=1)
@@ -358,7 +312,7 @@ class App(CTk):
         # Logo Label
         logo_label = CTkLabel(
             top_bar, 
-            text="I CAN'T FISH V2.3",
+            text="I CAN'T FISH V2.4",
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, sticky="w")
@@ -1007,11 +961,10 @@ class App(CTk):
             with open("last_config.json", "w") as f:
                 json.dump(data, f, indent=4)
             # IMPORTANT: Immediately update active hotkeys
-            self.hotkey_start      = self._string_to_key(self.vars["start_key"].get())
+            self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
             self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
             self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
-            self.hotkey_stop       = self._string_to_key(self.vars["stop_key"].get())
-            self._register_hotkeys()
+            self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
         except Exception as e:
             import traceback
             traceback.print_exc()
@@ -1133,12 +1086,11 @@ class App(CTk):
                     self.vars["screenshot_key"].set(screenshot_key)
                     self.vars["stop_key"].set(stop_key)
 
-                    # Convert to hotkey strings and re-register
-                    self.hotkey_start        = self._string_to_key(start_key)
+                    # Convert to pynput keys
+                    self.hotkey_start = self._string_to_key(start_key)
                     self.hotkey_change_areas = self._string_to_key(change_key)
-                    self.hotkey_screenshot   = self._string_to_key(screenshot_key)
-                    self.hotkey_stop         = self._string_to_key(stop_key)
-                    self._register_hotkeys()
+                    self.hotkey_screenshot = self._string_to_key(screenshot_key)
+                    self.hotkey_stop = self._string_to_key(stop_key)
             else:
                 self.current_rod_name = "Basic Rod"
                 self.bar_areas = {"fish": None, "shake": None}
@@ -1147,47 +1099,31 @@ class App(CTk):
             self.bar_areas = {"fish": None, "shake": None}
     # Macro functions
     def _string_to_key(self, key_string):
-        """Normalise a hotkey string to lowercase (used by the keyboard library)."""
-        return key_string.strip().lower()
-
-    def _register_hotkeys(self):
-        """Register all hotkeys using the `keyboard` library."""
-        try:
-            keyboard_lib.unhook_all()
-        except Exception:
-            pass
-
-        def _on_start():
-            self.on_key_press("start")
-        def _on_change():
-            self.on_key_press("change_areas")
-        def _on_screenshot():
-            self.on_key_press("screenshot")
-        def _on_stop():
-            self.on_key_press("stop")
+        key_string = key_string.strip().lower()
 
         try:
-            keyboard_lib.add_hotkey(self.hotkey_start,    _on_start,      suppress=False)
-            keyboard_lib.add_hotkey(self.hotkey_change_areas, _on_change,  suppress=False)
-            keyboard_lib.add_hotkey(self.hotkey_screenshot,   _on_screenshot, suppress=False)
-            keyboard_lib.add_hotkey(self.hotkey_stop,     _on_stop,       suppress=False)
-        except Exception as e:
-            print("Hotkey registration error:", e)
-
-    def on_key_press(self, action):
+            return Key[key_string]
+        except KeyError:
+            return key_string  # normal character keys
+    def on_key_press(self, key):
         try:
-            if action == "start" and not self.macro_running:
+            if key == self.hotkey_start and not self.macro_running:
                 config_name = self.vars["active_config"].get()
                 self.save_settings(config_name)
+
                 self.macro_running = True
                 self.after(0, self.withdraw)
                 threading.Thread(target=self.start_macro, daemon=True).start()
-            elif action == "change_areas":
+
+            elif key == self.hotkey_change_areas:
                 self.open_dual_area_selector()
-            elif action == "screenshot":
+
+            elif key == self.hotkey_screenshot:
                 self._take_debug_screenshot()
-            elif action == "stop":
+
+            elif key == self.hotkey_stop:
                 self.stop_macro()
+
         except Exception as e:
             print("Hotkey error:", e)
     def set_status(self, text, key=None):
@@ -1480,6 +1416,7 @@ class App(CTk):
     def _init_capture_buffer(self, width, height):
         self._capture_buffer = np.empty((height, width, 3), dtype=np.uint8)
     def _grab_screen_region(self, left, top, right, bottom):
+        # Grabs the current screen region
         width = right - left
         height = bottom - top
 
@@ -1533,15 +1470,16 @@ class App(CTk):
         return img
 
     def _click_at(self, x, y):
-        pyautogui.moveTo(x, y, duration=0)
-        time.sleep(0.03)
-
-        pyautogui.moveRel(1, 0)
-        time.sleep(0.01)
-        pyautogui.moveRel(-1, 0)
+        mouse_controller.position = (x, y)
         time.sleep(0.01)
 
-        pyautogui.click()
+        # micro-jitter
+        mouse_controller.position = (x + 3, y + 3)
+        mouse_controller.position = (x, y)
+
+        mouse_controller.press(Button.left)
+        time.sleep(0.04)
+        mouse_controller.release(Button.left)
 
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
@@ -1574,15 +1512,10 @@ class App(CTk):
 
         return (center_x, center_y)
     
-    def _find_bar_edges(
-        self,
-        frame,
-        left_hex,
-        right_hex,
-        tolerance=15,
-        tolerance2=15,
-        scan_height_ratio=0.65
-    ):
+    def _find_bar_edges(self, frame, 
+                        left_hex, right_hex, 
+                        tolerance=15, tolerance2=15, 
+                        scan_height_ratio=0.5):
         if frame is None:
             return None, None
 
@@ -1637,7 +1570,7 @@ class App(CTk):
         tolerance=15,
         tolerance2=15,
         scan_height_ratio=0.55
-   ):
+    ):
         if frame is None:
             return None, None
 
@@ -1694,7 +1627,7 @@ class App(CTk):
         mask = np.all(
             np.abs(frame_i - white) <= tolerance,
             axis=-1
-       )
+        )
 
         coords = np.argwhere(mask)
         if coords.size > 0:
@@ -1920,7 +1853,7 @@ class App(CTk):
             height=60,
             bg="#1d1d1d",
             highlightthickness=0
-       )
+        )
         self.overlay_canvas.pack(fill="both", expand=True)
 
     def show_overlay(self):
@@ -1943,12 +1876,8 @@ class App(CTk):
             return
 
         def _draw():
-            self.overlay_canvas.create_rectangle(
-                x1, y1, x2, y2,
-                outline=outline,
-                width=2,
-                fill=fill
-           )
+            self.overlay_canvas.create_rectangle(x1, y1, x2, y2, 
+                                                 outline=outline, width=2, fill=fill)
 
         self.overlay_canvas.after(0, _draw)
 
@@ -1987,14 +1916,9 @@ class App(CTk):
 
         # Center line
         if show_bar_center == True:
-            self.overlay_canvas.create_line(
-                center_x,
-                bar_y1,
-                center_x,
-                bar_y2,
-                fill="gray",
-                width=2
-            )
+            self.overlay_canvas.create_line(center_x, bar_y1, 
+                                            center_x, bar_y2, 
+                                            fill="gray", width=2)
     # Do pixel search function (I put it here because it's organized)
     def _do_pixel_search(self, img):
         fish_hex = self.vars["fish_color"].get()
@@ -2041,35 +1965,35 @@ class App(CTk):
         self.set_status("Macro Status: Running")
 
         # Initial camera alignment (ONLY ONCE)
-        pyautogui.moveTo(shake_x, shake_y)
+        mouse_controller.position = (shake_x, shake_y)
         if self.vars["auto_zoom_in"].get() == "on":
             for _ in range(20):
-                pyautogui.scroll(1)
+                mouse_controller.scroll(0, 1)
                 time.sleep(0.05)
-            pyautogui.scroll(-1)
+            mouse_controller.scroll(0, -1)
             time.sleep(0.1)
         # Set current cycle to 0
         current_cycle = 0
         cycle = 0
-        # 🔁 MAIN MACRO LOOP
+        # Loop: MAIN MACRO LOOP
         while self.macro_running:
             # Check Reconnect (not implemented yet)
             # Check Totem
             # Send Discord Webhook
-            self.send_discord_webhook("Loop completed", cycle)
-            # if not self.vars["auto_totem_mode"].get() == "Disabled":
-            #     self.execute_totem(cycle)
+            self.send_discord_webhook(f"Cycle {cycle}")
+            if not self.vars["auto_totem_mode"].get() == "Disabled":
+                self.execute_totem(cycle)
             # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
                 self.set_status("Selecting rod")
-                keyboard_lib.press('2')
+                keyboard_controller.press("2")
                 time.sleep(0.05)
-                keyboard_lib.release('2')
+                keyboard_controller.release("2")
                 time.sleep(bag_delay)
-                keyboard_lib.press('1')
+                keyboard_controller.press("1")
                 time.sleep(0.05)
-                keyboard_lib.release('1')
+                keyboard_controller.release("1")
                 time.sleep(0.2)
             # 2: Fish Overlay
             if self.vars["fish_overlay"].get() == "on":
@@ -2079,7 +2003,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 2. Cast
+            # 3. Cast
             self.set_status("Casting")
             if self.vars["casting_mode"].get() == "Perfect":
                 self._execute_cast_perfect()
@@ -2096,7 +2020,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 3. Shake
+            # 4. Shake
             self.set_status("Shaking")
             if self.vars["shake_mode"].get() == "Click":
                 self._execute_shake_click()
@@ -2106,10 +2030,10 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 4️⃣ Fish (minigame)
+            # 5. Fish (minigame)
             self.set_status("Fishing")
             cycle = self._enter_minigame(current_cycle)
-            # ⬅️ When minigame ends, loop repeats from Select Rod
+            # Restart: When minigame ends, loop repeats from Select Rod
     def execute_totem(self, cycle):
         required_cycle = float(self.vars["totem_cycles"].get())
         condition = cycle % required_cycle
@@ -2122,7 +2046,7 @@ class App(CTk):
         Then, release (if failsafe reached release anyways)
         """
         # Hold click
-        pyautogui.mouseDown(button='left')
+        mouse_controller.press(Button.left)
         # Get shake area
         shake = self.bar_areas.get("shake")
         if isinstance(shake, dict):
@@ -2159,7 +2083,7 @@ class App(CTk):
             green_pixels = self._pixel_search(frame, green_color, green_tolerance)
             if not green_pixels:
                 if time.time() - start_time > max_time:
-                    pyautogui.mouseUp(button='left')
+                    mouse_controller.release(Button.left)
                     return
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
@@ -2175,21 +2099,21 @@ class App(CTk):
                 distance = abs(green_y - white_y)
                 if distance < 30: # Perfect cast release condition
                     time.sleep(release_delay)
-                    pyautogui.mouseUp(button='left')
+                    mouse_controller.release(Button.left)
                     return
             if time.time() - start_time > max_time: # Timer limit reached
-                pyautogui.mouseUp(button='left')
+                mouse_controller.release(Button.left)
                 return
             time.sleep(float(self.vars["cast_scan_delay"].get()))
     def _execute_cast_normal(self):
         """Hold left click for user cast delay"""
         delay2 = float(self.vars["casting_delay2"].get() or 0.0)
         time.sleep(delay2)  # wait for cast to register in other games
-        pyautogui.mouseDown(button='left')
+        mouse_controller.press(Button.left)
         duration = float(self.vars["cast_duration"].get() or 0.6)
         delay = float(self.vars["cast_delay"].get() or 0.2)
         time.sleep(duration)  # adjust cast strength
-        pyautogui.mouseUp(button='left')
+        mouse_controller.release(Button.left)
         time.sleep(delay)  # wait for cast to register in fisch
 
     def _execute_shake_click(self):
@@ -2260,9 +2184,9 @@ class App(CTk):
             # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
-                pyautogui.mouseDown(button='left')
+                mouse_controller.press(Button.left)
                 time.sleep(0.003)
-                pyautogui.mouseUp(button='left')
+                mouse_controller.release(Button.left)
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
@@ -2287,9 +2211,9 @@ class App(CTk):
         attempts = 0
         while self.macro_running and attempts < failsafe:
             # 1. Navigation shake (Enter key)
-            keyboard_lib.press('enter')
+            keyboard_controller.press(Key.enter)
             time.sleep(0.03)
-            keyboard_lib.release('enter')
+            keyboard_controller.release(Key.enter)
             time.sleep(scan_delay)
             # 2. Stable fish detection (old logic preserved)
             stable = 0
@@ -2310,12 +2234,13 @@ class App(CTk):
             # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
-                pyautogui.mouseDown(button='left')
+                mouse_controller.press(Button.left)
                 time.sleep(0.003)
-                pyautogui.mouseUp(button='left')
+                mouse_controller.release(Button.left)
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
+
     def _enter_minigame(self, cycle):
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
@@ -2358,9 +2283,11 @@ class App(CTk):
         pid_clamp = float(self.vars["pid_clamp"].get() or 100)
         use_centroid = self.vars["centroid_tracking"].get()
         mouse_down = False
-        # Initialize/zero PD state before entering the tracking loop
+        # initialise/zero PD state before entering the tracking loop
         self.prev_error = 0.0
         self.last_time = None
+        gift_box_timer = 0.0
+        gift_missing_time = 0.0
         tracking_focus2 = self.vars["tracking_focus"].get()
         if tracking_focus2 == "Gift":
             tracking_focus = 0
@@ -2373,12 +2300,12 @@ class App(CTk):
         def hold_mouse():
             nonlocal mouse_down
             if not mouse_down:
-                pyautogui.mouseDown(button='left')
+                mouse_controller.press(Button.left)
                 mouse_down = True
         def release_mouse():
             nonlocal mouse_down
             if mouse_down:
-                pyautogui.mouseUp(button='left')
+                mouse_controller.release(Button.left)
                 mouse_down = False
         while self.macro_running: # Main macro loop
             gift_img = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)

@@ -1116,20 +1116,20 @@ class App(CTk):
         pixels < 0 → look up
         """
 
-        # 1️⃣ Always release first (important)
+        # 1. Always release first (important)
         self.release_right_mouse()
         time.sleep(0.05)
 
-        # 2️⃣ Optional: center mouse on screen (VERY IMPORTANT for Roblox)
+        # 2. Optional: center mouse on screen (VERY IMPORTANT for Roblox)
         screen_w, screen_h = self.SCREEN_WIDTH, self.SCREEN_HEIGHT
         mouse_controller.position = (screen_w // 2, screen_h // 2)
         time.sleep(0.05)
 
-        # 3️⃣ Hold right click
+        # 3. Hold right click
         self.hold_right_mouse()
         time.sleep(0.05)
 
-        # 4️⃣ Use bigger movement
+        # 4. Use bigger movement
         big_move = pixels * 5  # amplify
         mouse_controller.move(0, big_move)
         time.sleep(0.05)
@@ -1924,10 +1924,10 @@ class App(CTk):
             mouse_controller.scroll(0, -1)
             time.sleep(0.1)
 
-        # 🔁 MAIN MACRO LOOP
+        # Loop: MAIN MACRO LOOP
         while self.macro_running:
 
-            # 1️⃣ Select rod
+            # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
                 self.set_status("Selecting rod")
@@ -1947,7 +1947,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 2️⃣ Cast
+            # 2. Cast
             self.set_status("Casting")
             if self.vars["perfect_cast"].get() == "on":
                 self._execute_cast_perfect()
@@ -1964,7 +1964,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 3️⃣ Shake
+            # 3. Shake
             self.set_status("Shaking")
             if self.vars["shake_mode"].get() == "Click":
                 self._execute_shake_click()
@@ -1974,10 +1974,10 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 4️⃣ Fish (minigame)
+            # 4. Fish (minigame)
             self.set_status("Fishing")
             self._enter_minigame()
-            # ⬅️ When minigame ends, loop repeats from Select Rod
+            # Restart: When minigame ends, loop repeats from Select Rod
 
     def _execute_cast_perfect(self):
         """
@@ -2101,7 +2101,7 @@ class App(CTk):
             if detection_area is None:
                 time.sleep(scan_delay)
                 continue
-            # 2️⃣ Look for shake pixel
+            # 2. Look for shake pixel
             shake_pixel = self._find_shake_pixel(shake_area, shake_hex, tolerance)
             if shake_pixel:
                 x, y = shake_pixel
@@ -2109,7 +2109,7 @@ class App(CTk):
                 screen_y = shake_top + y
                 self._click_at(screen_x, screen_y)
 
-            # 2️⃣.5 Stable fish detection
+            # 2..5 Stable fish detection
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
@@ -2122,7 +2122,7 @@ class App(CTk):
                 else:
                     break
 
-            # 3️⃣ Fish detected → enter minigame
+            # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
                 mouse_controller.press(Button.left)
@@ -2151,12 +2151,12 @@ class App(CTk):
         failsafe = int(self.vars["shake_failsafe"].get() or 20)
         attempts = 0
         while self.macro_running and attempts < failsafe:
-            # 1️⃣ Navigation shake (Enter key)
+            # 1. Navigation shake (Enter key)
             keyboard_controller.press(Key.enter)
             time.sleep(0.03)
             keyboard_controller.release(Key.enter)
             time.sleep(scan_delay)
-            # 2️⃣ Stable fish detection (old logic preserved)
+            # 2. Stable fish detection (old logic preserved)
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(
@@ -2172,7 +2172,7 @@ class App(CTk):
                     time.sleep(0.005)
                 else:
                     break
-            # 3️⃣ Fish detected → enter minigame
+            # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
                 mouse_controller.press(Button.left)

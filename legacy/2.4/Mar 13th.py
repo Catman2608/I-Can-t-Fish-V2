@@ -2011,7 +2011,7 @@ class App(CTk):
         # Set current cycle to 0
         current_cycle = 0
         cycle = 0
-        # 🔁 MAIN MACRO LOOP
+        # Loop: MAIN MACRO LOOP
         while self.macro_running:
             # Check Reconnect (not implemented yet)
             # Check Totem
@@ -2019,7 +2019,7 @@ class App(CTk):
             self.send_discord_webhook(f"Cycle {cycle}")
             if not self.vars["auto_totem_mode"].get() == "Disabled":
                 self.execute_totem(cycle)
-            # 1️⃣ Select rod
+            # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
                 self.set_status("Selecting rod")
@@ -2039,7 +2039,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 2️⃣ Cast
+            # 2. Cast
             self.set_status("Casting")
             if self.vars["casting_mode"].get() == "Perfect":
                 self._execute_cast_perfect()
@@ -2056,7 +2056,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 3️⃣ Shake
+            # 3. Shake
             self.set_status("Shaking")
             if self.vars["shake_mode"].get() == "Click":
                 self._execute_shake_click()
@@ -2066,10 +2066,10 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 4️⃣ Fish (minigame)
+            # 4. Fish (minigame)
             self.set_status("Fishing")
             cycle = self._enter_minigame(current_cycle)
-            # ⬅️ When minigame ends, loop repeats from Select Rod
+            # Restart: When minigame ends, loop repeats from Select Rod
     def execute_totem(self, cycle):
         required_cycle = float(self.vars["totem_cycles"].get())
         condition = cycle % required_cycle
@@ -2196,7 +2196,7 @@ class App(CTk):
             if detection_area is None:
                 time.sleep(scan_delay)
                 continue
-            # 2️⃣ Look for shake pixel
+            # 2. Look for shake pixel
             shake_pixel = self._find_shake_pixel(shake_area, shake_hex, tolerance)
             if shake_pixel:
                 x, y = shake_pixel
@@ -2204,7 +2204,7 @@ class App(CTk):
                 screen_y = shake_top + y
                 self._click_at(screen_x, screen_y)
 
-            # 2️⃣.5 Stable fish detection
+            # 2..5 Stable fish detection
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
@@ -2217,7 +2217,7 @@ class App(CTk):
                 else:
                     break
 
-            # 3️⃣ Fish detected → enter minigame
+            # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
                 mouse_controller.press(Button.left)
@@ -2246,12 +2246,12 @@ class App(CTk):
         failsafe = int(self.vars["shake_failsafe"].get() or 20)
         attempts = 0
         while self.macro_running and attempts < failsafe:
-            # 1️⃣ Navigation shake (Enter key)
+            # 1. Navigation shake (Enter key)
             keyboard_controller.press(Key.enter)
             time.sleep(0.03)
             keyboard_controller.release(Key.enter)
             time.sleep(scan_delay)
-            # 2️⃣ Stable fish detection (old logic preserved)
+            # 2. Stable fish detection (old logic preserved)
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(
@@ -2267,7 +2267,7 @@ class App(CTk):
                     time.sleep(0.005)
                 else:
                     break
-            # 3️⃣ Fish detected → enter minigame
+            # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
                 mouse_controller.press(Button.left)

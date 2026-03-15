@@ -1446,13 +1446,10 @@ class App(CTk):
         if sys.platform == "darwin":
             img = sct.grab(m)
 
-            # BGRA -> BGR directly into buffer
-            frame = np.frombuffer(img.raw, dtype=np.uint8)
-            frame = frame.reshape(img.height, img.width, 4)
+            frame = np.frombuffer(img.raw, dtype=np.uint8).reshape(img.height, img.width, 4)
 
-            self._capture_buffer[:] = frame[:, :, :3]
-
-            return self._capture_buffer
+            # Return BGR view without alpha
+            return frame[:, :, :3]
 
         # --- Windows ---
         mode = self.vars.get("capture_mode")
@@ -1928,6 +1925,11 @@ class App(CTk):
         left_tol = int(self.vars["left_tolerance"].get() or 8)
         right_tol = int(self.vars["right_tolerance"].get() or 8)
         fish_tol = int(self.vars["fish_tolerance"].get() or 1)
+        # macOS tolerance buffer to make configs cross-compatible
+        if sys.platform == "darwin":
+            left_tol += 2
+            right_tol += 2
+            fish_tol += 2
         fish_center = self._find_color_center(img, fish_hex, fish_tol)
 
         legacy_pixel_search = self.vars["legacy_pixel_search"].get()
@@ -1978,11 +1980,11 @@ class App(CTk):
         # Loop: MAIN MACRO LOOP
         while self.macro_running:
             # Check Reconnect (not implemented yet)
-            # Check Totem
             # Send Discord Webhook
-            self.send_discord_webhook(f"Cycle {cycle}")
-            if not self.vars["auto_totem_mode"].get() == "Disabled":
-                self.execute_totem(cycle)
+            self.send_discord_webhook(f"**Loop Completed**", cycle)
+            # Check Totem (not implemented yet)
+            # if not self.vars["auto_totem_mode"].get() == "Disabled":
+            #     self.execute_totem(cycle)
             # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
@@ -2286,8 +2288,6 @@ class App(CTk):
         # initialise/zero PD state before entering the tracking loop
         self.prev_error = 0.0
         self.last_time = None
-        gift_box_timer = 0.0
-        gift_missing_time = 0.0
         tracking_focus2 = self.vars["tracking_focus"].get()
         if tracking_focus2 == "Gift":
             tracking_focus = 0
@@ -2315,8 +2315,11 @@ class App(CTk):
             fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
             # ---- Arrow ----
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
-            # ---- Gift box ----
-            gift_box_pos = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
+            # Gift box (if tracking focus is not fish)
+            if not tracking_focus == 2:
+                gift_box_pos = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
+            else:
+                gift_box_pos = None
             # ---- FISH HANDLING ----
             if fish_x is not None:
                 self.last_fish_x = fish_x
@@ -2339,12 +2342,12 @@ class App(CTk):
             self.clear_overlay()
             # ---- BARS NOT FOUND ----
             bars_found = left_x is not None and right_x is not None
-            try:
+            if fish_x is None:
+                pass
+            elif isinstance(fish_x, (list, tuple)):
                 fish_x = fish_x[0] + fish_left
-            except TypeError:
+            else:
                 fish_x = fish_x + fish_left
-            except Exception as e:
-                fish_x = None
             if bars_found and left_x is not None and right_x is not None:
                 bar_center = int((left_x + right_x) / 2 + fish_left)
                 bar_size = abs(right_x - left_x)

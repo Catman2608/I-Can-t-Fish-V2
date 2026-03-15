@@ -6,4 +6,4 @@ pyinstaller --onedir --windowed \
 --add-data "configs:configs" \
 v2.py
 For me, the first line of code in the terminal looks like this:
-cd "/Users/hcl/Documents/Code/Python/I Cant Fish V2-2 and 2-3"
+cd "/Users/hcl/Documents/Code/Python/I Cant Fish V2-4"

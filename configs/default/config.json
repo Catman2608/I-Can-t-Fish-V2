@@ -1,5 +1,4 @@
 {
-    "capture_mode": "DXCAM",
     "active_config": "default.json",
     "start_key": "F5",
     "change_bar_areas_key": "F6",
@@ -7,7 +6,7 @@
     "screenshot_key": "F8",
     "auto_select_rod": "on",
     "auto_zoom_in": "off",
-    "fish_overlay": "off",
+    "fish_overlay": "on",
     "bar_size": "on",
     "bag_delay": "0.2",
     "casting_delay2": "0.0",
@@ -51,13 +50,12 @@
     "perfect_color2": "#d4d3ca",
     "gift_box_color": "#008c8c",
     "gift_box_tolerance": "5",
-    "tracking_focus": "Gift",
+    "tracking_focus": "Fish",
     "gift_track_ratio": "0.1",
     "note_cooldown": "0.2",
-    "combobox_capture_mode": "DXCAM",
     "combobox_active_config": "default.json",
     "combobox_casting_mode": "Normal",
     "combobox_release_method": "Simple",
     "combobox_shake_mode": "Navigation",
-    "combobox_tracking_focus": "Gift"
+    "combobox_tracking_focus": "Fish"
 }

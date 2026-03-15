@@ -2032,7 +2032,7 @@ class App(CTk):
         # Set current cycle to 0
         current_cycle = 0
         cycle = 0
-        # 🔁 MAIN MACRO LOOP
+        # Loop: MAIN MACRO LOOP
         while self.macro_running:
             # Check Reconnect (not implemented yet)
             # Check Totem
@@ -2087,10 +2087,10 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 4️⃣ Fish (minigame)
+            # 4. Fish (minigame)
             self.set_status("Fishing")
             cycle = self._enter_minigame(current_cycle)
-            # ⬅️ When minigame ends, loop repeats from Select Rod
+            # Restart: When minigame ends, loop repeats from Select Rod
     def execute_totem(self, cycle):
         required_cycle = float(self.vars["totem_cycles"].get())
         condition = cycle % required_cycle

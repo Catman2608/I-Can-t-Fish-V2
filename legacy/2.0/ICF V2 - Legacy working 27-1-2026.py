@@ -735,13 +735,13 @@ class App(CTk):
                 time.sleep(delay)
                 continue
 
-            # 1️⃣ Check for fish color FIRST (highest priority)
+            # 1. Check for fish color FIRST (highest priority)
             fish_center = self._find_color_center(detection_area, fish_hex, tolerance)
             if fish_center:
                 self.set_status("Entering Minigame")
                 return  # exit shake mode cleanly
 
-            # 2️⃣ Look for white shake pixel
+            # 2. Look for white shake pixel
             white_pixel = self._find_white_pixel(shake_area, tolerance)
             if white_pixel:
                 x, y = white_pixel

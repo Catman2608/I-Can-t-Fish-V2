@@ -1195,10 +1195,10 @@ class App(CTk):
             mouse_controller.scroll(0, -1)
             time.sleep(0.1)
 
-        # 🔁 MAIN MACRO LOOP
+        # Loop: MAIN MACRO LOOP
         while self.macro_running:
 
-            # 1️⃣ Select rod
+            # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 self.set_status("Selecting rod")
                 keyboard_controller.press("2")
@@ -1217,7 +1217,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 2️⃣ Cast
+            # 2. Cast
             self.set_status("Casting")
             if self.vars["perfect_cast"].get() == "on":
                 pass  # future perfect cast
@@ -1234,7 +1234,7 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 3️⃣ Shake
+            # 3. Shake
             self.set_status("Shaking")
             if self.vars["shake_mode"].get() == "Click":
                 self._execute_shake_click()
@@ -1244,11 +1244,11 @@ class App(CTk):
             if not self.macro_running:
                 break
 
-            # 4️⃣ Fish (minigame)
+            # 4. Fish (minigame)
             self.set_status("Fishing")
             self._enter_minigame()
 
-            # ⬅️ When minigame ends, loop repeats from Select Rod
+            # Restart: When minigame ends, loop repeats from Select Rod
 
     def _execute_cast_normal(self):
         # Basic cast: hold left click briefly
@@ -1291,7 +1291,7 @@ class App(CTk):
                 time.sleep(scan_delay)
                 continue
 
-            # 2️⃣ Look for white shake pixel
+            # 2. Look for white shake pixel
             white_pixel = self._find_white_pixel(shake_area, tolerance)
             if white_pixel:
                 x, y = white_pixel
@@ -1299,7 +1299,7 @@ class App(CTk):
                 screen_y = shake_top + y
                 self._click_at(screen_x, screen_y)
 
-            # 2️⃣.5 Stable fish detection
+            # 2..5 Stable fish detection
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(
@@ -1319,7 +1319,7 @@ class App(CTk):
                 else:
                     break
 
-            # 3️⃣ Fish detected → enter minigame
+            # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
 
@@ -1350,14 +1350,14 @@ class App(CTk):
 
         while self.macro_running and attempts < failsafe:
 
-            # 1️⃣ Navigation shake (Enter key)
+            # 1. Navigation shake (Enter key)
             keyboard_controller.press(Key.enter)
             time.sleep(0.03)
             keyboard_controller.release(Key.enter)
 
             time.sleep(scan_delay)
 
-            # 2️⃣ Stable fish detection (old logic preserved)
+            # 2. Stable fish detection (old logic preserved)
             stable = 0
             while stable < 8 and self.macro_running:
                 detection_area = self._grab_screen_region(
@@ -1377,7 +1377,7 @@ class App(CTk):
                 else:
                     break
 
-            # 3️⃣ Fish detected → enter minigame
+            # 3. Fish detected → enter minigame
             if stable >= 8:
                 self.set_status("Entering Minigame")
 

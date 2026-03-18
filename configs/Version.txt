@@ -1,0 +1,2 @@
+Hello, if you're downloading the config pack for ICF, the config pack is version 2.41, but you can apply it to I Can't Fish version 2.4.
+Explanation: This config pack works with versions 2.2 through the version in the Google Drive.

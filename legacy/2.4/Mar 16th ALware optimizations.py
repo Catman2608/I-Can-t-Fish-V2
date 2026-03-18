@@ -45,9 +45,6 @@ windll = ctypes.windll.user32
 MOUSEEVENTF_MOVE = 0x0001
 MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP = 0x0004
-# Initialize OpenCV buffers
-cv2.setUseOptimized(True)
-cv2.setNumThreads(0)
 # Initialize controllers
 keyboard_controller = KeyboardController()
 mouse_controller = MouseController()
@@ -304,18 +301,6 @@ class App(CTk):
 
         # MSS and DXCAM-related variables
         self.sct = mss.mss()
-        # detection buffers
-        self._mask_buffer = None
-        self._coords_buffer = None
-
-        # cached colors
-        self._color_cache = {}
-
-        # monitor reuse
-        self._monitor = {}
-
-        # thread capture
-        self._thread_local = threading.local()
 
         # Start hotkey listener
         self.key_listener = KeyListener(on_press=self.on_key_press)
@@ -546,25 +531,21 @@ class App(CTk):
         casting_delay2_entry = CTkEntry(sequence_options, width=120, textvariable=casting_delay2_var)
         casting_delay2_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
         # Arrow Tracking Settings
-        minigame_misc = CTkFrame(scroll, border_width=2)
-        minigame_misc.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(minigame_misc, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        arrow_settings = CTkFrame(scroll, border_width=2)
+        arrow_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(arrow_settings, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         centroid_tracking_var = StringVar(value="off")
         self.vars["centroid_tracking"] = centroid_tracking_var
-        centroid_tracking_cb = CTkCheckBox(minigame_misc, text="Estimate Bar From Arrows", 
+        centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Estimate Bar From Arrows", 
                                            variable=centroid_tracking_var, onvalue="on", 
                                            offvalue="off")
         centroid_tracking_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
         legacy_pixel_search_var = StringVar(value="off")
         self.vars["legacy_pixel_search"] = legacy_pixel_search_var
-        legacy_pixel_search_cb = CTkCheckBox(minigame_misc, text="Use Legacy Pixel Search", 
+        legacy_pixel_search_cb = CTkCheckBox(arrow_settings, text="Use Legacy Pixel Search", 
                                            variable=legacy_pixel_search_var, onvalue="on", 
                                            offvalue="off")
         legacy_pixel_search_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
-        bag_spam_var = StringVar(value="off")
-        self.vars["bag_spam"] = bag_spam_var
-        bag_spam_cb = CTkCheckBox(minigame_misc, text="Bag Spam", variable=bag_spam_var, onvalue="on", offvalue="off")
-        bag_spam_cb.grid(row=3, column=0, padx=12, pady=8, sticky="w")
     # CAST SETTINGS TAB
     def build_cast_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -1442,22 +1423,15 @@ class App(CTk):
         return []
     def _init_capture_buffer(self, width, height):
         self._capture_buffer = np.empty((height, width, 3), dtype=np.uint8)
-    def _ensure_buffers(self, frame):
-
-        h, w = frame.shape[:2]
-
-        if self._mask_buffer is None or self._mask_buffer.shape != (h, w):
-            self._mask_buffer = np.empty((h, w), dtype=np.uint8)
     def _grab_screen_region(self, left, top, right, bottom):
-        """Grabs the current screen region"""
-
+        # Grabs the current screen region
         width = right - left
         height = bottom - top
 
         if width <= 0 or height <= 0:
             return None
 
-        # Reuse monitor dict
+        # Reuse monitor dict to avoid allocations
         if not hasattr(self, "_monitor"):
             self._monitor = {}
 
@@ -1467,7 +1441,7 @@ class App(CTk):
         m["width"] = width
         m["height"] = height
 
-        # Thread-local MSS instance
+        # Ensure MSS exists for this thread
         if not hasattr(self, "_thread_local"):
             self._thread_local = threading.local()
 
@@ -1480,10 +1454,10 @@ class App(CTk):
         if sys.platform == "darwin":
             img = sct.grab(m)
 
-            # BGRA → BGR (no copy slice)
-            frame = np.asarray(img)[..., :3]
+            frame = np.frombuffer(img.raw, dtype=np.uint8).reshape(img.height, img.width, 4)
 
-            return frame
+            # Return BGR view without alpha
+            return frame[:, :, :3]
 
         # --- Windows ---
         mode = self.vars.get("capture_mode")
@@ -1497,8 +1471,8 @@ class App(CTk):
             return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
 
         # Fallback MSS
-        img = sct.grab(m)
-        return np.asarray(img)[..., :3]
+        img = np.array(sct.grab(m))[:, :, :3]
+        return img
 
     def _click_at(self, x, y, click_count=1):
 
@@ -1517,28 +1491,35 @@ class App(CTk):
                 time.sleep(0.03)
 
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
+        """
+        Find the center point of a color cluster in a frame.
+        Using vectorized detection.
+        """
 
         if frame is None:
             return None
-        
-        self._ensure_buffers(frame)
-        mask = self._mask_buffer
 
-        target = np.array(self._hex_to_bgr(target_color_hex), dtype=np.uint8)
+        # Convert color
+        target_bgr = np.array(self._hex_to_bgr(target_color_hex), dtype=np.int16)
 
-        lower = np.clip(target - tolerance, 0, 255)
-        upper = np.clip(target + tolerance, 0, 255)
+        # Convert frame for safe subtraction
+        frame_int = frame.astype(np.int16)
 
-        mask = cv2.inRange(frame, lower, upper)
+        tol = int(np.clip(tolerance, 0, 255))
 
-        coords = np.column_stack(np.where(mask))
+        # Vectorized absolute tolerance comparison
+        mask = np.all(np.abs(frame_int - target_bgr) <= tol, axis=2)
 
-        if coords.size == 0:
+        y_coords, x_coords = np.where(mask)
+
+        if len(x_coords) == 0:
             return None
 
-        center_y, center_x = coords.mean(axis=0).astype(int)
+        # Center calculation (vectorized mean)
+        center_x = int(np.mean(x_coords))
+        center_y = int(np.mean(y_coords))
 
-        return int(center_x), int(center_y)
+        return (center_x, center_y)
     
     def _find_bar_edges(self, frame, 
                         left_hex, right_hex, 
@@ -1555,7 +1536,7 @@ class App(CTk):
         right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
 
         # Extract single horizontal scan line
-        line = frame[y]
+        line = frame[y].astype(np.int16)
 
         # Clamp tolerances
         tol_l = int(np.clip(tolerance, 0, 255))
@@ -2486,10 +2467,6 @@ class App(CTk):
                 release_mouse()
             elif pid_found == 2:
                 hold_mouse()
-            # Bag spam
-            if self.vars["bag_spam"].get() == "on":
-                keyboard_controller.release("2")
-                keyboard_controller.press("2")
             time.sleep(scan_delay)
     def stop_macro(self):
         if not self.macro_running:

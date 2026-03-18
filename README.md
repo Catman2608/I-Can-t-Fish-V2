@@ -1,14 +1,12 @@
-## How to compile using a PC or mac
-I use a tool called auto-py-to-exe for Windows and Pyinstaller for macOS.
-For windows: I have my auto-py-to-exe config json file.
-For macOS: I have my auto-py-to-dmg commands that you type in the terminal.
-## Code structure explained
-Main file: ICF V2.py
-Reference file (old version) ICF V1.1 reference.py
-## How to edit source code safely
-Above the green code button, find the Fork button.
-## How to compile Windows EXE and macOS DMG without the necessary tools
-1. Go to actions
-2. Look at the left, you will find Build Windows EXE and Build macOS DMG
-3. Select your operating system
-4. Look at the right, click run workflow -> run workflow
+# PROJECT NAME: I CAN'T FISH V2
+## Repository structure explained
+Main file: v2.py
+All legacy files are in the legacy folder
+The config pack is in the configs folder
+## How to compile
+For windows: Use Auto Py To Exe
+For macOS: Use Pyinstaller
+For Linux: I don't have a Linux machine so if you want to use it on Linux compile the file yourself
+## Credits
+I analyzed IRUS comet's PID system (it's PD in comet files) and pixel search, the rest of the code is mine.
+Unlike IRUS comet, where AsphaltCake said that it's 100% AI, I rarely use AI in ICF. I learn Python in school.

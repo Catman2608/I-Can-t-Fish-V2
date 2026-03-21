@@ -1506,27 +1506,22 @@ class App(CTk):
                 time.sleep(0.03)
 
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
-
         if frame is None:
             return None
         
         self._ensure_buffers(frame)
         mask = self._mask_buffer
-
         target = np.array(self._hex_to_bgr(target_color_hex), dtype=np.uint8)
 
         lower = np.clip(target - tolerance, 0, 255)
         upper = np.clip(target + tolerance, 0, 255)
-
         mask = cv2.inRange(frame, lower, upper)
 
         coords = np.column_stack(np.where(mask))
-
         if coords.size == 0:
             return None
-
+        
         center_y, center_x = coords.mean(axis=0).astype(int)
-
         return int(center_x), int(center_y)
     
     def _find_bar_edges(self, frame, 

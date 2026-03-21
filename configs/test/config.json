@@ -25,7 +25,7 @@
     "shake_mode": "Navigation",
     "shake_tolerance": "5",
     "shake_scan_delay": "0.1",
-    "shake_failsafe": "50",
+    "shake_failsafe": "20",
     "left_color": "#364167",
     "right_color": "#364167",
     "arrow_color": "#848587",

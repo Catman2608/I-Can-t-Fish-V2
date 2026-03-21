@@ -45,6 +45,9 @@ windll = ctypes.windll.user32
 MOUSEEVENTF_MOVE = 0x0001
 MOUSEEVENTF_LEFTDOWN = 0x0002
 MOUSEEVENTF_LEFTUP = 0x0004
+# Initialize OpenCV buffers
+cv2.setUseOptimized(True)
+cv2.setNumThreads(0)
 # Initialize controllers
 keyboard_controller = KeyboardController()
 mouse_controller = MouseController()
@@ -301,6 +304,18 @@ class App(CTk):
 
         # MSS and DXCAM-related variables
         self.sct = mss.mss()
+        # detection buffers
+        self._mask_buffer = None
+        self._coords_buffer = None
+
+        # cached colors
+        self._color_cache = {}
+
+        # monitor reuse
+        self._monitor = {}
+
+        # thread capture
+        self._thread_local = threading.local()
 
         # Start hotkey listener
         self.key_listener = KeyListener(on_press=self.on_key_press)
@@ -531,15 +546,21 @@ class App(CTk):
         casting_delay2_entry = CTkEntry(sequence_options, width=120, textvariable=casting_delay2_var)
         casting_delay2_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
         # Arrow Tracking Settings
-        arrow_settings = CTkFrame(scroll, border_width=2)
-        arrow_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(arrow_settings, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        centroid_tracking_var = StringVar(value="off")
-        self.vars["centroid_tracking"] = centroid_tracking_var
-        centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Estimate Bar From Arrows", 
-                                           variable=centroid_tracking_var, onvalue="on", 
+        minigame_misc = CTkFrame(scroll, border_width=2)
+        minigame_misc.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(minigame_misc, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        arrow_pid_var = StringVar(value="off")
+        self.vars["arrow_pid"] = arrow_pid_var
+        arrow_pid_cb = CTkCheckBox(minigame_misc, text="Use PID for arrows", 
+                                           variable=arrow_pid_var, onvalue="on", 
                                            offvalue="off")
-        centroid_tracking_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        arrow_pid_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        legacy_pixel_search_var = StringVar(value="off")
+        self.vars["legacy_pixel_search"] = legacy_pixel_search_var
+        legacy_pixel_search_cb = CTkCheckBox(minigame_misc, text="Use Legacy Pixel Search", 
+                                           variable=legacy_pixel_search_var, onvalue="on", 
+                                           offvalue="off")
+        legacy_pixel_search_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
     # CAST SETTINGS TAB
     def build_cast_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -702,7 +723,7 @@ class App(CTk):
             border_width=2
         )
         ratio_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(ratio_settings, text="Move Check Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(ratio_settings, text="Minigame Timing & Limits", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(ratio_settings, text="Bar Ratio From Side:").grid(
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
@@ -716,20 +737,20 @@ class App(CTk):
             textvariable=bar_ratio_var
         ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
         
-        CTkLabel(ratio_settings, text="Scan Delay (seconds):").grid(row=2, column=0, padx=12, pady=10, sticky="w")
-        minigame_scan_delay_var = StringVar(value="0.05")
+        CTkLabel(ratio_settings, text="Scan delay (seconds):").grid(
+            row=2, column=0, padx=12, pady=10, sticky="w"
+        )
+        minigame_scan_delay_var = StringVar(value="0.01")
         self.vars["minigame_scan_delay"] = minigame_scan_delay_var
-        CTkEntry(ratio_settings, width=120, textvariable=minigame_scan_delay_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        minigame_scan_delay_entry = CTkEntry(ratio_settings, placeholder_text="0.01", width=120, textvariable=minigame_scan_delay_var)
+        minigame_scan_delay_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
         CTkLabel(ratio_settings, text="Restart Delay:").grid(row=3, column=0, padx=12, pady=10, sticky="w" )
+
         restart_delay_var = StringVar(value="1")
         self.vars["restart_delay"] = restart_delay_var
-        CTkEntry(ratio_settings, width=120, textvariable=restart_delay_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(ratio_settings, text="Stopping Distance Multiplier:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
-        stopping_distance_var = StringVar(value="20")
-        self.vars["stopping_distance"] = stopping_distance_var
-        CTkEntry(ratio_settings, width=120, textvariable=stopping_distance_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(ratio_settings, width=120, textvariable=restart_delay_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
         pid_settings = CTkFrame(scroll, border_width=2 )
         pid_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
@@ -1025,17 +1046,6 @@ class App(CTk):
         if not os.path.exists(path):
             self.set_status(f"Config not found: {name}")
             return
-        # Get rod folder based on config name
-        left_bar_path  = os.path.join(rod_folder, "left_bar.png")
-        right_bar_path = os.path.join(rod_folder, "right_bar.png")
-        fish_path      = os.path.join(rod_folder, "fish.png")
-
-        self.templates = {
-            "left_bar":  cv2.imread(left_bar_path, 0)  if os.path.exists(left_bar_path)  else None,
-            "right_bar": cv2.imread(right_bar_path, 0) if os.path.exists(right_bar_path) else None,
-            "fish":      cv2.imread(fish_path, 0)      if os.path.exists(fish_path)      else None,
-        }
-        
         try:
             with open(path, "r") as f:
                 data = json.load(f)
@@ -1417,15 +1427,22 @@ class App(CTk):
         return []
     def _init_capture_buffer(self, width, height):
         self._capture_buffer = np.empty((height, width, 3), dtype=np.uint8)
+    def _ensure_buffers(self, frame):
+
+        h, w = frame.shape[:2]
+
+        if self._mask_buffer is None or self._mask_buffer.shape != (h, w):
+            self._mask_buffer = np.empty((h, w), dtype=np.uint8)
     def _grab_screen_region(self, left, top, right, bottom):
-        # Grabs the current screen region
+        """Grabs the current screen region"""
+
         width = right - left
         height = bottom - top
 
         if width <= 0 or height <= 0:
             return None
 
-        # Reuse monitor dict to avoid allocations
+        # Reuse monitor dict
         if not hasattr(self, "_monitor"):
             self._monitor = {}
 
@@ -1435,7 +1452,7 @@ class App(CTk):
         m["width"] = width
         m["height"] = height
 
-        # Ensure MSS exists for this thread
+        # Thread-local MSS instance
         if not hasattr(self, "_thread_local"):
             self._thread_local = threading.local()
 
@@ -1448,10 +1465,10 @@ class App(CTk):
         if sys.platform == "darwin":
             img = sct.grab(m)
 
-            frame = np.frombuffer(img.raw, dtype=np.uint8).reshape(img.height, img.width, 4)
+            # BGRA → BGR (no copy slice)
+            frame = np.asarray(img)[..., :3]
 
-            # Return BGR view without alpha
-            return frame[:, :, :3]
+            return frame
 
         # --- Windows ---
         mode = self.vars.get("capture_mode")
@@ -1465,8 +1482,8 @@ class App(CTk):
             return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
 
         # Fallback MSS
-        img = np.array(sct.grab(m))[:, :, :3]
-        return img
+        img = sct.grab(m)
+        return np.asarray(img)[..., :3]
 
     def _click_at(self, x, y, click_count=1):
 
@@ -1485,37 +1502,80 @@ class App(CTk):
                 time.sleep(0.03)
 
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
-        """
-        Find the center point of a color cluster in a frame.
-        Using vectorized detection.
-        """
 
         if frame is None:
             return None
+        
+        self._ensure_buffers(frame)
+        mask = self._mask_buffer
 
-        # Convert color
-        target_bgr = np.array(self._hex_to_bgr(target_color_hex), dtype=np.int16)
+        target = np.array(self._hex_to_bgr(target_color_hex), dtype=np.uint8)
 
-        # Convert frame for safe subtraction
-        frame_int = frame.astype(np.int16)
+        lower = np.clip(target - tolerance, 0, 255)
+        upper = np.clip(target + tolerance, 0, 255)
 
-        tol = int(np.clip(tolerance, 0, 255))
+        mask = cv2.inRange(frame, lower, upper)
 
-        # Vectorized absolute tolerance comparison
-        mask = np.all(np.abs(frame_int - target_bgr) <= tol, axis=2)
+        coords = np.column_stack(np.where(mask))
 
-        y_coords, x_coords = np.where(mask)
-
-        if len(x_coords) == 0:
+        if coords.size == 0:
             return None
 
-        # Center calculation (vectorized mean)
-        center_x = int(np.mean(x_coords))
-        center_y = int(np.mean(y_coords))
+        center_y, center_x = coords.mean(axis=0).astype(int)
 
-        return (center_x, center_y)
+        return int(center_x), int(center_y)
     
-    def _find_bar_edges(
+    def _find_bar_edges(self, frame, 
+                        left_hex, right_hex, 
+                        tolerance=15, tolerance2=15, 
+                        scan_height_ratio=0.5):
+        if frame is None:
+            return None, None
+
+        h, w = frame.shape[:2]
+        y = int(h * scan_height_ratio)
+
+        # Convert to BGR
+        left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
+        right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
+
+        # Extract single horizontal scan line
+        line = frame[y]
+
+        # Clamp tolerances
+        tol_l = int(np.clip(tolerance, 0, 255))
+        tol_r = int(np.clip(tolerance2, 0, 255))
+
+        left_edge = None
+        right_edge = None
+        # --- LEFT BAR COLOR ---
+        if left_hex is not None:
+            lower_l = left_bgr - tol_l
+            upper_l = left_bgr + tol_l
+
+            left_mask = np.all((line >= lower_l) & (line <= upper_l), axis=1)
+            left_indices = np.where(left_mask)[0]
+
+            if left_indices.size > 0:
+                left_edge = left_indices.min()
+
+        # --- RIGHT BAR COLOR ---
+        if right_hex is not None:
+            lower_r = right_bgr - tol_r
+            upper_r = right_bgr + tol_r
+
+            right_mask = np.all((line >= lower_r) & (line <= upper_r), axis=1)
+            right_indices = np.where(right_mask)[0]
+
+            if right_indices.size > 0:
+                right_edge = right_indices.max()
+
+        # --- FINAL EDGE EXTRACTION ---
+        if left_edge is not None and right_edge is not None:
+            return int(left_edge), int(right_edge)
+        return None, None
+    
+    def _find_bar_edges_legacy(
         self,
         frame,
         left_hex,
@@ -1739,8 +1799,8 @@ class App(CTk):
         # Handle missing arrow
         if arrow_centroid_x is None:
             if self.last_known_box_center_x is not None:
-                return self.last_known_box_center_x
-            return None
+                return self.last_known_box_center_x, self.last_left_x, self.last_right_x
+            return None, None, None
         
         # Check if state swapped (holding <-> not holding)
         state_swapped = (self.last_holding_state is not None and 
@@ -1782,8 +1842,9 @@ class App(CTk):
         # Update tracking variables for next frame
         self.last_indicator_x = arrow_centroid_x
         self.last_holding_state = is_holding
-        
-        return box_center
+        left_x = self.last_left_x
+        right_x = self.last_right_x
+        return box_center, left_x, right_x
     # === MINIGAME WINDOW (instance methods) ===
     def init_overlay_window(self):
         """
@@ -1888,11 +1949,20 @@ class App(CTk):
             fish_tol += 2
         fish_center = self._find_color_center(img, fish_hex, fish_tol)
 
-        left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
-        if left_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
-        elif right_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+        legacy_pixel_search = self.vars["legacy_pixel_search"].get()
+        # Use legacy pixel search if possible
+        if legacy_pixel_search:
+            left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+            if left_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+            elif right_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges_legacy(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+        else:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+            if left_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+            elif right_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
         return fish_center, left_bar_center, right_bar_center
     # Start macro and main loop
     def start_macro(self):
@@ -1951,7 +2021,6 @@ class App(CTk):
                 self.hide_overlay()
             if not self.macro_running:
                 break
-
             # 3. Cast
             self.set_status("Casting")
             if self.vars["casting_mode"].get() == "Perfect":
@@ -2216,12 +2285,8 @@ class App(CTk):
             fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
             fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
             fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
-        # ---- SCREEN RATIO ----
-        scale = int(self.SCREEN_WIDTH / 1920)
-        # Misc Settings
+        # Misc
         restart_delay = float(self.vars["restart_delay"].get())
-        stopping_distance = float(self.vars["stopping_distance"].get())
-        stopping_distance = stopping_distance * scale
         # Gift box color and timer settings
         gift_box_hex = self.vars["gift_box_color"].get()
         gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
@@ -2234,7 +2299,7 @@ class App(CTk):
         # Thresh / clamp settings
         thresh = float(self.vars["stabilize_threshold2"].get() or 8)
         pid_clamp = float(self.vars["pid_clamp"].get() or 100)
-        use_centroid = self.vars["centroid_tracking"].get()
+        arrow_pid = self.vars["arrow_pid"].get()
         mouse_down = False
         # initialise/zero PD state before entering the tracking loop
         self.prev_error = 0.0
@@ -2264,8 +2329,6 @@ class App(CTk):
             if img is None:
                 return
             fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
-            # ---- Arrow ----
-            arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             # Gift box (if tracking focus is not fish)
             if not tracking_focus == 2:
                 gift_box_pos = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
@@ -2299,6 +2362,15 @@ class App(CTk):
                 fish_x = fish_x[0] + fish_left
             else:
                 fish_x = fish_x + fish_left
+            bar_color = "green"
+            # ---- IF BAR NOT FOUND → ESTIMATE FROM ARROW ----
+            if not bars_found:
+                arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
+                capture_width = fish_right - fish_left
+                bar_center, left_x, right_x = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
+                bar_color = "yellow"
+                if left_x is not None and right_x is not None:
+                    bars_found = True
             if bars_found and left_x is not None and right_x is not None:
                 bar_center = int((left_x + right_x) / 2 + fish_left)
                 bar_size = abs(right_x - left_x)
@@ -2307,12 +2379,22 @@ class App(CTk):
                 deadzone = bar_size * bar_ratio
                 max_left = fish_left + deadzone
                 max_right = fish_right - deadzone
+                # Check if using simple tracking or PID is better
+                bar_left_screen  = left_x  + fish_left   # ← add this
+                bar_right_screen = right_x + fish_left   # ← add this
+                if bar_left_screen <= fish_x <= bar_right_screen: # PID
+                    pid_found = 0
+                else: # Simple tracking
+                    if fish_x > bar_center:
+                        pid_found = 2
+                    else:
+                        pid_found = 1
             else:
                 bar_center = None
                 max_left = None
                 max_right = None
                 pid_found = 3
-            if bars_found and bar_center is not None: # Bar found
+            if bars_found == True and bar_center is not None: # Bar found
                 # Gift tracking logic
                 if gift_box_pos is not None:
                     ## Step 1: Convert note to screen coordinates
@@ -2330,18 +2412,18 @@ class App(CTk):
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
+                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color=bar_color, canvas_offset=_fl, show_bar_center=True))
                         else:
-                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color=bar_color, canvas_offset=_fl))
                         self.after(0, lambda _ml=max_left, _fl=fish_left: self.draw_overlay(bar_center=_ml, box_size=15, color="lightblue", canvas_offset=_fl))
                         self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
                     pid_found = 1
                 elif max_right is not None and fish_x >= max_right:
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
+                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color=bar_color, canvas_offset=_fl, show_bar_center=True))
                         else:
-                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color=bar_color, canvas_offset=_fl))
                         self.after(0, lambda _mr=max_right, _fl=fish_left: self.draw_overlay(bar_center=_mr, box_size=15, color="lightblue", canvas_offset=_fl))
                         self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
                     pid_found = 2
@@ -2353,46 +2435,8 @@ class App(CTk):
                         else:
                             self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
                         self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
-                # Check if using PID or simple tracking is better
-                bar_left_screen  = left_x  + fish_left - stopping_distance   # ← add this
-                bar_right_screen = right_x + fish_left + stopping_distance   # ← add this
-                if bar_left_screen <= fish_x <= bar_right_screen:  # PID
                     pid_found = 0
-                else:
-                    if fish_x > bar_center:
-                        pid_found = 2
-                    else:
-                        pid_found = 1
-            elif arrow_center:
-                capture_width = fish_right - fish_left
-                arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
-                if self.vars["fish_overlay"].get() == "on":
-                    self.after(0, lambda: self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left))
-                if arrow_indicator_x is None:
-                    pid_found = 1
-                    return
-                arrow_screen_x = arrow_indicator_x + fish_left
-                if use_centroid == "on":
-                    estimated_bar_center = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
-                    if estimated_bar_center is not None:
-                        bar_center = int(estimated_bar_center + fish_left)
-                        pid_found = 0
-                        if self.vars["fish_overlay"].get() == "on":
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=40,color="yellow",canvas_offset=fish_left))
-                    else:
-                        pid_found = 1
-                else:
-                    distance = arrow_screen_x - fish_x
-                    if distance > 0:
-                        pid_found = 1   # release mouse
-                    elif distance < 0:
-                        pid_found = 2   # hold mouse
-                    else:
-                        pid_found = 1
-                    if self.vars["fish_overlay"].get() == "on":
-                        self.after(0, lambda: self.draw_overlay(bar_center=arrow_screen_x,box_size=10,
-                                          color="yellow",canvas_offset=fish_left, show_bar_center=False, bar_y1=20, bar_y2=30))
-            else: # No arrow / bar found
+            else: # No bar found
                 pid_found = 1
             # PID calculation
             if pid_found == 0 and bar_center is not None:

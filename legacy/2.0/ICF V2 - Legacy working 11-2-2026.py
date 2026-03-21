@@ -2360,7 +2360,7 @@ class App(CTk):
                 bar_center = None
                 max_left = None
                 max_right = None
-                pid_found = 3
+                pid_found = 1
             if bars_found and bar_center is not None:
                 if max_left is not None and fish_x <= max_left:
                     if self.vars["fish_overlay"].get() == "on":

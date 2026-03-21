@@ -5,7 +5,7 @@
     "fish_overlay": "on",
     "perfect_cast": "off",
     "cast_duration": "0.6",
-    "capture_mode": "MSS",
+    "capture_mode": "DXCAM",
     "perfect_cast_tolerance": "5",
     "perfect_cast2_tolerance": "16",
     "reaction_time": "0.01",

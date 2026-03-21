@@ -1,5 +1,5 @@
 {
-    "capture_mode": "MSS",
+    "capture_mode": "DXCAM",
     "active_config": "requiem.json",
     "start_key": "F5",
     "change_bar_areas_key": "F6",
@@ -11,7 +11,7 @@
     "bar_size": "on",
     "bag_delay": "0.2",
     "casting_delay2": "0.0",
-    "centroid_tracking": "on",
+    "arrow_pid": "on",
     "legacy_pixel_search": "off",
     "casting_mode": "Normal",
     "cast_duration": "0.6",

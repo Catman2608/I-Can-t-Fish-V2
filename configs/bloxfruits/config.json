@@ -1,5 +1,5 @@
 {
-    "capture_mode": "MSS",
+    "capture_mode": "DXCAM",
     "active_config": "bloxfruits.json",
     "start_key": "F5",
     "screenshot_key": "F8",
@@ -10,7 +10,7 @@
     "bar_size": "on",
     "bag_delay": "0.2",
     "casting_delay2": "1.4",
-    "centroid_tracking": "off",
+    "arrow_pid": "off",
     "legacy_pixel_search": "off",
     "perfect_cast": "off",
     "cast_duration": "0.6",

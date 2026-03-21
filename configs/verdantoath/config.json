@@ -11,7 +11,7 @@
     "bar_size": "on",
     "bag_delay": "0.2",
     "casting_delay2": "0.0",
-    "centroid_tracking": "off",
+    "arrow_pid": "off",
     "legacy_pixel_search": "on",
     "perfect_cast": "off",
     "cast_duration": "0.6",

@@ -2199,7 +2199,7 @@ class App(CTk):
                 bar_center = None
                 max_left = None
                 max_right = None
-                pid_found = 1
+                pid_found = 3
             if bars_found and bar_center is not None: # Bar found
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":

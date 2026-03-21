@@ -2334,7 +2334,7 @@ class App(CTk):
                 bar_center = None
                 max_left = None
                 max_right = None
-                pid_found = 1
+                pid_found = 3
             if bars_found and bar_center is not None: # Bar found
                 # ----- GIFT TRACKING LOGIC -----
                 if (bars_found and gift_box_x is not None and gift_box_timer >= GIFT_TRACK_THRESHOLD):

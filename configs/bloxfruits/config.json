@@ -25,7 +25,7 @@
     "shake_mode": "Click",
     "shake_tolerance": "5",
     "shake_scan_delay": "1",
-    "shake_failsafe": "50",
+    "shake_failsafe": "20",
     "left_color": "#0b820b",
     "right_color": "#068d86",
     "arrow_color": "#FFFFFF",

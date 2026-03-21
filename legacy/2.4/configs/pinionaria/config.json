@@ -23,7 +23,7 @@
     "shake_mode": "Navigation",
     "shake_tolerance": "5",
     "shake_scan_delay": "0.1",
-    "shake_failsafe": "50",
+    "shake_failsafe": "20",
     "fishing_mode": "Pixel",
     "left_confidence": "0.5",
     "right_confidence": "0.01",

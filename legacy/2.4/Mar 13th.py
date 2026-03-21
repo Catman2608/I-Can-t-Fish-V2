@@ -2408,7 +2408,7 @@ class App(CTk):
                 bar_center = None
                 max_left = None
                 max_right = None
-                pid_found = 3
+                pid_found = 1
             if bars_found and bar_center is not None: # Bar found
                 # Gift tracking (contains note cooldown)
                 note_cooldown_timer = max(0, note_cooldown_timer - scan_delay)

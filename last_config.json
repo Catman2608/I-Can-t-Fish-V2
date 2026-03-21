@@ -1,8 +1,18 @@
 {
     "last_rod": "Basic Rod",
     "bar_areas": {
-        "shake": null,
-        "fish": null
+        "shake": {
+            "x": 399,
+            "y": 174,
+            "width": 1101,
+            "height": 625
+        },
+        "fish": {
+            "x": 571,
+            "y": 867,
+            "width": 776,
+            "height": 33
+        }
     },
     "start_key": "F5",
     "change_bar_areas_key": "F6",

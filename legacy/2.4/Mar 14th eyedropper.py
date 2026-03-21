@@ -2415,7 +2415,7 @@ class App(CTk):
                 bar_center = None
                 max_left = None
                 max_right = None
-                pid_found = 3
+                pid_found = 1
             if bars_found and bar_center is not None: # Bar found
                 # Gift tracking logic
                 if gift_box_pos is not None:
@@ -2428,7 +2428,7 @@ class App(CTk):
                 if gift_box_pos is not None and tracking_focus == 0:
                     if gift_screen_y_ratio >= gift_track_ratio:
                         fish_x = gift_screen_x
-                        pid_found = 3
+                        pid_found = 1
                 elif tracking_focus == 1:
                     pass
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)

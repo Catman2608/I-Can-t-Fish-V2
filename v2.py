@@ -144,7 +144,7 @@ class DualAreaSelector:
 
         self.window.protocol("WM_DELETE_WINDOW", self.close)
 
-    # ---------------- DRAW ----------------
+    # DRAW 
 
     def draw_boxes(self):
 
@@ -1291,7 +1291,7 @@ class App(CTk):
             return
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
-        # ---- Default fallback areas ----
+        # Default fallback areas 
         def default_shake_area():
             left = int(screen_w * 0.2083)
             top = int(screen_h * 0.162)
@@ -1304,7 +1304,7 @@ class App(CTk):
             right = int(screen_w * 0.7141)
             bottom = int(screen_h * 0.8370)
             return { "x": left, "y": top, "width": right - left, "height": bottom - top }
-        # ---- Load saved areas or fallback ----
+        # Load saved areas or fallback 
         shake_area = (
             self.bar_areas.get("shake")
             if isinstance(self.bar_areas.get("shake"), dict)
@@ -1315,14 +1315,14 @@ class App(CTk):
             if isinstance(self.bar_areas.get("fish"), dict)
             else default_fish_area()
         )
-        # ---- Callback when user closes selector ----
+        # Callback when user closes selector 
         def on_done(shake, fish):
             self.bar_areas["shake"] = shake
             self.bar_areas["fish"] = fish
             self.save_misc_settings()
             self.area_selector = None
             self.set_status("Bar areas saved")
-        # ---- Open selector ----
+        # Open selector 
         self.area_selector = DualAreaSelector(parent=self, shake_area=shake_area, fish_area=fish_area, callback=on_done)
         self.set_status("Area selector opened (click button again to close)")
     def open_configs_folder(self):
@@ -1920,8 +1920,11 @@ class App(CTk):
         # Update tracking variables for next frame
         self.last_indicator_x = arrow_centroid_x
         self.last_holding_state = is_holding
-        
-        return box_center
+
+        # Return values
+        left_x = self.last_left_x
+        right_x = self.last_right_x
+        return box_center, left_x, right_x
     # === MINIGAME WINDOW (instance methods) ===
     def init_overlay_window(self):
         """
@@ -2057,8 +2060,6 @@ class App(CTk):
         self._reset_pid_state()
         self.set_status("Macro Status: Running")
 
-        # Initial camera alignment (ONLY ONCE)
-        mouse_controller.position = (shake_x, shake_y)
         if self.vars["auto_zoom_in"].get() == "on":
             for _ in range(20):
                 mouse_controller.scroll(0, 1)
@@ -2075,7 +2076,11 @@ class App(CTk):
             self.send_discord_webhook(f"**Loop Completed**", cycle)
             # Check Totem (not implemented yet)
             # if not self.vars["auto_totem_mode"].get() == "Disabled":
-            #     self.execute_totem(cycle)
+            #    self.execute_totem(cycle)
+
+            # Initial camera alignment
+            mouse_controller.position = (shake_x, shake_y)
+            
             # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
@@ -2396,7 +2401,7 @@ class App(CTk):
             fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
             fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
             fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
-        # ---- SCREEN RATIO ----
+        # SCREEN RATIO 
         scale = int(self.SCREEN_WIDTH / 1920)
         # Misc Settings
         restart_delay = float(self.vars["restart_delay"].get())
@@ -2444,34 +2449,31 @@ class App(CTk):
             if img is None:
                 return
             fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
-            # ---- Arrow ----
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             # Gift box (if tracking focus is not fish)
             if not tracking_focus == 2:
                 gift_box_pos = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
             else:
                 gift_box_pos = None
-            # ---- FISH HANDLING ----
+            # Clear minigame before exiting macro
+            self.clear_overlay()
+            # FISH HANDLING 
             if fish_x is not None:
                 self.last_fish_x = fish_x
             else:
                 if left_x is None and right_x is None:
                     release_mouse()
                     time.sleep(restart_delay)
-                    hold_mouse()
-                    time.sleep(0.003)
-                    release_mouse()
+                    self._click_at(fish_left, fish_top)
                     cycle = cycle + 1
                     return cycle
                 else:
                     fish_x = self.last_fish_x
-            # ---- STABILIZE FRAME ----
+            # Stabilize frame (used for the stabilize functions to work with Ruinous Oath)
             deadzone_action = deadzone_action + 1
             if deadzone_action == 2:
                 deadzone_action = 0
-            # ---- CLEAR MINIGAME ----
-            self.clear_overlay()
-            # ---- BARS NOT FOUND ----
+            # Calculate deadzone and padding based on bar (skipped if not found)
             bars_found = left_x is not None and right_x is not None
             if fish_x is None:
                 pass
@@ -2507,6 +2509,9 @@ class App(CTk):
                         pid_found = 3
                 elif tracking_focus == 1:
                     pass
+                bar_left_screen  = left_x  + fish_left - stopping_distance   # ← add this
+                bar_right_screen = right_x + fish_left + stopping_distance   # ← add this
+                deadzone_size = bar_right_screen - bar_left_screen
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     if self.vars["fish_overlay"].get() == "on":
                         if self.vars["bar_size"].get() == "on":
@@ -2529,13 +2534,12 @@ class App(CTk):
                     if self.vars["fish_overlay"].get() == "on":
                         # Main code
                         if self.vars["bar_size"].get() == "on":
+                            self.after(0, lambda _bc=bar_center, _bs=deadzone_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="purple", canvas_offset=_fl, show_bar_center=True))
                             self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
                         else:
                             self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
                         self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
                     # Check if using PID or simple tracking is better
-                    bar_left_screen  = left_x  + fish_left - stopping_distance   # ← add this
-                    bar_right_screen = right_x + fish_left + stopping_distance   # ← add this
                     if bar_left_screen <= fish_x <= bar_right_screen:  # PID
                         pid_found = 0
                     else:
@@ -2553,10 +2557,18 @@ class App(CTk):
                     return
                 arrow_screen_x = arrow_indicator_x + fish_left
                 if use_centroid == "on":
-                    estimated_bar_center = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
+                    estimated_bar_center, estimated_left, estimated_right = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
                     if estimated_bar_center is not None:
                         bar_center = int(estimated_bar_center + fish_left)
-                        pid_found = 0
+                        bar_left_screen  = estimated_left  + fish_left - stopping_distance   # ← add this
+                        bar_right_screen = estimated_right + fish_left + stopping_distance   # ← add this
+                        if bar_left_screen <= fish_x <= bar_right_screen:  # PID
+                            pid_found = 0
+                        else:
+                            if fish_x > bar_center:
+                                pid_found = 2
+                            else:
+                                pid_found = 1                        
                         if self.vars["fish_overlay"].get() == "on":
                             self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=40,color="yellow",canvas_offset=fish_left))
                     else:

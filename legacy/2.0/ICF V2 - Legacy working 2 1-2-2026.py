@@ -165,7 +165,7 @@ class App(CTk):
         capture_cb.grid(row=3, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["capture_mode"] = capture_cb
 
-        #  Configs 
+        # Configs 
         configs = CTkFrame(
             parent, fg_color="#222222",
             border_color="#4a90e2", border_width=2
@@ -198,7 +198,7 @@ class App(CTk):
             command=lambda: self.set_status("Press a key to rebind...")
         ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
 
-        #  Casting 
+        # Casting 
         casting = CTkFrame(
             parent, fg_color="#222222",
             border_color="#4a90e2", border_width=2

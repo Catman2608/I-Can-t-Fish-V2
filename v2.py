@@ -632,6 +632,12 @@ class App(CTk):
         self.vars["perfect_release_delay"] = perfect_release_delay_var
         perfect_release_delay_entry = CTkEntry(perfect_casting, width=120, textvariable=perfect_release_delay_var)
         perfect_release_delay_entry.grid(row=6, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(perfect_casting, text="Perfect Cast Threshold (pixels):").grid(row=7, column=0, padx=12, pady=10, sticky="w")
+        perfect_threshold_var = StringVar(value="30")
+        self.vars["perfect_threshold"] = perfect_threshold_var
+        perfect_threshold_entry = CTkEntry(perfect_casting, width=120, textvariable=perfect_threshold_var)
+        perfect_threshold_entry.grid(row=7, column=1, padx=12, pady=10, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
         shake_configuration = CTkFrame(
@@ -2141,12 +2147,28 @@ class App(CTk):
             shake_top    = shake["y"]
             shake_right  = shake["x"] + shake["width"]
             shake_bottom = shake["y"] + shake["height"]
+            shake_height = shake["height"]
         else:
             # fallback (old ratio logic)
             shake_left   = int(self.SCREEN_WIDTH * 0.2083)
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
             shake_right  = int(self.SCREEN_WIDTH * 0.7813)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
+            shake_height = shake_bottom - shake_top
+        # --- FISH AREA ---
+        fish = self.bar_areas.get("fish")
+        if isinstance(fish, dict):
+            fish_left   = fish["x"]
+            fish_top    = fish["y"]
+            fish_right  = fish["x"] + fish["width"]
+            fish_bottom = fish["y"] + fish["height"]
+            fish_width = fish["width"]
+        else:
+            fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
+            fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
+            fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
+            fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
+            fish_width = fish_right - fish_left
         # Time
         start_time = time.time()
         # Perfect colors
@@ -2155,14 +2177,19 @@ class App(CTk):
         # Perfect tolerance
         white_tolerance = int(self.vars["perfect_cast2_tolerance"].get())
         green_tolerance = int(self.vars["perfect_cast_tolerance"].get())
+        # Failsafe variables
+        max_time = float(self.vars["perfect_max_time"].get())
+        perfect_threshold = int(self.vars["perfect_threshold"].get())
         # Perfect release delay conversion
         release_delay = float(self.vars["perfect_release_delay"].get())
-        max_time = float(self.vars["perfect_max_time"].get())
         if release_delay < 0:
-            green_offset = abs(release_delay * 10)
+            user_green_offset = abs(release_delay * 10)
             release_delay = 0
         else:
-            green_offset = 0
+            user_green_offset = 0
+        # Velocity-based variables
+        prev_white_y = None
+        green_offset = 0
         # Perfect cast loop
         while self.macro_running:
             frame = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
@@ -2176,15 +2203,30 @@ class App(CTk):
                 continue
             # Lowest green pixel
             green_x, green_y = max(green_pixels, key=lambda p: p[1])
-            green_y = green_y + green_offset
+            green_y_canvas = int((green_y / shake_height) * fish_width) + fish_top
+            # Calculate green pixel offset based on velocity
+            green_y = green_y + green_offset + user_green_offset
+            green_y_canvas2 = int((green_y / shake_height) * fish_width) + fish_top
+            # Highest white pixel
             white_pixels = self._pixel_search(frame, white_color, white_tolerance)
             if not white_pixels:
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
             white_x, white_y = min(white_pixels, key=lambda p: abs(p[1] - green_y))
-            if white_pixels and green_pixels: # If white and green found
+            white_y_canvas = int((white_y / shake_height) * fish_width) + fish_top
+            if self.vars["fish_overlay"].get() == "on":
+                self.after(0, lambda y=green_y_canvas, top=fish_top: self.draw_overlay(bar_center=y, box_size=15, color="blue", canvas_offset=top))
+                self.after(0, lambda y=green_y_canvas2, top=fish_top: self.draw_overlay(bar_center=y, box_size=15, color="green", canvas_offset=top))
+                self.after(0, lambda _fx=white_y_canvas, _fl=fish_top: self.draw_overlay(bar_center=_fx, box_size=30, color="white", canvas_offset=_fl))
+            if self.vars["release_method"].get() == "Velocity-based":
+                # Calculate delta time
+                if prev_white_y is not None:
+                    dy = white_y - prev_white_y
+                prev_white_y = white_y
+            # Perfect Cast Release Trigger
+            if white_pixels and green_pixels:
                 distance = abs(green_y - white_y)
-                if distance < 30: # Perfect cast release condition
+                if distance < perfect_threshold: # Perfect cast release condition
                     time.sleep(release_delay)
                     mouse_controller.release(Button.left)
                     return
@@ -2491,16 +2533,16 @@ class App(CTk):
                         else:
                             self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
                         self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
-                # Check if using PID or simple tracking is better
-                bar_left_screen  = left_x  + fish_left - stopping_distance   # ← add this
-                bar_right_screen = right_x + fish_left + stopping_distance   # ← add this
-                if bar_left_screen <= fish_x <= bar_right_screen:  # PID
-                    pid_found = 0
-                else:
-                    if fish_x > bar_center:
-                        pid_found = 2
+                    # Check if using PID or simple tracking is better
+                    bar_left_screen  = left_x  + fish_left - stopping_distance   # ← add this
+                    bar_right_screen = right_x + fish_left + stopping_distance   # ← add this
+                    if bar_left_screen <= fish_x <= bar_right_screen:  # PID
+                        pid_found = 0
                     else:
-                        pid_found = 1
+                        if fish_x > bar_center:
+                            pid_found = 2
+                        else:
+                            pid_found = 1
             elif arrow_center:
                 capture_width = fish_right - fish_left
                 arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)

@@ -2003,7 +2003,7 @@ class App(CTk):
             self.send_discord_webhook(f"**Loop Completed**", cycle)
             # Check Totem (not implemented yet)
             # if not self.vars["auto_totem_mode"].get() == "Disabled":
-            #     self.execute_totem(cycle)
+            #    self.execute_totem(cycle)
             # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())

@@ -574,7 +574,7 @@ class App(CTk):
                                      variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=3, column=0, padx=12, pady=8, sticky="w")
 
-        #  Configs 
+        # Configs 
         configs = CTkFrame(scroll, border_width=2)
         configs.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(configs, text="Config Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
@@ -617,7 +617,7 @@ class App(CTk):
             command=self.open_dual_area_selector
         ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
 
-        #  Casting 
+        # Casting 
         casting = CTkFrame(
             scroll,
             border_width=2

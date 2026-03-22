@@ -32,7 +32,7 @@ class App(CTk):
         self.checkboxes = {}   # CTkCheckBox widgets
         self.comboboxes = {}   # CTkComboBox widgets
 
-        #  Window 
+        # Window 
         self.geometry("800x550")
         self.title("I Can't Fish V2")
 
@@ -45,14 +45,14 @@ class App(CTk):
         self.key_listener.daemon = True
         self.key_listener.start()
 
-        #  Status Bar 
+        # Status Bar 
         self.status_label = CTkLabel(self, text="Macro Status: Idle")
         self.status_label.grid(
             row=0, column=0, columnspan=6,
             pady=15, padx=20, sticky="w"
         )
 
-        #  Tabs 
+        # Tabs 
         self.tabs = CTkTabview(self)
         self.tabs.grid(
             row=1, column=0, columnspan=6,
@@ -73,7 +73,7 @@ class App(CTk):
         self.load_settings(last or "default.json")
     # GENERAL SETTINGS TAB
     def build_general_tab(self, parent):
-        #  Automation 
+        # Automation 
         automation = CTkFrame(
             parent, fg_color="#222222",
             border_color="#ff0000", border_width=2
@@ -117,7 +117,7 @@ class App(CTk):
         capture_cb.grid(row=3, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["capture_mode"] = capture_cb
 
-        #  Configs 
+        # Configs 
         configs = CTkFrame(
             parent, fg_color="#222222",
             border_color="#ff0000", border_width=2
@@ -150,7 +150,7 @@ class App(CTk):
             command=lambda: self.set_status("Press a key to rebind...")
         ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
 
-        #  Casting 
+        # Casting 
         casting = CTkFrame(
             parent, fg_color="#222222",
             border_color="#ff0000", border_width=2

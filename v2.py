@@ -37,14 +37,28 @@ try:
 except Exception:
     dxcam = None
 import mss
-# Delete these after finishing
-import ctypes
+# Windows ctypes vs macOS quartz
+if sys.platform == "win32":
+    import ctypes # Windows
+    windll = ctypes.windll.user32
+    MOUSEEVENTF_MOVE = 0x0001
+    MOUSEEVENTF_LEFTDOWN = 0x0002
+    MOUSEEVENTF_LEFTUP = 0x0004
+elif sys.platform == "darwin":
+    import Quartz # macOS
+    def _move_mouse(x, y):
+        point = Quartz.CGPointMake(float(x), float(y))
+        Quartz.CGWarpMouseCursorPosition(point)
+        Quartz.CGAssociateMouseAndMouseCursorPosition(True)
 
-windll = ctypes.windll.user32
-
-MOUSEEVENTF_MOVE = 0x0001
-MOUSEEVENTF_LEFTDOWN = 0x0002
-MOUSEEVENTF_LEFTUP = 0x0004
+    def _mouse_event(event_type, x, y):
+        event = Quartz.CGEventCreateMouseEvent(
+            None,
+            event_type,
+            Quartz.CGPointMake(float(x), float(y)),
+            Quartz.kCGMouseButtonLeft
+        )
+        Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
 # Initialize controllers
 keyboard_controller = KeyboardController()
 mouse_controller = MouseController()
@@ -430,7 +444,13 @@ class App(CTk):
         CTkLabel(capture_settings, text="Capture Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(capture_settings, text="Capture Mode:").grid( row=1, column=0, padx=12, pady=6, sticky="w")
         if sys.platform == "darwin":
-            CTkLabel(capture_settings, text="MSS").grid(row=1, column=1, padx=12, pady=6, sticky="w")
+            capture_var = StringVar(value="Quartz")
+            self.vars["capture_mode"] = capture_var
+            capture_cb = CTkComboBox(capture_settings, values=["Quartz", "MSS"], 
+                                    variable=capture_var, command=lambda v: self.set_status(f"Capture mode: {v}")
+                                    )
+            capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
+            self.comboboxes["capture_mode"] = capture_cb
         else:
             capture_var = StringVar(value="DXCAM")
             self.vars["capture_mode"] = capture_var
@@ -916,8 +936,9 @@ class App(CTk):
     def load_last_config_name(self):
         """Load the name of the last used config."""
         try:
-            if os.path.exists("last_config.json"):
-                with open("last_config.json", "r") as f:
+            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
+            if os.path.exists(path):
+                with open(path, "r") as f:
                     data = json.load(f)
                     return data.get("last_config", "default.json")
         except:
@@ -927,7 +948,8 @@ class App(CTk):
     def save_last_config_name(self, name):
         """Save the name of the last used config."""
         try:
-            with open("last_config.json", "w") as f:
+            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
+            with open(path, "w") as f:
                 json.dump({"last_config": name}, f)
         except:
             pass
@@ -960,7 +982,8 @@ class App(CTk):
                 "screenshot_key": self.vars["screenshot_key"].get(),
                 "stop_key": self.vars["stop_key"].get()
             }
-            with open("last_config.json", "w") as f:
+            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
+            with open(path, "w") as f:
                 json.dump(data, f, indent=4)
             # IMPORTANT: Immediately update active hotkeys
             self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
@@ -1072,8 +1095,9 @@ class App(CTk):
     def load_misc_settings(self):
         """Load miscellaneous settings from last_config.json."""
         try:
-            if os.path.exists("last_config.json"):
-                with open("last_config.json", "r") as f:
+            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
+            if os.path.exists(path):
+                with open(path, "r") as f:
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
                     self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
@@ -1417,15 +1441,15 @@ class App(CTk):
         return []
     def _init_capture_buffer(self, width, height):
         self._capture_buffer = np.empty((height, width, 3), dtype=np.uint8)
+
     def _grab_screen_region(self, left, top, right, bottom):
-        # Grabs the current screen region
         width = right - left
         height = bottom - top
 
         if width <= 0 or height <= 0:
             return None
 
-        # Reuse monitor dict to avoid allocations
+        # Reuse monitor dict
         if not hasattr(self, "_monitor"):
             self._monitor = {}
 
@@ -1435,55 +1459,107 @@ class App(CTk):
         m["width"] = width
         m["height"] = height
 
-        # Ensure MSS exists for this thread
-        if not hasattr(self, "_thread_local"):
-            self._thread_local = threading.local()
-
-        if not hasattr(self._thread_local, "sct"):
-            self._thread_local.sct = mss.mss()
-
-        sct = self._thread_local.sct
-
-        # --- macOS ---
-        if sys.platform == "darwin":
-            img = sct.grab(m)
-
-            frame = np.frombuffer(img.raw, dtype=np.uint8).reshape(img.height, img.width, 4)
-
-            # Return BGR view without alpha
-            return frame[:, :, :3]
-
-        # --- Windows ---
         mode = self.vars.get("capture_mode")
 
-        if mode and mode.get() == "DXCAM" and self.camera:
-            frame = self.camera.get_latest_frame()
-            if frame is None:
-                return None
+        # macOS (Use quartz and MSS)
+        if sys.platform == "darwin":
+            if mode and mode.get() == "Quartz":
 
-            cropped = frame[top:bottom, left:right]
-            return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
+                display = Quartz.CGMainDisplayID()
+                bounds = Quartz.CGDisplayBounds(display)
+                display_height = int(bounds.size.height)
 
-        # Fallback MSS
-        img = np.array(sct.grab(m))[:, :, :3]
-        return img
+                flipped_top = display_height - bottom
 
+                region = Quartz.CGRectMake(left, flipped_top, width, height)
+
+                image = Quartz.CGDisplayCreateImageForRect(
+                    display,
+                    region
+                )
+
+                if image is None:
+                    return None
+
+                width = Quartz.CGImageGetWidth(image)
+                height = Quartz.CGImageGetHeight(image)
+                bytes_per_row = Quartz.CGImageGetBytesPerRow(image)
+
+                data_provider = Quartz.CGImageGetDataProvider(image)
+                data = Quartz.CGDataProviderCopyData(data_provider)
+
+                buf = np.frombuffer(data, dtype=np.uint8)
+
+                frame = buf.reshape((height, bytes_per_row // 4, 4))
+                frame = frame[:, :width, :3]
+
+                return frame
+
+            # --- MSS fallback (macOS) ---
+            if not hasattr(self, "_thread_local"):
+                self._thread_local = threading.local()
+
+            if not hasattr(self._thread_local, "sct"):
+                import mss
+                self._thread_local.sct = mss.mss()
+
+            sct = self._thread_local.sct
+
+            img = sct.grab(m)
+            frame = np.frombuffer(img.raw, dtype=np.uint8).reshape(img.height, img.width, 4)
+
+            return frame[:, :, :3]
+
+        # Windows (Use DXCAM and MSS)
+        else:
+            if mode and mode.get() == "DXCAM" and self.camera:
+                frame = self.camera.get_latest_frame()
+                if frame is None:
+                    return None
+
+                cropped = frame[top:bottom, left:right]
+                return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
+
+            # --- MSS fallback (Windows) ---
+            if not hasattr(self, "_thread_local"):
+                self._thread_local = threading.local()
+
+            if not hasattr(self._thread_local, "sct"):
+                import mss
+                self._thread_local.sct = mss.mss()
+
+            sct = self._thread_local.sct
+
+            img = np.array(sct.grab(m))[:, :, :3]
+            return img
+        
     def _click_at(self, x, y, click_count=1):
+        if sys.platform == "win32":
+            # Move cursor
+            windll.SetCursorPos(x, y)
+            # Important: tiny movement so Roblox registers input
+            windll.mouse_event(MOUSEEVENTF_MOVE, 0, 1, 0, 0)
+            for i in range(click_count):
+                windll.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+                windll.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+                if i < click_count - 1:
+                    time.sleep(0.03)
+        elif sys.platform == "darwin":
+            x = int(x)
+            y = int(y)
 
-        # Move cursor
-        windll.SetCursorPos(x, y)
+            # Move cursor
+            _move_mouse(x, y)
 
-        # Important: tiny movement so Roblox registers input
-        windll.mouse_event(MOUSEEVENTF_MOVE, 0, 1, 0, 0)
+            # Tiny movement (Roblox trick)
+            _move_mouse(x, y + 1)
 
-        for i in range(click_count):
+            for i in range(click_count):
+                _mouse_event(Quartz.kCGEventLeftMouseDown, x, y)
+                _mouse_event(Quartz.kCGEventLeftMouseUp, x, y)
 
-            windll.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-            windll.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-
-            if i < click_count - 1:
-                time.sleep(0.03)
-
+                if i < click_count - 1:
+                    time.sleep(0.03)
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
         Find the center point of a color cluster in a frame.
@@ -1514,6 +1590,62 @@ class App(CTk):
         center_y = int(np.mean(y_coords))
 
         return (center_x, center_y)
+    
+    def _find_bar_edges_strict(
+        self,
+        frame,
+        left_hex,
+        right_hex,
+        tolerance=15,
+        tolerance2=15,
+        scan_height_ratio=0.55,
+        left_boundary_hex="363636",
+        right_boundary_hex="363636"
+    ):
+        if frame is None:
+            return None, None
+
+        h, w, _ = frame.shape
+        y = int(h * scan_height_ratio)
+
+        line = frame[y].astype(np.int16)
+
+        tol_l = int(np.clip(tolerance, 0, 255))
+        tol_r = int(np.clip(tolerance2, 0, 255))
+
+        # Left edge: search for the left boundary sentinel using absolute
+        # tolerance, then fall back to the bar color itself. This avoids the
+        # old ">=" comparison which would match every pixel for near-black colors.
+        left_boundary_bgr = np.array(self._hex_to_bgr(left_boundary_hex), dtype=np.int16)
+        left_mask = np.all(np.abs(line - left_boundary_bgr) <= tol_l, axis=1)
+        left_indices = np.where(left_mask)[0]
+
+        if left_indices.size:
+            left_edge = int(left_indices[0])
+        else:
+            # Fallback: absolute-tolerance match on the left bar color itself
+            left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
+            left_mask_fb = np.all(np.abs(line - left_bgr) <= tol_l, axis=1)
+            left_indices_fb = np.where(left_mask_fb)[0]
+            left_edge = int(left_indices_fb[0]) if left_indices_fb.size else None
+
+        # Right edge: search for the #363636 boundary sentinel pixel using
+        # absolute tolerance. The bar color (#000000) cannot be used with the
+        # old ">=" comparison because every pixel satisfies "pixel >= 0".
+        boundary_bgr = np.array(self._hex_to_bgr(right_boundary_hex), dtype=np.int16)
+        right_mask = np.all(np.abs(line - boundary_bgr) <= tol_r, axis=1)
+        right_indices = np.where(right_mask)[0]
+
+        if right_indices.size:
+            right_edge = int(right_indices[-1])
+        else:
+            # Fallback: absolute-tolerance match on the right bar color itself
+            right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
+            right_mask_fb = np.all(np.abs(line - right_bgr) <= tol_r, axis=1)
+            right_indices_fb = np.where(right_mask_fb)[0]
+            right_edge = int(right_indices_fb[-1]) if right_indices_fb.size else None
+
+        return left_edge, right_edge
     
     def _find_bar_edges(
         self,
@@ -1887,12 +2019,18 @@ class App(CTk):
             right_tol += 2
             fish_tol += 2
         fish_center = self._find_color_center(img, fish_hex, fish_tol)
-
-        left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
-        if left_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
-        elif right_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+        if left_tol >= 4 or right_tol >= 4:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+            if left_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+            elif right_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+        else:
+            left_bar_center, right_bar_center = self._find_bar_edges_strict(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+            if left_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges_strict(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+            elif right_bar_center is None:
+                left_bar_center, right_bar_center = self._find_bar_edges_strict(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
         return fish_center, left_bar_center, right_bar_center
     # Start macro and main loop
     def start_macro(self):

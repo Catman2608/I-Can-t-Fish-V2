@@ -936,9 +936,8 @@ class App(CTk):
     def load_last_config_name(self):
         """Load the name of the last used config."""
         try:
-            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-            if os.path.exists(path):
-                with open(path, "r") as f:
+            if os.path.exists("last_config.json"):
+                with open("last_config.json", "r") as f:
                     data = json.load(f)
                     return data.get("last_config", "default.json")
         except:
@@ -948,8 +947,7 @@ class App(CTk):
     def save_last_config_name(self, name):
         """Save the name of the last used config."""
         try:
-            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-            with open(path, "w") as f:
+            with open("last_config.json", "w") as f:
                 json.dump({"last_config": name}, f)
         except:
             pass
@@ -982,8 +980,7 @@ class App(CTk):
                 "screenshot_key": self.vars["screenshot_key"].get(),
                 "stop_key": self.vars["stop_key"].get()
             }
-            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-            with open(path, "w") as f:
+            with open("last_config.json", "w") as f:
                 json.dump(data, f, indent=4)
             # IMPORTANT: Immediately update active hotkeys
             self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
@@ -1095,9 +1092,8 @@ class App(CTk):
     def load_misc_settings(self):
         """Load miscellaneous settings from last_config.json."""
         try:
-            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-            if os.path.exists(path):
-                with open(path, "r") as f:
+            if os.path.exists("last_config.json"):
+                with open("last_config.json", "r") as f:
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
                     self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
@@ -1591,62 +1587,6 @@ class App(CTk):
 
         return (center_x, center_y)
     
-    def _find_bar_edges_strict(
-        self,
-        frame,
-        left_hex,
-        right_hex,
-        tolerance=15,
-        tolerance2=15,
-        scan_height_ratio=0.55,
-        left_boundary_hex="363636",
-        right_boundary_hex="363636"
-    ):
-        if frame is None:
-            return None, None
-
-        h, w, _ = frame.shape
-        y = int(h * scan_height_ratio)
-
-        line = frame[y].astype(np.int16)
-
-        tol_l = int(np.clip(tolerance, 0, 255))
-        tol_r = int(np.clip(tolerance2, 0, 255))
-
-        # Left edge: search for the left boundary sentinel using absolute
-        # tolerance, then fall back to the bar color itself. This avoids the
-        # old ">=" comparison which would match every pixel for near-black colors.
-        left_boundary_bgr = np.array(self._hex_to_bgr(left_boundary_hex), dtype=np.int16)
-        left_mask = np.all(np.abs(line - left_boundary_bgr) <= tol_l, axis=1)
-        left_indices = np.where(left_mask)[0]
-
-        if left_indices.size:
-            left_edge = int(left_indices[0])
-        else:
-            # Fallback: absolute-tolerance match on the left bar color itself
-            left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
-            left_mask_fb = np.all(np.abs(line - left_bgr) <= tol_l, axis=1)
-            left_indices_fb = np.where(left_mask_fb)[0]
-            left_edge = int(left_indices_fb[0]) if left_indices_fb.size else None
-
-        # Right edge: search for the #363636 boundary sentinel pixel using
-        # absolute tolerance. The bar color (#000000) cannot be used with the
-        # old ">=" comparison because every pixel satisfies "pixel >= 0".
-        boundary_bgr = np.array(self._hex_to_bgr(right_boundary_hex), dtype=np.int16)
-        right_mask = np.all(np.abs(line - boundary_bgr) <= tol_r, axis=1)
-        right_indices = np.where(right_mask)[0]
-
-        if right_indices.size:
-            right_edge = int(right_indices[-1])
-        else:
-            # Fallback: absolute-tolerance match on the right bar color itself
-            right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
-            right_mask_fb = np.all(np.abs(line - right_bgr) <= tol_r, axis=1)
-            right_indices_fb = np.where(right_mask_fb)[0]
-            right_edge = int(right_indices_fb[-1]) if right_indices_fb.size else None
-
-        return left_edge, right_edge
-    
     def _find_bar_edges(
         self,
         frame,
@@ -2019,18 +1959,12 @@ class App(CTk):
             right_tol += 2
             fish_tol += 2
         fish_center = self._find_color_center(img, fish_hex, fish_tol)
-        if left_tol >= 4 or right_tol >= 4:
-            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
-            if left_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
-            elif right_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
-        else:
-            left_bar_center, right_bar_center = self._find_bar_edges_strict(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
-            if left_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges_strict(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
-            elif right_bar_center is None:
-                left_bar_center, right_bar_center = self._find_bar_edges_strict(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
+
+        left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, right_bar_hex, left_tol, right_tol)
+        if left_bar_center is None:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, right_bar_hex, right_bar_hex, right_tol, right_tol)
+        elif right_bar_center is None:
+            left_bar_center, right_bar_center = self._find_bar_edges(img, left_bar_hex, left_bar_hex, left_tol, left_tol)
         return fish_center, left_bar_center, right_bar_center
     # Start macro and main loop
     def start_macro(self):

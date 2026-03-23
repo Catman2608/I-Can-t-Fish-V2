@@ -44,7 +44,7 @@
     "stabilize_threshold2": "8",
     "pid_clamp": "120",
     "discord_enabled": "off",
-    "discord_webhook_url": "https://discord.com/api/webhooks/1476560181147078798/-p4z4rbBB5od8h8MkYNr0N1hcEie9IAAo_kZS-96HwFfWqs6xYFHfl0tILfqS6uJDsoS",
+    "discord_webhook_url": "",
     "discord_webhook_name": "I Can't Fish",
     "shake_color": "#FFFFFF",
     "perfect_color": "#5FA84B",

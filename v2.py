@@ -446,19 +446,26 @@ class App(CTk):
         if sys.platform == "darwin":
             capture_var = StringVar(value="Quartz")
             self.vars["capture_mode"] = capture_var
-            capture_cb = CTkComboBox(capture_settings, values=["Quartz", "MSS"], 
-                                    variable=capture_var, command=lambda v: self.set_status(f"Capture mode: {v}")
-                                    )
-            capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
-            self.comboboxes["capture_mode"] = capture_cb
+
+            capture_cb = CTkComboBox(
+                capture_settings,
+                values=["Quartz", "MSS"],
+                variable=capture_var,
+                command=lambda v: self.set_status(f"Capture mode set to {v}")
+            )
         else:
             capture_var = StringVar(value="DXCAM")
             self.vars["capture_mode"] = capture_var
-            capture_cb = CTkComboBox(capture_settings, values=["DXCAM", "MSS"], 
-                                    variable=capture_var, command=lambda v: self.set_status(f"Capture mode: {v}")
-                                    )
-            capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
-            self.comboboxes["capture_mode"] = capture_cb
+
+            capture_cb = CTkComboBox(
+                capture_settings,
+                values=["DXCAM", "MSS"],
+                variable=capture_var,
+                command=lambda v: self.set_status(f"Capture mode set to {v}")
+            )
+
+        capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
+        self.comboboxes["capture_mode"] = capture_cb
         # Configs 
         configs = CTkFrame(scroll, border_width=2)
         configs.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
@@ -529,6 +536,10 @@ class App(CTk):
         self.vars["bar_size"] = bar_size_var
         bar_size_cb = CTkCheckBox(overlay_options, text="Show Bar Size", variable=bar_size_var, onvalue="on", offvalue="off")
         bar_size_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
+        draw_pd_padding_var = StringVar(value="off")
+        self.vars["draw_pd_padding"] = draw_pd_padding_var
+        draw_pd_padding_cb = CTkCheckBox(overlay_options, text="Show PD padding", variable=draw_pd_padding_var, onvalue="on", offvalue="off")
+        draw_pd_padding_cb.grid(row=3, column=0, padx=12, pady=8, sticky="w")
     # MISC SETTINGS TAB
     def build_misc_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -807,9 +818,13 @@ class App(CTk):
         discord_webhook_name_var = StringVar(value="I Can't Fish")
         self.vars["discord_webhook_name"] = discord_webhook_name_var
         CTkEntry(discord_webhook, width=120, textvariable=discord_webhook_name_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        discord_screenshot_var = StringVar(value="off")
+        self.vars["discord_screenshot"] = discord_screenshot_var
+        CTkCheckBox(discord_webhook, text="Send Screenshot (instead of text)", variable=discord_screenshot_var, onvalue="on", offvalue="off"
+                    ).grid(row=4, column=0, columnspan=2, padx=12, pady=8, sticky="w")
         # Test webhook button
         CTkButton( discord_webhook, text="Test Webhook", command=self.test_discord_webhook
-                  ).grid(row=4, column=0, columnspan=2, padx=12, pady=12, sticky="w")
+                  ).grid(row=5, column=0, columnspan=2, padx=12, pady=12, sticky="w")
     # UTILITIES TAB
     def build_utilities_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -1097,6 +1112,16 @@ class App(CTk):
         except Exception as e:
             print(f"Error loading comboboxes: {e}")
 
+        # DXCAM OR QUARTZ
+        mode = self.vars["capture_mode"].get()
+
+        if sys.platform == "win32" and mode == "Quartz":
+            self.vars["capture_mode"].set("DXCAM")
+            self.set_status("Capture mode automatically set to DXCAM")
+
+        elif sys.platform == "darwin" and mode == "DXCAM":
+            self.vars["capture_mode"].set("Quartz")
+            self.set_status("Capture mode automatically set to Quartz")
         self.save_last_config_name(name)
     def load_misc_settings(self):
         """Load miscellaneous settings from last_config.json."""
@@ -1158,6 +1183,7 @@ class App(CTk):
 
         except Exception as e:
             print("Hotkey error:", e)
+            self.set_status(f"Hotkey error: {e}")
     def set_status(self, text, key=None):
         self.status_label.configure(text=text)
     # Utility functions
@@ -1192,12 +1218,12 @@ class App(CTk):
 
         try:
             cv2.imwrite("debug_bar.png", img)
-            self.set_status("Saved bar-area debug screenshot → debug_bar.png")
+            self.set_status("Saved screenshot (debug_bar.png)")
         except Exception as e:
             self.set_status(f"Error saving screenshot: {e}")
     # Eyedropper-related functions
     def _pick_colors(self):
-        """Live eyedropper tool without freezing screen."""
+        """Live eyedropper tool — uses the active capture backend (Quartz/DXCAM/MSS)."""
         self.eyedropper = tk.Toplevel(self)
 
         w = self.winfo_screenwidth()
@@ -1208,39 +1234,30 @@ class App(CTk):
         self.eyedropper.attributes("-topmost", True)
         self.eyedropper.config(cursor="crosshair")
 
-        # Create ONE capture object
-        self.capture_mode = "mss"
-
-        if sys.platform == "win32" and getattr(self, "dxcam_enabled", False):
-            try:
-                import dxcam
-                self.cam = dxcam.create()
-                self.capture_mode = "dxcam"
-            except Exception:
-                self.sct = mss.mss()
-                self.capture_mode = "mss"
-        else:
-            self.sct = mss.mss()
-
         self.eyedropper.bind("<Motion>", self._update_hover_color)
         self.eyedropper.bind("<Button-1>", self._on_pick_color)
         self.eyedropper.bind("<Escape>", self._close_eyedropper)
+
+    def _eyedropper_pixel_at(self, x, y):
+        """
+        Return (r, g, b) for the pixel at screen position (x, y)
+        using whichever capture backend is currently selected.
+        """
+        frame = self._grab_screen_region(x, y, x + 1, y + 1)
+        if frame is None or frame.size == 0:
+            return None
+        # _grab_screen_region always returns BGR
+        b, g, r = int(frame[0, 0, 0]), int(frame[0, 0, 1]), int(frame[0, 0, 2])
+        return r, g, b
+
     def _on_pick_color(self, event):
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
 
-        if self.capture_mode == "dxcam":
-            frame = self.cam.grab(region=(x, y, x+1, y+1))
-            if frame is None:
-                return
-            b, g, r = frame[0][0]
-
-        else:
-            monitor = {"left": x, "top": y, "width": 1, "height": 1}
-            img = self.sct.grab(monitor)
-            b = img.raw[0]
-            g = img.raw[1]
-            r = img.raw[2]
+        pixel = self._eyedropper_pixel_at(x, y)
+        if pixel is None:
+            return
+        r, g, b = pixel
 
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
 
@@ -1248,33 +1265,20 @@ class App(CTk):
         self.last_picked_color = hex_color
 
         self._close_eyedropper()
+
     def _update_hover_color(self, event):
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
 
-        if self.capture_mode == "dxcam":
-            frame = self.cam.grab(region=(x, y, x+1, y+1))
-            if frame is None:
-                return
-            b, g, r = frame[0][0]
-
-        else:  # MSS
-            monitor = {"left": x, "top": y, "width": 1, "height": 1}
-            img = self.sct.grab(monitor)
-            b = img.raw[0]
-            g = img.raw[1]
-            r = img.raw[2]
+        pixel = self._eyedropper_pixel_at(x, y)
+        if pixel is None:
+            return
+        r, g, b = pixel
 
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
 
         self.set_status(f"Hover: {hex_color}  |  Click to pick")
     def _close_eyedropper(self, event=None):
-        if hasattr(self, "sct"):
-            self.sct.close()
-
-        if hasattr(self, "cam"):
-            self.cam.stop()
-
         if self.eyedropper:
             self.eyedropper.destroy()
     # Misc-related functions
@@ -1342,7 +1346,6 @@ class App(CTk):
                 'content': f'{message_prefix}🎣 {discord_webhook_name} bot\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
                 'username': discord_webhook_name,
                 'embeds': [{
-                    'title': '⚡ Bot Status Update',
                     'description': f'Completed loop #{loop_count}',
                     'color': 0x5865F2,
                     'timestamp': time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -1398,11 +1401,20 @@ class App(CTk):
 
         self.set_status("Sending test webhook...")
 
-        thread = threading.Thread(
-            target=self._discord_text_worker,
-            args=(webhook_url, f"{text}\n", loop_count),
-            daemon=True
-        )
+        use_screenshot = self.vars.get("discord_screenshot") and self.vars["discord_screenshot"].get() == "on"
+
+        if use_screenshot:
+            thread = threading.Thread(
+                target=self._discord_screenshot_worker,
+                args=(webhook_url, f"{text}\n", loop_count),
+                daemon=True
+            )
+        else:
+            thread = threading.Thread(
+                target=self._discord_text_worker,
+                args=(webhook_url, f"{text}\n", loop_count),
+                daemon=True
+            )
         thread.start()
     # Pixel Search Functions
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
@@ -1445,16 +1457,27 @@ class App(CTk):
         if len(x_coords) > 0:
             return list(zip(x_coords, y_coords))
         return []
-    def _init_capture_buffer(self, width, height):
-        self._capture_buffer = np.empty((height, width, 3), dtype=np.uint8)
 
+    def _get_scale_factor(self):
+        if sys.platform == "darwin":
+            main_display = Quartz.CGMainDisplayID()
+            pixel_width = Quartz.CGDisplayPixelsWide(main_display)
+            bounds = Quartz.CGDisplayBounds(main_display)
+            logical_width = bounds.size.width
+            return pixel_width / logical_width
+        else:
+            return 1
     def _grab_screen_region(self, left, top, right, bottom):
+        # Get width, height and scale
+        scale = self._get_scale_factor()
+        left   = int(left * scale)
+        top    = int(top * scale)
+        right  = int(right * scale)
+        bottom = int(bottom * scale)
         width = right - left
         height = bottom - top
-
         if width <= 0 or height <= 0:
             return None
-
         # Reuse monitor dict
         if not hasattr(self, "_monitor"):
             self._monitor = {}
@@ -1475,17 +1498,14 @@ class App(CTk):
                 bounds = Quartz.CGDisplayBounds(display)
                 display_height = int(bounds.size.height)
 
-                flipped_top = display_height - bottom
+                region = Quartz.CGRectMake(left, top, width, height)
 
-                region = Quartz.CGRectMake(left, flipped_top, width, height)
-
-                image = Quartz.CGDisplayCreateImageForRect(
-                    display,
-                    region
+                image = Quartz.CGWindowListCreateImage(
+                    region,
+                    Quartz.kCGWindowListOptionOnScreenOnly,
+                    Quartz.kCGNullWindowID,
+                    Quartz.kCGWindowImageDefault
                 )
-
-                if image is None:
-                    return None
 
                 width = Quartz.CGImageGetWidth(image)
                 height = Quartz.CGImageGetHeight(image)
@@ -1496,8 +1516,14 @@ class App(CTk):
 
                 buf = np.frombuffer(data, dtype=np.uint8)
 
+                # Reshape with padding
                 frame = buf.reshape((height, bytes_per_row // 4, 4))
-                frame = frame[:, :width, :3]
+
+                # Remove padding
+                frame = frame[:, :width, :]
+
+                # Correct conversion
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
 
                 return frame
 
@@ -1604,54 +1630,59 @@ class App(CTk):
         right_hex,
         tolerance=15,
         tolerance2=15,
-        scan_height_ratio=0.55,
-        left_boundary_hex="363636",
-        right_boundary_hex="363636"
+        scan_height_ratio=0.55
     ):
         if frame is None:
             return None, None
 
-        h, w, _ = frame.shape
+        h, w = frame.shape[:2]
         y = int(h * scan_height_ratio)
 
+        # Convert to BGR
+        left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
+        right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
+
+        # Extract single horizontal scan line
         line = frame[y].astype(np.int16)
 
+        # Clamp tolerances
         tol_l = int(np.clip(tolerance, 0, 255))
         tol_r = int(np.clip(tolerance2, 0, 255))
 
-        # Left edge: search for the left boundary sentinel using absolute
-        # tolerance, then fall back to the bar color itself. This avoids the
-        # old ">=" comparison which would match every pixel for near-black colors.
-        left_boundary_bgr = np.array(self._hex_to_bgr(left_boundary_hex), dtype=np.int16)
-        left_mask = np.all(np.abs(line - left_boundary_bgr) <= tol_l, axis=1)
-        left_indices = np.where(left_mask)[0]
+        bar_x_coords = None
 
-        if left_indices.size:
-            left_edge = int(left_indices[0])
-        else:
-            # Fallback: absolute-tolerance match on the left bar color itself
-            left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
-            left_mask_fb = np.all(np.abs(line - left_bgr) <= tol_l, axis=1)
-            left_indices_fb = np.where(left_mask_fb)[0]
-            left_edge = int(left_indices_fb[0]) if left_indices_fb.size else None
+        # --- LEFT BAR COLOR ---
+        if left_hex is not None:
+            lower_l = left_bgr - tol_l
+            upper_l = left_bgr + tol_l
 
-        # Right edge: search for the #363636 boundary sentinel pixel using
-        # absolute tolerance. The bar color (#000000) cannot be used with the
-        # old ">=" comparison because every pixel satisfies "pixel >= 0".
-        boundary_bgr = np.array(self._hex_to_bgr(right_boundary_hex), dtype=np.int16)
-        right_mask = np.all(np.abs(line - boundary_bgr) <= tol_r, axis=1)
-        right_indices = np.where(right_mask)[0]
+            left_mask = np.all((line >= lower_l) & (line <= upper_l), axis=1)
+            left_indices = np.where(left_mask)[0]
 
-        if right_indices.size:
-            right_edge = int(right_indices[-1])
-        else:
-            # Fallback: absolute-tolerance match on the right bar color itself
-            right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
-            right_mask_fb = np.all(np.abs(line - right_bgr) <= tol_r, axis=1)
-            right_indices_fb = np.where(right_mask_fb)[0]
-            right_edge = int(right_indices_fb[-1]) if right_indices_fb.size else None
+            if left_indices.size > 0:
+                bar_x_coords = left_indices
 
-        return left_edge, right_edge
+        # --- RIGHT BAR COLOR ---
+        if right_hex is not None:
+            lower_r = right_bgr - tol_r
+            upper_r = right_bgr + tol_r
+
+            right_mask = np.all((line >= lower_r) & (line <= upper_r), axis=1)
+            right_indices = np.where(right_mask)[0]
+
+            if right_indices.size > 0:
+                if bar_x_coords is not None:
+                    bar_x_coords = np.concatenate([bar_x_coords, right_indices])
+                else:
+                    bar_x_coords = right_indices
+
+        # --- FINAL EDGE EXTRACTION ---
+        if bar_x_coords is not None and bar_x_coords.size > 0:
+            bar_left_x = int(np.min(bar_x_coords))
+            bar_right_x = int(np.max(bar_x_coords))
+            return bar_left_x, bar_right_x
+
+        return None, None
     
     def _find_bar_edges(
         self,
@@ -1934,7 +1965,9 @@ class App(CTk):
             return
 
         self.overlay_window = tk.Toplevel(self)
-        self.overlay_window.geometry("800x50+560+660")
+        overlay_x = int(self.SCREEN_WIDTH * 0.5) - 400   # centered horizontally
+        overlay_y = int(self.SCREEN_HEIGHT * 0.65)        # 65% down the screen
+        self.overlay_window.geometry(f"800x50+{overlay_x}+{overlay_y}")
         if sys.platform == "darwin":
             self.overlay_window.overrideredirect(False)
         else:
@@ -2534,7 +2567,9 @@ class App(CTk):
                     if self.vars["fish_overlay"].get() == "on":
                         # Main code
                         if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda _bc=bar_center, _bs=deadzone_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="purple", canvas_offset=_fl, show_bar_center=True))
+                            # Draw extra PD padding
+                            if self.vars["draw_pd_padding"].get() == "on":
+                                self.after(0, lambda _bc=bar_center, _bs=deadzone_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="purple", canvas_offset=_fl, show_bar_center=True))
                             self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
                         else:
                             self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))

@@ -922,7 +922,7 @@ class App(CTk):
         CTkLabel(gift_settings, text="Gift Box Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w") 
 
         CTkLabel(gift_settings, text="Gift Box Color:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
-        gift_box_color_var = StringVar(value="#008c8c")
+        gift_box_color_var = StringVar(value="#00990c")
         self.vars["gift_box_color"] = gift_box_color_var
         CTkEntry(gift_settings, width=120, textvariable=gift_box_color_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 

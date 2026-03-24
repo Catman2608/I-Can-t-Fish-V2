@@ -689,7 +689,7 @@ class App(CTk):
             row=1, column=0, padx=12, pady=10, sticky="w"
         )
 
-        gift_box_color_var = StringVar(value="#008c8c")
+        gift_box_color_var = StringVar(value="#00990c")
         self.vars["gift_box_color"] = gift_box_color_var
 
         CTkEntry(

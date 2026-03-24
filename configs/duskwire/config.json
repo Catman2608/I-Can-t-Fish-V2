@@ -52,9 +52,9 @@
     "shake_color": "#FFFFFF",
     "perfect_color": "#5FA84B",
     "perfect_color2": "#d4d3ca",
-    "gift_box_color": "#008c8c",
+    "gift_box_color": "#00990c",
     "gift_box_tolerance": "5",
-    "tracking_focus": "Fish",
+    "tracking_focus": "Gift",
     "gift_track_ratio": "0.1",
     "note_cooldown": "0.2",
     "combobox_capture_mode": "DXCAM",
@@ -62,5 +62,5 @@
     "combobox_casting_mode": "Normal",
     "combobox_release_method": "Simple",
     "combobox_shake_mode": "Navigation",
-    "combobox_tracking_focus": "Fish"
+    "combobox_tracking_focus": "Gift"
 }

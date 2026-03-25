@@ -390,7 +390,7 @@ class App(CTk):
         self.tabs.add("Shake")
         self.tabs.add("Fish")
         self.tabs.add("Logging")
-        # self.tabs.add("Utilities")
+        self.tabs.add("Utilities")
         self.tabs.add("Advanced")
 
         # Build tabs
@@ -400,7 +400,7 @@ class App(CTk):
         self.build_shake_tab(self.tabs.tab("Shake"))
         self.build_fishing_tab(self.tabs.tab("Fish"))
         self.build_logging_tab(self.tabs.tab("Logging"))
-        # self.build_utilities_tab(self.tabs.tab("Utilities"))
+        self.build_utilities_tab(self.tabs.tab("Utilities"))
         self.build_advanced_tab(self.tabs.tab("Advanced"))
 
         # Grid behavior
@@ -438,11 +438,27 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+        # Grant Permissions
+        permission_settings = CTkFrame(scroll, border_width=2)
+        permission_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(permission_settings, text="Required Functions", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(permission_settings, text="Accessibility:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
+        CTkLabel(permission_settings, text="Input Monitoring:").grid(row=2, column=0, padx=12, pady=6, sticky="w")
+        CTkLabel(permission_settings, text="Screen Recording:").grid(row=3, column=0, padx=12, pady=6, sticky="w")
+        CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                  command=self.accessibility_perms # Accessibility
+                  ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
+        CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                  command=self.hotkey_perms # Input Monitoring
+                  ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
+        CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                  command=self._take_debug_screenshot # Screen Recording
+                  ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
         # Capture Mode Settings 
         capture_settings = CTkFrame( scroll, border_width=2 )
-        capture_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        capture_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(capture_settings, text="Capture Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(capture_settings, text="Capture Mode:").grid( row=1, column=0, padx=12, pady=6, sticky="w")
+        CTkLabel(capture_settings, text="Capture Mode:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
         if sys.platform == "darwin":
             capture_var = StringVar(value="Quartz")
             self.vars["capture_mode"] = capture_var
@@ -468,7 +484,7 @@ class App(CTk):
         self.comboboxes["capture_mode"] = capture_cb
         # Configs 
         configs = CTkFrame(scroll, border_width=2)
-        configs.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        configs.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(configs, text="Config Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(configs, text="Rod Type:").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
         config_list = self.load_configs()
@@ -487,7 +503,7 @@ class App(CTk):
         ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
-        hotkey_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        hotkey_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(hotkey_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Start key
         CTkLabel(hotkey_settings, text="Start Key").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
@@ -513,7 +529,7 @@ class App(CTk):
         screenshot_key_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
-        automation.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
+        automation.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(automation, text="Automation Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Create and store checkboxes with StringVar
         auto_rod_var = StringVar(value="off")
@@ -526,7 +542,7 @@ class App(CTk):
         auto_zoom_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
         # Overlay Options 
         overlay_options = CTkFrame(scroll, border_width=2)
-        overlay_options.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
+        overlay_options.grid(row=5, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         fish_overlay_var = StringVar(value="off")
         self.vars["fish_overlay"] = fish_overlay_var
@@ -1199,27 +1215,22 @@ class App(CTk):
         except KeyError:
             return key_string  # normal character keys
     def on_key_press(self, key):
-        try:
-            if key == self.hotkey_start and not self.macro_running:
-                config_name = self.vars["active_config"].get()
-                self.save_settings(config_name)
+        if key == self.hotkey_start and not self.macro_running:
+            config_name = self.vars["active_config"].get()
+            self.save_settings(config_name)
 
-                self.macro_running = True
-                self.after(0, self.withdraw)
-                threading.Thread(target=self.start_macro, daemon=True).start()
+            self.macro_running = True
+            self.after(0, self.withdraw)
+            threading.Thread(target=self.start_macro, daemon=True).start()
 
-            elif key == self.hotkey_change_areas:
-                self.open_dual_area_selector()
+        elif key == self.hotkey_change_areas:
+            self.open_dual_area_selector()
 
-            elif key == self.hotkey_screenshot:
-                self._take_debug_screenshot()
+        elif key == self.hotkey_screenshot:
+            self._take_debug_screenshot()
 
-            elif key == self.hotkey_stop:
-                self.stop_macro()
-
-        except Exception as e:
-            print("Hotkey error:", e)
-            self.set_status(f"Hotkey error: {e}")
+        elif key == self.hotkey_stop:
+            self.stop_macro()
     def set_status(self, text, key=None):
         self.status_label.configure(text=text)
     # Utility functions
@@ -1228,19 +1239,21 @@ class App(CTk):
         Capture the configured fish area and save a debug image.
         """
         area = self.bar_areas.get("fish")
+        fallback = False
         # Validate the stored area
-        if not isinstance(area, dict):
-            self.set_status("Fish area not set (cannot take screenshot)")
-            return
-
         try:
-            x = int(area.get("x", 0))
-            y = int(area.get("y", 0))
-            w = int(area.get("width", 0))
-            h = int(area.get("height", 0))
+                x = int(area.get("x", 0))
+                y = int(area.get("y", 0))
+                w = int(area.get("width", 0))
+                h = int(area.get("height", 0))
         except Exception:
-            self.set_status("Fish area invalid")
-            return
+                x   = int(self.SCREEN_WIDTH  * 0.2844)
+                y    = int(self.SCREEN_HEIGHT * 0.7981)
+                right  = int(self.SCREEN_WIDTH  * 0.7141)
+                bottom = int(self.SCREEN_HEIGHT * 0.8370)
+                w = right - x
+                h = bottom - y
+                fallback = True
 
         if w <= 0 or h <= 0:
             self.set_status("Fish area has nonpositive dimensions")
@@ -1254,7 +1267,10 @@ class App(CTk):
 
         try:
             cv2.imwrite("debug_bar.png", img)
-            self.set_status("Saved screenshot (debug_bar.png)")
+            if fallback == True:
+                self.set_status("Saved screenshot at default areas (debug_bar.png)")
+            else:
+                self.set_status("Saved screenshot (debug_bar.png)")
         except Exception as e:
             self.set_status(f"Error saving screenshot: {e}")
     # Eyedropper-related functions
@@ -1321,6 +1337,40 @@ class App(CTk):
     def open_link(self, url):
         """Open a URL in the default web browser."""
         return lambda: webbrowser.open(url)
+    def _click_at(self, x, y, click_count=1):
+        if sys.platform == "win32":
+            # Move cursor
+            windll.SetCursorPos(x, y)
+            # Important: tiny movement so Roblox registers input
+            windll.mouse_event(MOUSEEVENTF_MOVE, 0, 1, 0, 0)
+            for i in range(click_count):
+                windll.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
+                windll.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
+                if i < click_count - 1:
+                    time.sleep(0.03)
+        elif sys.platform == "darwin":
+            x = int(x)
+            y = int(y)
+
+            # Move cursor
+            _move_mouse(x, y)
+
+            # Tiny movement (Roblox trick)
+            _move_mouse(x, y + 1)
+
+            for i in range(click_count):
+                _mouse_event(Quartz.kCGEventLeftMouseDown, x, y)
+                _mouse_event(Quartz.kCGEventLeftMouseUp, x, y)
+
+                if i < click_count - 1:
+                    time.sleep(0.03)
+    def accessibility_perms(self):
+        """Askes macOS to grant the permission to do a single click"""
+        mouse_controller.press(Button.left)
+        time.sleep(0.04)
+        mouse_controller.release(Button.left)
+    def hotkey_perms(self):
+        self.on_key_press(",")
     def open_dual_area_selector(self):
         self.update_idletasks()
         # Toggle OFF if already open
@@ -1601,33 +1651,6 @@ class App(CTk):
             img = np.array(sct.grab(m))[:, :, :3]
             return img
         
-    def _click_at(self, x, y, click_count=1):
-        if sys.platform == "win32":
-            # Move cursor
-            windll.SetCursorPos(x, y)
-            # Important: tiny movement so Roblox registers input
-            windll.mouse_event(MOUSEEVENTF_MOVE, 0, 1, 0, 0)
-            for i in range(click_count):
-                windll.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-                windll.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-                if i < click_count - 1:
-                    time.sleep(0.03)
-        elif sys.platform == "darwin":
-            x = int(x)
-            y = int(y)
-
-            # Move cursor
-            _move_mouse(x, y)
-
-            # Tiny movement (Roblox trick)
-            _move_mouse(x, y + 1)
-
-            for i in range(click_count):
-                _mouse_event(Quartz.kCGEventLeftMouseDown, x, y)
-                _mouse_event(Quartz.kCGEventLeftMouseUp, x, y)
-
-                if i < click_count - 1:
-                    time.sleep(0.03)
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
         Find the center point of a color cluster in a frame.

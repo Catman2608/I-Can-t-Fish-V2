@@ -651,14 +651,19 @@ class App(CTk):
         perfect_threshold_entry.grid(row=7, column=1, padx=12, pady=10, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
+        scroll = CTkScrollableFrame(parent)
+        scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
+        # VERY important
+        parent.grid_rowconfigure(0, weight=1)
+        parent.grid_columnconfigure(0, weight=1)
         shake_configuration = CTkFrame(
-            parent,
+            scroll,
             border_width=2
         )
         shake_configuration.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         # Shake Configuration
         CTkLabel(shake_configuration, text="Shake Configuration", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(shake_configuration, text="Shake mode:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(shake_configuration, text="Shake Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         shake_mode_var = StringVar(value="Click")
         self.vars["shake_mode"] = shake_mode_var
         shake_cb = CTkComboBox( shake_configuration, values=["Click", "Navigation"], 
@@ -666,18 +671,49 @@ class App(CTk):
                                )
         shake_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["shake_mode"] = shake_cb
-        CTkLabel(shake_configuration, text="Click Shake Color Tolerance:").grid( row=2, column=0, padx=12, pady=10, sticky="w" )
-        shake_tolerance_var = StringVar(value="5")
-        self.vars["shake_tolerance"] = shake_tolerance_var
-        CTkEntry( shake_configuration, width=120, textvariable=shake_tolerance_var ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(shake_configuration, text="Shake Scan Delay:").grid( row=3, column=0, padx=12, pady=10, sticky="w" )
-        shake_scan_delay_var = StringVar(value="0.01")
-        self.vars["shake_scan_delay"] = shake_scan_delay_var
-        CTkEntry( shake_configuration, width=120, textvariable=shake_scan_delay_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(shake_configuration, text="Shake Failsafe (attempts):").grid( row=4, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(shake_configuration, text="Shake Failsafe (attempts):").grid(row=2, column=0, padx=12, pady=10, sticky="w" )
         shake_failsafe_var = StringVar(value="20")
         self.vars["shake_failsafe"] = shake_failsafe_var
-        CTkEntry( shake_configuration, width=120, textvariable=shake_failsafe_var ).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(shake_configuration, width=120, textvariable=shake_failsafe_var ).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        CTkLabel(shake_configuration, text="Shake Scan Delay:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        shake_scan_delay_var = StringVar(value="0.01")
+        self.vars["shake_scan_delay"] = shake_scan_delay_var
+        CTkEntry( shake_configuration, width=120, textvariable=shake_scan_delay_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        # Click Shake Settings
+        click_shake = CTkFrame(
+            scroll,
+            border_width=2
+        )
+        click_shake.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(click_shake, text="Click Shake Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(click_shake, text="Click Shake Color Tolerance:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
+        shake_tolerance_var = StringVar(value="5")
+        self.vars["shake_tolerance"] = shake_tolerance_var
+        CTkEntry(click_shake, width=120, textvariable=shake_tolerance_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+
+        # Minigame Detection Settings
+        minigame_detection = CTkFrame(
+            scroll,
+            border_width=2
+        )
+        minigame_detection.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(minigame_detection, text="Minigame Detection", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(minigame_detection, text="Detection Method:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
+        detection_method_var = StringVar(value="Fish")
+        self.vars["detection_method"] = detection_method_var
+        detection_cb = CTkComboBox(minigame_detection, values=["Fish", "Fish + Bar"], 
+                               variable=detection_method_var, command=lambda v: self.set_status(f"Detection Method: {v}")
+                               )
+        detection_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["detection_method"] = detection_cb
+        CTkLabel(minigame_detection, text="Restart Method:").grid(row=2, column=0, padx=12, pady=10, sticky="w" )
+        restart_method_var = StringVar(value="Fish")
+        self.vars["restart_method"] = restart_method_var
+        restart_cb = CTkComboBox(minigame_detection, values=["Fish", "Fish + Bar"], 
+                               variable=restart_method_var, command=lambda v: self.set_status(f"Restart Method: {v}")
+                               )
+        restart_cb.grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["restart_method"] = restart_cb
     # FISHING SETTINGS TAB
     def build_fishing_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -2243,7 +2279,7 @@ class App(CTk):
             green_x, green_y = max(green_pixels, key=lambda p: p[1])
             green_y_canvas = int((green_y / shake_height) * fish_width) + fish_top
             # Calculate green pixel offset based on velocity
-            green_y = green_y + green_offset + user_green_offset
+            green_y = green_y + user_green_offset
             green_y_canvas2 = int((green_y / shake_height) * fish_width) + fish_top
             # Highest white pixel
             white_pixels = self._pixel_search(frame, white_color, white_tolerance)
@@ -2252,15 +2288,21 @@ class App(CTk):
                 continue
             white_x, white_y = min(white_pixels, key=lambda p: abs(p[1] - green_y))
             white_y_canvas = int((white_y / shake_height) * fish_width) + fish_top
-            if self.vars["fish_overlay"].get() == "on":
-                self.after(0, lambda y=green_y_canvas, top=fish_top: self.draw_overlay(bar_center=y, box_size=15, color="blue", canvas_offset=top))
-                self.after(0, lambda y=green_y_canvas2, top=fish_top: self.draw_overlay(bar_center=y, box_size=15, color="green", canvas_offset=top))
-                self.after(0, lambda _fx=white_y_canvas, _fl=fish_top: self.draw_overlay(bar_center=_fx, box_size=30, color="white", canvas_offset=_fl))
+            # Velocity-based
             if self.vars["release_method"].get() == "Velocity-based":
                 # Calculate delta time
                 if prev_white_y is not None:
                     dy = white_y - prev_white_y
+                    green_offset = abs(dy)
                 prev_white_y = white_y
+                green_y = green_y + green_offset
+                green_y_canvas2 = int((green_y / shake_height) * fish_width) + fish_top
+            # Draw boxes
+            if self.vars["fish_overlay"].get() == "on":
+                if self.vars["release_method"].get() == "Velocity-based":
+                    self.after(0, lambda y=green_y_canvas, top=fish_top: self.draw_overlay(bar_center=y, box_size=15, color="blue", canvas_offset=top))
+                self.after(0, lambda y=green_y_canvas2, top=fish_top: self.draw_overlay(bar_center=y, box_size=15, color="green", canvas_offset=top))
+                self.after(0, lambda _fx=white_y_canvas, _fl=fish_top: self.draw_overlay(bar_center=_fx, box_size=30, color="white", canvas_offset=_fl))
             # Perfect Cast Release Trigger
             if white_pixels and green_pixels:
                 distance = abs(green_y - white_y)

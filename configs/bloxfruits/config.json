@@ -6,7 +6,7 @@
     "stop_key": "F7",
     "screenshot_key": "F8",
     "auto_select_rod": "off",
-    "auto_zoom_in": "off",
+    "auto_zoom_in": "on",
     "fish_overlay": "on",
     "bar_size": "on",
     "bag_delay": "0.2",

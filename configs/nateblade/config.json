@@ -1,7 +1,7 @@
 {
     "active_config": "nateblade.json",
     "auto_select_rod": "on",
-    "auto_zoom_in": "off",
+    "auto_zoom_in": "on",
     "fish_overlay": "on",
     "perfect_cast": "off",
     "cast_duration": "0.6",

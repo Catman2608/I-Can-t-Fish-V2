@@ -1414,7 +1414,7 @@ class App(CTk):
             self.set_status("Bar areas saved")
         # Open selector 
         self.area_selector = DualAreaSelector(parent=self, shake_area=shake_area, fish_area=fish_area, callback=on_done)
-        self.set_status("Area selector opened (click button again to close)")
+        self.set_status("Area selector opened (press key again to close)")
     def open_configs_folder(self):
         folder = USER_CONFIG_DIR
         if sys.platform == "win32":
@@ -1429,7 +1429,7 @@ class App(CTk):
         discord_webhook_name = self.vars["discord_webhook_name"].get()
         try:
             payload = {
-                'content': f'{message_prefix}🎣 {discord_webhook_name} bot\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                'content': f'{message_prefix}🎣 Cycle completed\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
                 'username': discord_webhook_name,
                 'embeds': [{
                     'description': f'Completed loop #{loop_count}',
@@ -1446,6 +1446,7 @@ class App(CTk):
         except Exception as e:
             self.set_status(f"Error sending Discord text: {e}")
     def _discord_screenshot_worker(self, webhook_url, message_prefix, loop_count):
+        discord_webhook_name = self.vars["discord_webhook_name"].get()
         try:
             with mss.mss() as sct:
                 monitor = sct.monitors[1]
@@ -1459,8 +1460,8 @@ class App(CTk):
             files = {'file': ('screenshot.png', img_byte_arr, 'image/png')}
 
             payload = {
-                'content': f'{message_prefix}🎣 **Fishing Macro** 🤖\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
-                'username': 'Fishing Macro'
+                'content': f'{message_prefix}🎣 **Cycle completed**\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                'username': discord_webhook_name
             }
 
             response = requests.post(webhook_url, data=payload, files=files, timeout=10)
@@ -2170,9 +2171,10 @@ class App(CTk):
             # if not self.vars["auto_totem_mode"].get() == "Disabled":
             #    self.execute_totem(cycle)
 
-            # Initial camera alignment
+            # Initial camera and cycle alignment
             mouse_controller.position = (shake_x, shake_y)
-            
+            cycle += 1
+
             # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
@@ -2222,7 +2224,7 @@ class App(CTk):
 
             # 5. Fish (minigame)
             self.set_status("Fishing")
-            cycle = self._enter_minigame(current_cycle)
+            self._enter_minigame()
             # Restart: When minigame ends, loop repeats from Select Rod
     def execute_totem(self, cycle):
         required_cycle = float(self.vars["totem_cycles"].get())
@@ -2473,7 +2475,7 @@ class App(CTk):
             attempts += 1
             time.sleep(scan_delay)
 
-    def _enter_minigame(self, cycle):
+    def _enter_minigame(self):
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
         if isinstance(shake, dict):
@@ -2563,8 +2565,7 @@ class App(CTk):
                     release_mouse()
                     time.sleep(restart_delay)
                     self._click_at(fish_left, fish_top)
-                    cycle = cycle + 1
-                    return cycle
+                    return
                 else:
                     fish_x = self.last_fish_x
             # Stabilize frame (used for the stabilize functions to work with Ruinous Oath)

@@ -64,6 +64,7 @@
     "tracking_focus": "Fish",
     "gift_track_ratio": "0.1",
     "note_cooldown": "0.2",
+    "click_after_minigame": "off",
     "combobox_capture_mode": "DXCAM",
     "combobox_active_config": "astraeus.json",
     "combobox_casting_mode": "Normal",

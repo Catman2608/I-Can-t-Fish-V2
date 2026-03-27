@@ -37,23 +37,15 @@ try:
 except Exception:
     dxcam = None
 import mss
-# Windows ctypes vs macOS ScreenCaptureKit
+# Windows ctypes vs macOS quartz
 if sys.platform == "win32":
     import ctypes # Windows
     windll = ctypes.windll.user32
     MOUSEEVENTF_MOVE = 0x0001
     MOUSEEVENTF_LEFTDOWN = 0x0002
     MOUSEEVENTF_LEFTUP = 0x0004
-    class SCKStreamOutput():
-        pass # Windows doesn't have this class
 elif sys.platform == "darwin":
-    import objc
-    import threading
-    import numpy as np
-    import Quartz
-    import CoreMedia
-    import ScreenCaptureKit
-    from Cocoa import NSObject
+    import Quartz # macOS
     def _move_mouse(x, y):
         point = Quartz.CGPointMake(float(x), float(y))
         Quartz.CGWarpMouseCursorPosition(point)
@@ -67,42 +59,6 @@ elif sys.platform == "darwin":
             Quartz.kCGMouseButtonLeft
         )
         Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
-    # ScreenCaptureKit class (macOS-only)
-    class SCKStreamOutput(NSObject):
-        """Receives frames from SCStream asynchronously and stores newest frame."""
-
-        def initWithOwner_(self, owner):
-            self = objc.super(SCKStreamOutput, self).init()
-            if self:
-                self.owner = owner
-            return self
-
-        # Correct signature for Sonoma & Ventura
-        def stream_output_didOutputSampleBuffer_(self, stream, output, sample_buffer):
-            if sample_buffer is None:
-                return
-
-            image_buffer = sample_buffer.imageBuffer()
-            if image_buffer is None:
-                return
-
-            CoreMedia.CVPixelBufferLockBaseAddress(image_buffer, 0)
-
-            width  = CoreMedia.CVPixelBufferGetWidth(image_buffer)
-            height = CoreMedia.CVPixelBufferGetHeight(image_buffer)
-            row_bytes = CoreMedia.CVPixelBufferGetBytesPerRow(image_buffer)
-            base_addr = CoreMedia.CVPixelBufferGetBaseAddress(image_buffer)
-
-            # Convert BGRA → NumPy array
-            arr = np.frombuffer(base_addr, dtype=np.uint8)
-            arr = arr.reshape((height, row_bytes // 4, 4))
-            arr = arr[:, :width, :]       # remove padding
-            arr = arr[:, :, :3][:, :, ::-1].copy()  # BGRA → BGR
-
-            with self.owner.sck_lock:
-                self.owner.sck_buffer = arr
-
-            CoreMedia.CVPixelBufferUnlockBaseAddress(image_buffer, 0)
 # Initialize controllers
 keyboard_controller = KeyboardController()
 mouse_controller = MouseController()
@@ -145,7 +101,6 @@ if sys.platform == "darwin":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 else:
     pass # You're on Windows, no need to change the working directory
-# Dual Area Selector class
 class DualAreaSelector:
     HANDLE_SIZE = 8
 
@@ -358,15 +313,9 @@ class App(CTk):
         self.hotkey_reserved = Key.f8
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
 
-        # Screen capture variables
+        # MSS and DXCAM-related variables
         self.sct = mss.mss()
-        self.sck_stream = None
-        self.sck_output = None
-        self.sck_queue = None
-        self.sck_buffer = None
-        self.sck_ready = False
-        self.sck_lock = threading.Lock()
-        self.sck_content_ready = threading.Event()
+
         # Start hotkey listener
         self.key_listener = KeyListener(on_press=self.on_key_press)
         self.key_listener.daemon = True
@@ -511,12 +460,12 @@ class App(CTk):
         CTkLabel(capture_settings, text="Capture Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(capture_settings, text="Capture Mode:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
         if sys.platform == "darwin":
-            capture_var = StringVar(value="ScreenCaptureKit")
+            capture_var = StringVar(value="Quartz")
             self.vars["capture_mode"] = capture_var
 
             capture_cb = CTkComboBox(
                 capture_settings,
-                values=["ScreenCaptureKit", "MSS"],
+                values=["Quartz", "MSS"],
                 variable=capture_var,
                 command=lambda v: self.set_status(f"Capture mode set to {v}")
             )
@@ -1038,15 +987,6 @@ class App(CTk):
         note_cooldown_var = StringVar(value="0.2")
         self.vars["note_cooldown"] = note_cooldown_var
         CTkEntry(gift_settings, width=120, textvariable=note_cooldown_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-
-        # Compatibility Settings
-        compatibility_settings = CTkFrame(scroll, border_width=2)
-        compatibility_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(compatibility_settings, text="Compatibility Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")  
-        click_after_minigame_var = StringVar(value="off")
-        self.vars["click_after_minigame"] = click_after_minigame_var
-        click_after_minigame_cb = CTkCheckBox(compatibility_settings, text="Click After Minigame", variable=click_after_minigame_var, onvalue="on", offvalue="off")
-        click_after_minigame_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # Save and load settings
     def load_configs(self):
         """Load list of available config files."""
@@ -1224,16 +1164,16 @@ class App(CTk):
         except Exception as e:
             print(f"Error loading comboboxes: {e}")
 
-        # DXCAM OR ScreenCaptureKit
+        # DXCAM OR QUARTZ
         mode = self.vars["capture_mode"].get()
 
-        if sys.platform == "win32" and mode in ("Quartz", "ScreenCaptureKit"):
+        if sys.platform == "win32" and mode == "Quartz":
             self.vars["capture_mode"].set("DXCAM")
             self.set_status("Capture mode automatically set to DXCAM")
 
         elif sys.platform == "darwin" and mode == "DXCAM":
-            self.vars["capture_mode"].set("ScreenCaptureKit")
-            self.set_status("Capture mode automatically set to ScreenCaptureKit")
+            self.vars["capture_mode"].set("Quartz")
+            self.set_status("Capture mode automatically set to Quartz")
         self.save_last_config_name(name)
     def load_misc_settings(self):
         """Load miscellaneous settings from last_config.json."""
@@ -1604,72 +1544,7 @@ class App(CTk):
         if len(x_coords) > 0:
             return list(zip(x_coords, y_coords))
         return []
-    def _load_sck_content(self):
-        """Loads SCShareableContent using the correct API for any macOS version."""
 
-        self.sck_content = None
-
-        def handler(content, error):
-            if error is None:
-                self.sck_content = content
-            self.sck_content_ready.set()
-
-        # Try Sonoma (async-only API)
-        if hasattr(ScreenCaptureKit.SCShareableContent, "getShareableContentWithCompletionHandler_"):
-            ScreenCaptureKit.SCShareableContent.getShareableContentWithCompletionHandler_(handler)
-
-        # Try Ventura (sync API)
-        elif hasattr(ScreenCaptureKit.SCShareableContent, "defaultShareableContent"):
-            self.sck_content = ScreenCaptureKit.SCShareableContent.defaultShareableContent()
-            self.sck_content_ready.set()
-
-        else:
-            raise RuntimeError("ScreenCaptureKit is not supported on this macOS/PyObjC version.")
-
-        self.sck_content_ready.wait(timeout=3.0)
-    def _init_sck_stream(self, width, height):
-        if self.sck_stream:
-            return  # already running
-
-        # Load content once
-        self._load_sck_content()
-        content = self.sck_content
-        if content is None:
-            raise RuntimeError("Failed to load ScreenCaptureKit content.")
-
-        displays = content.displays()
-        if not displays:
-            raise RuntimeError("No displays available.")
-        display = displays[0]
-
-        # Create filter & config
-        filter = ScreenCaptureKit.SCContentFilter.alloc().initWithDisplay_excludingWindows_(display, [])
-
-        config = ScreenCaptureKit.SCStreamConfiguration.alloc().init()
-        config.setWidth_(width)
-        config.setHeight_(height)
-        config.setPixelFormat_(0x42475241)  # BGRA
-        config.setShowsCursor_(False)
-
-        # Prepare the output delegate
-        self.sck_output = SCKStreamOutput.alloc().initWithOwner_(self)
-
-        # Create dispatch queue
-        self.sck_queue = objc.dispatch_queue_create("sck.stream.queue", None)
-
-        # Build stream
-        self.sck_stream = ScreenCaptureKit.SCStream.alloc().initWithFilter_configuration_delegate_(
-            filter, config, None
-        )
-
-        # Attach output
-        self.sck_stream.addStreamOutput_type_minimumFrameInterval_queue_(
-            self.sck_output, 0, 0, self.sck_queue
-        )
-
-        # Start capturing
-        self.sck_stream.startCapture()
-        self.sck_ready = True
     def _get_scale_factor(self):
         if sys.platform == "darwin":
             main_display = Quartz.CGMainDisplayID()
@@ -1679,22 +1554,6 @@ class App(CTk):
             return pixel_width / logical_width
         else:
             return 1
-    def _grab_screen_region_sck(self, left, top, width, height):
-        if not self.sck_ready:
-            self._init_sck_stream(width, height)
-
-        # Wait until first frame is available
-        if self.sck_buffer is None:
-            return None
-
-        with self.sck_lock:
-            frame = self.sck_buffer
-            if frame is None:
-                return None
-
-            # Crop region
-            return frame[top: top+height, left: left+width].copy()
-
     def _grab_screen_region(self, left, top, right, bottom):
         # Get width, height and scale
         scale = self._get_scale_factor()
@@ -1718,10 +1577,42 @@ class App(CTk):
 
         mode = self.vars.get("capture_mode")
 
-        # macOS (Use ScreenCaptureKit and MSS)
+        # macOS (Use quartz and MSS)
         if sys.platform == "darwin":
-            if mode == "ScreenCaptureKit":
-                return self._grab_screen_region_sck(left, top, width, height)
+            if mode and mode.get() == "Quartz":
+
+                display = Quartz.CGMainDisplayID()
+                bounds = Quartz.CGDisplayBounds(display)
+                display_height = int(bounds.size.height)
+
+                region = Quartz.CGRectMake(left, top, width, height)
+
+                image = Quartz.CGWindowListCreateImage(
+                    region,
+                    Quartz.kCGWindowListOptionOnScreenOnly,
+                    Quartz.kCGNullWindowID,
+                    Quartz.kCGWindowImageDefault
+                )
+
+                width = Quartz.CGImageGetWidth(image)
+                height = Quartz.CGImageGetHeight(image)
+                bytes_per_row = Quartz.CGImageGetBytesPerRow(image)
+
+                data_provider = Quartz.CGImageGetDataProvider(image)
+                data = Quartz.CGDataProviderCopyData(data_provider)
+
+                buf = np.frombuffer(data, dtype=np.uint8)
+
+                # Reshape with padding
+                frame = buf.reshape((height, bytes_per_row // 4, 4))
+
+                # Remove padding
+                frame = frame[:, :width, :]
+
+                # Correct conversion
+                frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2BGR)
+
+                return frame
 
             # --- MSS fallback (macOS) ---
             if not hasattr(self, "_thread_local"):
@@ -2614,7 +2505,6 @@ class App(CTk):
         restart_delay = float(self.vars["restart_delay"].get())
         stopping_distance = float(self.vars["stopping_distance"].get())
         stopping_distance = stopping_distance * scale
-        click_after_minigame = (self.vars["click_after_minigame"].get())
         # Gift box color and timer settings
         gift_box_hex = self.vars["gift_box_color"].get()
         gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
@@ -2672,8 +2562,7 @@ class App(CTk):
                 if left_x is None and right_x is None:
                     release_mouse()
                     time.sleep(restart_delay)
-                    if click_after_minigame == "on":
-                        self._click_at(fish_left, fish_top)
+                    self._click_at(fish_left, fish_top)
                     return
                 else:
                     fish_x = self.last_fish_x

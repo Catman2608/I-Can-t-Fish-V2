@@ -2349,7 +2349,6 @@ class App(CTk):
         time.sleep(duration)  # adjust cast strength
         mouse_controller.release(Button.left)
         time.sleep(delay)  # wait for cast to register in fisch
-
     def _execute_shake_click(self):
         self.set_status("Shake Mode: Click")
         # --- SHAKE AREA ---
@@ -2404,7 +2403,7 @@ class App(CTk):
 
             # 2..5 Stable fish detection
             stable = 0
-            while stable < 8 and self.macro_running:
+            while stable < 2 and self.macro_running:
                 detection_area = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
                 if detection_area is None:
                     break
@@ -2416,7 +2415,7 @@ class App(CTk):
                     break
 
             # 3. Fish detected → enter minigame
-            if stable >= 8:
+            if stable == 1:
                 self.set_status("Entering Minigame")
                 mouse_controller.press(Button.left)
                 time.sleep(0.003)
@@ -2474,7 +2473,6 @@ class App(CTk):
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
-
     def _enter_minigame(self):
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")

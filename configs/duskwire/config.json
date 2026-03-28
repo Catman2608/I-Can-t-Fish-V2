@@ -8,7 +8,7 @@
     "auto_select_rod": "on",
     "auto_zoom_in": "on",
     "Fish + Bar_overlay": "on",
-    "bar_size": "on",
+    "bar_size": "off",
     "draw_pd_padding": "off",
     "bag_delay": "0.2",
     "casting_delay2": "0.1",

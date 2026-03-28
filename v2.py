@@ -467,6 +467,10 @@ class App(CTk):
         self.load_misc_settings()
         self.load_settings(last or "default.json")
         self.init_overlay_window()
+        if self.vars["fish_overlay"].get() == "on":
+            self.show_overlay()
+        else:
+            self.hide_overlay()
         # Perfect cast variables
         self.right_mouse_down = False
         # Capture backend
@@ -1057,65 +1061,79 @@ class App(CTk):
         return sorted(config_names)
     
     def load_last_config_name(self):
-        """Load the name of the last used config."""
-        try:
-            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-            if os.path.exists(path):
+        """Load the last used config name safely."""
+        path = os.path.join(USER_CONFIG_DIR, "last_config.json")
+
+        if os.path.exists(path):
+            try:
                 with open(path, "r") as f:
                     data = json.load(f)
                     return data.get("last_config", "default.json")
-        except:
-            pass
+            except:
+                return "default.json"
+
         return "default.json"
     
     def save_last_config_name(self, name):
-        """Save the name of the last used config."""
-        try:
-            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-            with open(path, "w") as f:
-                json.dump({"last_config": name}, f)
-        except:
-            pass
+        """Safely save the last selected config name without overwriting misc settings."""
+        path = os.path.join(USER_CONFIG_DIR, "last_config.json")
+
+        # Load existing file if exists
+        data = {}
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+            except:
+                data = {}
+
+        # Update only the field we want
+        data["last_config"] = name
+
+        # Save merged data
+        with open(path, "w") as f:
+            json.dump(data, f, indent=4)
     
     def save_misc_settings(self):
-        """Save miscellaneous settings to last_config.json."""
-        try:
-            clean_bar_areas = {}
+        """Save misc settings without overwriting last_config."""
+        path = os.path.join(USER_CONFIG_DIR, "last_config.json")
 
-            for key in ["shake", "fish"]:
-                area = self.bar_areas.get(key)
+        # Load existing content
+        data = {}
+        if os.path.exists(path):
+            try:
+                with open(path, "r") as f:
+                    data = json.load(f)
+            except:
+                data = {}
 
-                if isinstance(area, dict):
-                    clean_bar_areas[key] = {
-                        "x": int(area.get("x", 0)),
-                        "y": int(area.get("y", 0)),
-                        "width": int(area.get("width", 0)),
-                        "height": int(area.get("height", 0))
-                    }
-                else:
-                    clean_bar_areas[key] = None
+        # Build clean bar areas
+        clean_bar_areas = {}
+        for key in ["shake", "fish"]:
+            area = self.bar_areas.get(key)
+            if isinstance(area, dict):
+                clean_bar_areas[key] = {
+                    "x": int(area.get("x", 0)),
+                    "y": int(area.get("y", 0)),
+                    "width": int(area.get("width", 0)),
+                    "height": int(area.get("height", 0))
+                }
+            else:
+                clean_bar_areas[key] = None
 
-            data = {
-                "last_rod": self.current_rod_name,
-                "bar_areas": clean_bar_areas,
+        # Update fields (MERGE ONLY)
+        data["last_rod"] = self.current_rod_name
+        data["bar_areas"] = clean_bar_areas
 
-                # IMPORTANT: Save hotkeys
-                "start_key": self.vars["start_key"].get(),
-                "change_bar_areas_key": self.vars["change_bar_areas_key"].get(),
-                "screenshot_key": self.vars["screenshot_key"].get(),
-                "stop_key": self.vars["stop_key"].get()
-            }
-            path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-            with open(path, "w") as f:
-                json.dump(data, f, indent=4)
-            # IMPORTANT: Immediately update active hotkeys
-            self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
-            self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
-            self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
-            self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
+        # Save hotkeys
+        data["start_key"] = self.vars["start_key"].get()
+        data["change_bar_areas_key"] = self.vars["change_bar_areas_key"].get()
+        data["screenshot_key"] = self.vars["screenshot_key"].get()
+        data["stop_key"] = self.vars["stop_key"].get()
+
+        # Write merged result
+        with open(path, "w") as f:
+            json.dump(data, f, indent=4)
 
     def save_settings(self, name):
         """Save all settings to a JSON config file."""

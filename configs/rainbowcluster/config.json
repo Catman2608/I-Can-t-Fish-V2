@@ -11,7 +11,7 @@
     "perfect_cast_tolerance": "16",
     "perfect_cast2_tolerance": "5",
     "cast_scan_delay": "0.05",
-    "bar_size": "on",
+    "bar_size": "off",
     "arrow_pid": "off",
     "shake_mode": "Navigation",
     "shake_tolerance": "5",

@@ -1,6 +1,7 @@
-# Initialization
+# GUI and platform checker
 from customtkinter import *
 import tkinter as tk
+from tkinter import messagebox
 import os
 import subprocess
 # Keyboard and Mouse
@@ -489,33 +490,34 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-        # Grant Permissions
-        permission_settings = CTkFrame(scroll, border_width=2)
-        permission_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(permission_settings, text="Required Functions", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(permission_settings, text="Accessibility:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
-        CTkLabel(permission_settings, text="Input Monitoring:").grid(row=2, column=0, padx=12, pady=6, sticky="w")
-        CTkLabel(permission_settings, text="Screen Recording:").grid(row=3, column=0, padx=12, pady=6, sticky="w")
-        CTkButton(permission_settings, text="Enable", corner_radius=10, 
-                  command=self.accessibility_perms # Accessibility
-                  ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
-        CTkButton(permission_settings, text="Enable", corner_radius=10, 
-                  command=self.hotkey_perms # Input Monitoring
-                  ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
-        CTkButton(permission_settings, text="Enable", corner_radius=10, 
-                  command=self._take_debug_screenshot # Screen Recording
-                  ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
-        # Capture Mode Settings 
-        capture_settings = CTkFrame( scroll, border_width=2 )
-        capture_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(capture_settings, text="Capture Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(capture_settings, text="Capture Mode:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
+        # Grant Permissions (macOS only)
+        if sys.platform == "darwin":
+            permission_settings = CTkFrame(scroll, border_width=2)
+            permission_settings.grid(row=0, column=1, padx=20, pady=20, sticky="nw")
+            CTkLabel(permission_settings, text="Required Functions", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+            CTkLabel(permission_settings, text="Accessibility:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
+            CTkLabel(permission_settings, text="Input Monitoring:").grid(row=2, column=0, padx=12, pady=6, sticky="w")
+            CTkLabel(permission_settings, text="Screen Recording:").grid(row=3, column=0, padx=12, pady=6, sticky="w")
+            CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                    command=self.accessibility_perms # Accessibility
+                    ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
+            CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                    command=self.hotkey_perms # Input Monitoring
+                    ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
+            CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                    command=self._take_debug_screenshot # Screen Recording
+                    ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
+        # Configs 
+        configs = CTkFrame(scroll, border_width=2)
+        configs.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(configs, text="Config & Capture", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(configs, text="Capture Mode:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
         if sys.platform == "darwin":
             capture_var = StringVar(value="ScreenCaptureKit")
             self.vars["capture_mode"] = capture_var
 
             capture_cb = CTkComboBox(
-                capture_settings,
+                configs,
                 values=["ScreenCaptureKit", "MSS"],
                 variable=capture_var,
                 command=lambda v: self.set_status(f"Capture mode set to {v}")
@@ -525,7 +527,7 @@ class App(CTk):
             self.vars["capture_mode"] = capture_var
 
             capture_cb = CTkComboBox(
-                capture_settings,
+                configs,
                 values=["DXCAM", "MSS"],
                 variable=capture_var,
                 command=lambda v: self.set_status(f"Capture mode set to {v}")
@@ -533,28 +535,24 @@ class App(CTk):
 
         capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["capture_mode"] = capture_cb
-        # Configs 
-        configs = CTkFrame(scroll, border_width=2)
-        configs.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(configs, text="Config Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(configs, text="Rod Type:").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(configs, text="Rod Type:").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
         config_list = self.load_configs()
         config_var = StringVar(value=config_list[0] if config_list else "default.json")
         self.vars["active_config"] = config_var
         config_cb = CTkComboBox( configs, values=config_list, 
                                 variable=config_var, command=lambda v: self.load_settings(v) )
-        config_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
+        config_cb.grid(row=2, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
         CTkButton(configs, text="Open Configs Folder", corner_radius=10, 
                   command=self.open_configs_folder
-                  ).grid(row=2, column=0, padx=12, pady=12, sticky="w")
+                  ).grid(row=3, column=0, padx=12, pady=12, sticky="w")
         # Save misc settings (most important)
         CTkButton(configs, text="Save Misc Settings", 
                   corner_radius=10, command=self.save_misc_settings
-        ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
+        ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
         # Hotkey Settings
         hotkey_settings = CTkFrame(scroll, border_width=2)
-        hotkey_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
+        hotkey_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(hotkey_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Start key
         CTkLabel(hotkey_settings, text="Start Key").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
@@ -580,7 +578,7 @@ class App(CTk):
         screenshot_key_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
-        automation.grid(row=4, column=0, padx=20, pady=20, sticky="nw")
+        automation.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(automation, text="Automation Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Create and store checkboxes with StringVar
         auto_rod_var = StringVar(value="off")
@@ -593,7 +591,7 @@ class App(CTk):
         auto_zoom_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
         # Overlay Options 
         overlay_options = CTkFrame(scroll, border_width=2)
-        overlay_options.grid(row=5, column=0, padx=20, pady=20, sticky="nw")
+        overlay_options.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         fish_overlay_var = StringVar(value="off")
         self.vars["fish_overlay"] = fish_overlay_var
@@ -809,10 +807,6 @@ class App(CTk):
         fish_color_var = StringVar(value="#434B5B")
         self.vars["fish_color"] = fish_color_var
         CTkEntry(pixel_settings, placeholder_text="#434B5B", width=120, textvariable=fish_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Fish Color 2:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
-        fish2_color_var = StringVar(value="#434B5B")
-        self.vars["fish2_color"] = fish2_color_var
-        CTkEntry(pixel_settings, placeholder_text="#434B5B", width=120, textvariable=fish2_color_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
         left_tolerance_var = StringVar(value="8")
         self.vars["left_tolerance"] = left_tolerance_var
         CTkLabel(pixel_settings, text="Tolerance:").grid(row=2, column=2, padx=12, pady=10, sticky="w")
@@ -832,10 +826,6 @@ class App(CTk):
         fish_tolerance_var = StringVar(value="0")
         self.vars["fish_tolerance"] = fish_tolerance_var
         CTkEntry(pixel_settings, width=120, textvariable=fish_tolerance_var).grid(row=5, column=3, padx=12, pady=10, sticky="w")
-        CTkLabel(pixel_settings, text="Tolerance:").grid(row=6, column=2, padx=12, pady=10, sticky="w")
-        fish2_tolerance_var = StringVar(value="0")
-        self.vars["fish2_tolerance"] = fish2_tolerance_var
-        CTkEntry(pixel_settings, width=120, textvariable=fish2_tolerance_var).grid(row=6, column=3, padx=12, pady=10, sticky="w")
         # Minigame Timing and Limits
         ratio_settings = CTkFrame(
             scroll,
@@ -1134,7 +1124,6 @@ class App(CTk):
             os.makedirs(config_dir)
         
         data = {}
-        
         # Save all StringVar and related variables
         try:
             for key, var in self.vars.items():
@@ -1278,10 +1267,12 @@ class App(CTk):
         if key == self.hotkey_start and not self.macro_running:
             config_name = self.vars["active_config"].get()
             self.save_settings(config_name)
-
-            self.macro_running = True
-            self.after(0, self.withdraw)
-            threading.Thread(target=self.start_macro, daemon=True).start()
+            if self.vars["auto_zoom_in"].get() == "on" and self.vars["casting_mode"].get() == "Perfect":
+                messagebox.showwarning("Error", "Auto Zoom In and Perfect Cast can't be enabled at once. \nDisable one of them to continue.")
+            else:
+                self.macro_running = True
+                self.after(0, self.withdraw)
+                threading.Thread(target=self.start_macro, daemon=True).start()
 
         elif key == self.hotkey_change_areas:
             self.open_dual_area_selector()
@@ -2485,12 +2476,16 @@ class App(CTk):
             fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
             fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
             fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
+        # Misc variables
+        detection_method = (self.vars["detection_method"].get())
         shake_area = self.bar_areas["shake"]
         shake_hex = self.vars["shake_color"].get()
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
         scan_delay = float(self.vars["shake_scan_delay"].get())
         failsafe = int(self.vars["shake_failsafe"].get() or 40)
+        bar_hex = self.vars["left_color"].get() # Left bar color replaced by left color
+        bar_tolerance = int(self.vars["left_tolerance"].get())
         # Initialize attempts counter
         attempts = 0
         while self.macro_running and attempts < failsafe:
@@ -2510,21 +2505,34 @@ class App(CTk):
                 screen_y = shake_top + y
                 self._click_at(screen_x, screen_y)
 
-            # 2..5 Stable fish detection
-            stable = 0
-            while stable < 2 and self.macro_running:
-                detection_area = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
+            # 2. Fish detection (Fish + Bar)
+            detected = False
+            while detected == False and self.macro_running:
+                detection_area = self._grab_screen_region(
+                    fish_left, fish_top, fish_right, fish_bottom
+                )
                 if detection_area is None:
                     break
-                fish_x = self._find_color_center(detection_area, fish_hex, tolerance)
-                if fish_x:
-                    stable += 1
-                    time.sleep(0.005)
+                fish_x = self._find_color_center(
+                    detection_area, fish_hex, tolerance
+                )
+                bar_x = self._find_color_center(
+                    detection_area, bar_hex, bar_tolerance
+                )
+                if detection_method == "Fish + Bar":
+                    if fish_x and bar_x:
+                        detected = True
+                        time.sleep(0.005)
+                    else:
+                        break
                 else:
-                    break
-
+                    if fish_x:
+                        detected = True
+                        time.sleep(0.005)
+                    else:
+                        break
             # 3. Fish detected → enter minigame
-            if stable == 1:
+            if detected == True:
                 self.set_status("Entering Minigame")
                 mouse_controller.press(Button.left)
                 time.sleep(0.003)
@@ -2546,10 +2554,14 @@ class App(CTk):
             fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
             fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
             fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
+        # Misc variables
         fish_hex = self.vars["fish_color"].get()
         tolerance = int(self.vars["shake_tolerance"].get())
         scan_delay = float(self.vars["shake_scan_delay"].get())
         failsafe = int(self.vars["shake_failsafe"].get() or 20)
+        detection_method = (self.vars["detection_method"].get())
+        bar_hex = self.vars["left_color"].get() # Left bar color replaced by left color
+        bar_tolerance = int(self.vars["left_tolerance"].get())
         attempts = 0
         while self.macro_running and attempts < failsafe:
             # 1. Navigation shake (Enter key)
@@ -2557,24 +2569,34 @@ class App(CTk):
             time.sleep(0.03)
             keyboard_controller.release(Key.enter)
             time.sleep(scan_delay)
-            # 2. Stable fish detection (old logic preserved)
-            stable = 0
-            while stable < 8 and self.macro_running:
+            # 2. Fish detection (Fish + Bar)
+            detected = False
+            while detected == False and self.macro_running:
                 detection_area = self._grab_screen_region(
                     fish_left, fish_top, fish_right, fish_bottom
-               )
+                )
                 if detection_area is None:
                     break
                 fish_x = self._find_color_center(
                     detection_area, fish_hex, tolerance
-               )
-                if fish_x:
-                    stable += 1
-                    time.sleep(0.005)
+                )
+                bar_x = self._find_color_center(
+                    detection_area, bar_hex, bar_tolerance
+                )
+                if detection_method == "Fish + Bar":
+                    if fish_x and bar_x:
+                        detected = True
+                        time.sleep(0.005)
+                    else:
+                        break
                 else:
-                    break
+                    if fish_x:
+                        detected = True
+                        time.sleep(0.005)
+                    else:
+                        break
             # 3. Fish detected → enter minigame
-            if stable >= 8:
+            if detected == True:
                 self.set_status("Entering Minigame")
                 mouse_controller.press(Button.left)
                 time.sleep(0.003)
@@ -2639,6 +2661,8 @@ class App(CTk):
             tracking_focus = 1
         else:
             tracking_focus = 2
+        # Restart Method
+        restart_method = (self.vars["restart_method"].get())
         # Deadzone action
         deadzone_action = 0
         def hold_mouse():
@@ -2665,19 +2689,29 @@ class App(CTk):
                 gift_box_pos = None
             # Clear minigame before exiting macro
             self.clear_overlay()
-            # FISH HANDLING 
-            if fish_x is not None:
-                self.last_fish_x = fish_x
+            # FISH HANDLING
+            if restart_method == "Fish + Bar":
+                if fish_x is not None:
+                    self.last_fish_x = fish_x
+                else:
+                    if left_x is None and right_x is None:
+                        release_mouse()
+                        time.sleep(restart_delay)
+                        if click_after_minigame == "on":
+                            self._click_at(fish_left, fish_top)
+                        return
+                    else:
+                        fish_x = self.last_fish_x
             else:
-                if left_x is None and right_x is None:
+                if fish_x is not None:
+                    self.last_fish_x = fish_x
+                else:
                     release_mouse()
                     time.sleep(restart_delay)
                     if click_after_minigame == "on":
                         self._click_at(fish_left, fish_top)
                     return
-                else:
-                    fish_x = self.last_fish_x
-            # Stabilize frame (used for the stabilize functions to work with Ruinous Oath)
+            # Stabilize frame
             deadzone_action = deadzone_action + 1
             if deadzone_action == 2:
                 deadzone_action = 0

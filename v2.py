@@ -327,7 +327,7 @@ class App(CTk):
 
         # Window 
         self.geometry("800x600")
-        self.title("I Can't Fish V2.4")
+        self.title("I Can't Fish V2.5")
 
         # Macro state
         self.macro_running = False
@@ -386,7 +386,7 @@ class App(CTk):
         # Logo Label
         logo_label = CTkLabel(
             top_bar, 
-            text="I CAN'T FISH V2.4",
+            text="I CAN'T FISH V2.5",
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, sticky="w")
@@ -554,32 +554,55 @@ class App(CTk):
         CTkButton(configs, text="Save Misc Settings", 
                   corner_radius=10, command=self.save_misc_settings
         ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
-        # Hotkey Settings
-        hotkey_settings = CTkFrame(scroll, border_width=2)
-        hotkey_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(hotkey_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        # Start key
-        CTkLabel(hotkey_settings, text="Start Key").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
-        CTkLabel(hotkey_settings, text="Change Bar Areas Key").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
-        CTkLabel(hotkey_settings, text="Stop Key").grid( row=3, column=0, padx=12, pady=6, sticky="w" )
-        CTkLabel(hotkey_settings, text="Screenshot Key").grid( row=4, column=0, padx=12, pady=6, sticky="w" )
-        # Start, screenshot and stop key changer
+        # Hotkey and Hotbar Settings
+        hotkey_hotbar_settings = CTkFrame(scroll, border_width=2)
+        hotkey_hotbar_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        CTkLabel(hotkey_hotbar_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(hotkey_hotbar_settings, text="Hotbar Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=2, padx=12, pady=8, sticky="w")
+        # Key binds
+        CTkLabel(hotkey_hotbar_settings, text="Start Key").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Change Bar Areas Key").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Stop Key").grid( row=3, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Screenshot Key").grid( row=4, column=0, padx=12, pady=6, sticky="w" )
+        # Keys text changer
         start_key_var = StringVar(value="F5")
         self.vars["start_key"] = start_key_var
-        start_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=start_key_var )
+        start_key_entry = CTkEntry( hotkey_hotbar_settings, width=120, textvariable=start_key_var )
         start_key_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         change_bar_areas_key_var = StringVar(value="F6")
         self.vars["change_bar_areas_key"] = change_bar_areas_key_var
-        change_bar_areas_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=change_bar_areas_key_var )
+        change_bar_areas_key_entry = CTkEntry( hotkey_hotbar_settings, width=120, textvariable=change_bar_areas_key_var )
         change_bar_areas_key_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
         stop_key_var = StringVar(value="F7")
         self.vars["stop_key"] = stop_key_var
-        stop_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=stop_key_var )
+        stop_key_entry = CTkEntry( hotkey_hotbar_settings, width=120, textvariable=stop_key_var )
         stop_key_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         screenshot_key_var = StringVar(value="F8")
         self.vars["screenshot_key"] = screenshot_key_var
-        screenshot_key_entry = CTkEntry( hotkey_settings, width=120, textvariable=screenshot_key_var )
+        screenshot_key_entry = CTkEntry( hotkey_hotbar_settings, width=120, textvariable=screenshot_key_var )
         screenshot_key_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
+        # Hotkey for items
+        CTkLabel(hotkey_hotbar_settings, text="Fishing Rod Slot:").grid(row=1, column=2, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Equipment Bag Slot").grid(row=2, column=2, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Sundial Totem Slot:").grid(row=3, column=2, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Target Totem Slot:").grid(row=4, column=2, padx=12, pady=6, sticky="w" )
+        # Hotkey entries
+        rod_slot_var = StringVar(value="1")
+        self.vars["rod_slot"] = rod_slot_var
+        rod_slot_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=rod_slot_var)
+        rod_slot_entry.grid(row=1, column=3, padx=12, pady=8, sticky="w")
+        bag_slot_var = StringVar(value="2")
+        self.vars["bag_slot"] = bag_slot_var
+        bag_slot_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=bag_slot_var)
+        bag_slot_entry.grid(row=2, column=3, padx=12, pady=8, sticky="w")
+        sundial_slot_var = StringVar(value="6")
+        self.vars["sundial_slot"] = sundial_slot_var
+        sundial_slot_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=sundial_slot_var)
+        sundial_slot_entry.grid(row=3, column=3, padx=12, pady=8, sticky="w")
+        target_slot_var = StringVar(value="7")
+        self.vars["target_slot"] = target_slot_var
+        target_slot_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=target_slot_var)
+        target_slot_entry.grid(row=4, column=3, padx=12, pady=8, sticky="w")
         # Automation 
         automation = CTkFrame(scroll, border_width=2)
         automation.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
@@ -640,6 +663,12 @@ class App(CTk):
                                            variable=centroid_tracking_var, onvalue="on", 
                                            offvalue="off")
         centroid_tracking_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        lock_cursor_var = StringVar(value="off")
+        self.vars["lock_cursor"] = lock_cursor_var
+        lock_cursor_cb = CTkCheckBox(arrow_settings, text="Lock Cursor", 
+                                           variable=lock_cursor_var, onvalue="on", 
+                                           offvalue="off")
+        lock_cursor_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
     # CAST SETTINGS TAB
     def build_cast_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -929,26 +958,24 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-        # Warning
-        CTkLabel(scroll, text="These tools are not implemented yet", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Auto Totem
         auto_totem = CTkFrame(scroll, border_width=2)
-        auto_totem.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        auto_totem.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(auto_totem, text="Auto Totem", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         
         CTkLabel(auto_totem, text="Auto Totem Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
-        auto_totem_mode_var = StringVar(value="Time")
+        auto_totem_mode_var = StringVar(value="Cycles")
         self.vars["auto_totem_mode"] = auto_totem_mode_var
-        auto_totem_cb = CTkComboBox(auto_totem, values=["Time", "Cycles", "Disabled"], 
+        auto_totem_cb = CTkComboBox(auto_totem, values=["Cycles", "Disabled"], 
                                variable=auto_totem_mode_var, command=lambda v: self.set_status(f"Auto Totem mode: {v}")
                                )
         auto_totem_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["auto_totem_mode"] = auto_totem_cb
         
-        CTkLabel(auto_totem, text="Totem Delay (seconds):").grid(row=2, column=0, padx=12, pady=10, sticky="w")
-        totem_delay_var = StringVar(value="900")
-        self.vars["totem_delay"] = totem_delay_var
-        CTkEntry(auto_totem, width=120, textvariable=totem_delay_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        # CTkLabel(auto_totem, text="Totem Delay (seconds):").grid(row=2, column=0, padx=12, pady=10, sticky="w")
+        # totem_delay_var = StringVar(value="900")
+        # self.vars["totem_delay"] = totem_delay_var
+        # CTkEntry(auto_totem, width=120, textvariable=totem_delay_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
         CTkLabel(auto_totem, text="Totem Cycles:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         totem_cycles_var = StringVar(value="70")
@@ -958,21 +985,31 @@ class App(CTk):
         CTkLabel(auto_totem, text="Use Sundial When:").grid(row=4, column=0, padx=12, pady=10, sticky="w" )
         use_sundial_mode_var = StringVar(value="Disabled")
         self.vars["use_sundial_mode"] = use_sundial_mode_var
-        use_sundial_cb = CTkComboBox(auto_totem, values=["Day", "Night", "Disabled"], 
+        use_sundial_cb = CTkComboBox(auto_totem, values=["Enabled", "Disabled"], 
                                variable=use_sundial_mode_var, command=lambda v: self.set_status(f"Macro now uses sundial totem when {v}")
                                )
         use_sundial_cb.grid(row=4, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["use_sundial_mode"] = use_sundial_cb
 
-        # Auto Reconnect
-        auto_reconnect = CTkFrame(scroll, border_width=2)
-        auto_reconnect.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(auto_reconnect, text="Auto Reconnect", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(auto_totem, text="Totem Fail Color:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
+        totem_color_var = StringVar(value="#7effad")
+        self.vars["totem_color"] = totem_color_var
+        CTkEntry(auto_totem, width=120, textvariable=totem_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
 
-        auto_reconnect_var = StringVar(value="off")
-        self.vars["auto_reconnect"] = auto_reconnect_var
-        auto_reconnect_cb = CTkCheckBox(auto_reconnect, text="Auto Reconnect", variable=auto_reconnect_var, onvalue="on", offvalue="off")
-        auto_reconnect_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(auto_totem, text="Totem Fail Tolerance:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
+        totem_tolerance_var = StringVar(value="4")
+        self.vars["totem_tolerance"] = totem_tolerance_var
+        CTkEntry(auto_totem, width=120, textvariable=totem_tolerance_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
+    
+        # Auto Reconnect
+        # auto_reconnect = CTkFrame(scroll, border_width=2)
+        # auto_reconnect.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        # CTkLabel(auto_reconnect, text="Auto Reconnect", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+
+        # auto_reconnect_var = StringVar(value="off")
+        # self.vars["auto_reconnect"] = auto_reconnect_var
+        # auto_reconnect_cb = CTkCheckBox(auto_reconnect, text="Auto Reconnect", variable=auto_reconnect_var, onvalue="on", offvalue="off")
+        # auto_reconnect_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # ADVANCED SETTINGS TAB
     def build_advanced_tab(self, parent):
         scroll = CTkScrollableFrame(parent)
@@ -1273,7 +1310,7 @@ class App(CTk):
         except:
             self.current_rod_name = "Basic Rod"
             self.bar_areas = {"fish": None, "shake": None}
-    # Macro functions
+    # Key press functions
     def _string_to_key(self, key_string):
         key_string = key_string.strip().lower()
 
@@ -1281,8 +1318,14 @@ class App(CTk):
             return Key[key_string]
         except KeyError:
             return key_string  # normal character keys
+    def normalize_key(self, key):
+        try:
+            return key.char.lower()  # letter keys
+        except:
+            return str(key).replace("Key.", "").lower()
     def on_key_press(self, key):
         if key == self.hotkey_start and not self.macro_running:
+            # Save settings
             config_name = self.vars["active_config"].get()
             self.save_settings(config_name)
             if self.vars["auto_zoom_in"].get() == "on" and self.vars["casting_mode"].get() == "Perfect":
@@ -1295,7 +1338,7 @@ class App(CTk):
         elif key == self.hotkey_change_areas:
             self.open_dual_area_selector()
 
-        elif key == self.hotkey_screenshot:
+        elif self.normalize_key(key) == self.vars["screenshot_key"].get().lower():
             self._take_debug_screenshot()
 
         elif key == self.hotkey_stop:
@@ -1455,14 +1498,16 @@ class App(CTk):
             left = int(screen_w * 0.2083)
             top = int(screen_h * 0.162)
             right = int(screen_w * 0.7813)
-            bottom = int(screen_h * 0.74)
-            return { "x": left, "y": top, "width": right - left, "height": bottom - top }
+            bottom = int(screen_h * 0.7778)
+            return {"x": left, "y": top, 
+                    "width": right - left, "height": bottom - top}
         def default_fish_area():
             left = int(screen_w * 0.2844)
             top = int(screen_h * 0.7981)
             right = int(screen_w * 0.7141)
             bottom = int(screen_h * 0.8370)
-            return { "x": left, "y": top, "width": right - left, "height": bottom - top }
+            return {"x": left, "y": top, 
+                    "width": right - left, "height": bottom - top}
         # Load saved areas or fallback 
         shake_area = (
             self.bar_areas.get("shake")
@@ -2283,27 +2328,30 @@ class App(CTk):
         # Loop: MAIN MACRO LOOP
         while self.macro_running:
             # Check Reconnect (not implemented yet)
-            # Send Discord Webhook
-            self.send_discord_webhook(f"**Loop Completed**", cycle)
-            # Check Totem (not implemented yet)
-            # if not self.vars["auto_totem_mode"].get() == "Disabled":
-            #    self.execute_totem(cycle)
-
             # Initial camera and cycle alignment
             mouse_controller.position = (shake_x, shake_y)
             cycle += 1
+            # Send Discord Webhook
+            self.send_discord_webhook(f"**Loop Completed**", cycle)
+            # Check Totem
+            if not self.vars["auto_totem_mode"].get() == "Disabled":
+               self.execute_totem(cycle, shake_x, shake_y)
 
             # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 bag_delay = float(self.vars["bag_delay"].get())
                 self.set_status("Selecting rod")
-                keyboard_controller.press("2")
+                # Rod and bag slots
+                rod_slot = str(self.vars["rod_slot"].get())
+                bag_slot = str(self.vars["bag_slot"].get())
+                # Sequence
+                keyboard_controller.press(bag_slot)
                 time.sleep(0.05)
-                keyboard_controller.release("2")
+                keyboard_controller.release(bag_slot)
                 time.sleep(bag_delay)
-                keyboard_controller.press("1")
+                keyboard_controller.press(rod_slot)
                 time.sleep(0.05)
-                keyboard_controller.release("1")
+                keyboard_controller.release(rod_slot)
                 time.sleep(0.2)
             # 2: Fish Overlay
             if self.vars["fish_overlay"].get() == "on":
@@ -2344,15 +2392,96 @@ class App(CTk):
             self.set_status("Fishing")
             self._enter_minigame()
             # Restart: When minigame ends, loop repeats from Select Rod
-    def execute_totem(self, cycle):
-        required_cycle = float(self.vars["totem_cycles"].get())
-        condition = cycle % required_cycle
-        if condition == 0:
-            pass # not implemented yet
+    def execute_totem(self, cycle, shake_x, shake_y):
+        """Trigger totem when cycle count matches."""
+        # Shake area
+        shake = self.bar_areas.get("shake")
+        if isinstance(shake, dict):
+            shake_left   = shake["x"]
+            shake_top    = shake["y"]
+            shake_right  = shake["x"] + shake["width"]
+            shake_bottom = shake["y"] + shake["height"]
+        else:
+            # fallback (old ratio logic)
+            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
+            shake_top    = int(self.SCREEN_HEIGHT * 0.162)
+            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
+            shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
+        detection_area = self._grab_screen_region(
+            shake_left, shake_top, shake_right, shake_bottom
+        )
+        # Check for valid conditions
+        mode = self.vars["auto_totem_mode"].get()
+        if mode == "Disabled":
+            return
+        
+        # Only handle cycle-based toteming here
+        if mode != "Cycles":
+            return
+
+        try:
+            required_cycle = int(float(self.vars["totem_cycles"].get()))
+        except:
+            return  # invalid input
+
+        # Only trigger on exact cycle match
+        if required_cycle > 0 and cycle % required_cycle == 0:
+            self.set_status("Using Totem (Cycle Triggered)")
+            # Retrieve variables from GUI
+            sundial_slot = str(self.vars["sundial_slot"].get())
+            target_slot = str(self.vars["target_slot"].get())
+            totem_color = self.vars["totem_color"].get()
+            totem_tolerance = self.vars["totem_tolerance"].get()
+            use_sundial_mode = self.vars["use_sundial_mode"].get()
+
+            # Press the totem key
+            keyboard_controller.press(target_slot)
+            time.sleep(0.05)
+            keyboard_controller.release(target_slot)
+            time.sleep(0.2)
+
+            # Click once anywhere (default: center of screen)
+            mouse_controller.position = (shake_x, shake_y)
+            time.sleep(0.05)
+            self._click_at(shake_x, shake_y)
+            time.sleep(1)
+
+            # Check if it's day or night
+            day_night = self._find_color_center(
+                detection_area, totem_color, totem_tolerance
+            )
+            try:
+                day_night = day_night[0]
+            except:
+                pass # it's already in the normal format
+            if not day_night == None and not use_sundial_mode == "Disabled":
+                time.sleep(0.2) # small delay between totems to prevent roblox from having issues
+                # Press the sundial key
+                keyboard_controller.press(sundial_slot)
+                time.sleep(0.05)
+                keyboard_controller.release(sundial_slot)
+                time.sleep(0.2)
+                # Click once anywhere (default: center of screen)
+                mouse_controller.position = (shake_x, shake_y)
+                time.sleep(0.05)
+                self._click_at(shake_x, shake_y)
+                time.sleep(20)
+                # Press the totem key
+                keyboard_controller.press(target_slot)
+                time.sleep(0.05)
+                keyboard_controller.release(target_slot)
+                time.sleep(0.4) # delay and delay
+
+                # Click once anywhere (default: center of screen)
+                mouse_controller.position = (shake_x, shake_y)
+                time.sleep(0.05)
+                self._click_at(shake_x, shake_y)
+                time.sleep(1)
+            time.sleep(0.2)
     def _execute_cast_perfect(self):
         """
-        Find perfect cast color and cast color
-        Then, compare the distances between perfect cast color and cast color
+        Find perfect cast color and cast color.
+        Then, compare the distances between perfect cast color and cast color.
         Then, release (if failsafe reached release anyways)
         """
         # Hold click
@@ -2630,12 +2759,16 @@ class App(CTk):
             shake_top    = shake["y"]
             shake_right  = shake["x"] + shake["width"]
             shake_bottom = shake["y"] + shake["height"]
+            shake_x = int((shake_left + shake_right) / 2)
+            shake_y = int((shake_top + shake_bottom) / 2)
         else:
             # fallback (old ratio logic)
             shake_left   = int(self.SCREEN_WIDTH * 0.2083)
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
             shake_right  = int(self.SCREEN_WIDTH * 0.7813)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
+            shake_x = int(self.SCREEN_WIDTH * 0.5)
+            shake_y = int(self.SCREEN_HEIGHT * 0.3)
         # --- FISH AREA ---
         fish = self.bar_areas.get("fish")
         if isinstance(fish, dict):
@@ -2655,6 +2788,7 @@ class App(CTk):
         stopping_distance = float(self.vars["stopping_distance"].get())
         stopping_distance = stopping_distance * scale
         click_after_minigame = (self.vars["click_after_minigame"].get())
+        lock_cursor = (self.vars["lock_cursor"].get())
         # Gift box color and timer settings
         gift_box_hex = self.vars["gift_box_color"].get()
         gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
@@ -2694,6 +2828,7 @@ class App(CTk):
                 mouse_controller.release(Button.left)
                 mouse_down = False
         while self.macro_running: # Main macro loop
+            # Pixel search
             gift_img = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
             img = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
             if img is None:
@@ -2733,6 +2868,9 @@ class App(CTk):
             deadzone_action = deadzone_action + 1
             if deadzone_action == 2:
                 deadzone_action = 0
+            # Lock cursor
+            if lock_cursor == "on":
+                mouse_controller.position = (shake_x, shake_y)
             # Calculate deadzone and padding based on bar (skipped if not found)
             bars_found = left_x is not None and right_x is not None
             if fish_x is None:

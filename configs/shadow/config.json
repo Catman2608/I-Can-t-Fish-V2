@@ -17,7 +17,7 @@
     "cast_scan_delay": "0.05",
     "perfect_release_delay": "-0.1",
     "perfect_max_time": "3.5",
-    "bar_size": "on",
+    "bar_size": "off",
     "arrow_pid": "on",
     "legacy_pixel_search": "on",
     "shake_mode": "Navigation",

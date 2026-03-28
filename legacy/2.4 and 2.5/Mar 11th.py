@@ -1113,7 +1113,7 @@ class App(CTk):
                 # quick toggle area selector, regardless of macro state
                 self.open_dual_area_selector()
 
-            elif key == self.hotkey_screenshot:
+            elif key == self.vars["screenshot_key"].get():
                 self._take_debug_screenshot()
 
             elif key == self.hotkey_stop:
@@ -1221,7 +1221,7 @@ class App(CTk):
             left = int(screen_w * 0.2083)
             top = int(screen_h * 0.162)
             right = int(screen_w * 0.7813)
-            bottom = int(screen_h * 0.74)
+            bottom = int(screen_h * 0.7778)
             return { "x": left, "y": top, "width": right - left, "height": bottom - top }
         def default_fish_area():
             left = int(screen_w * 0.2844)

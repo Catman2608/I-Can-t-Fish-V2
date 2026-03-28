@@ -1048,7 +1048,7 @@ class App(CTk):
                 self.after(0, self.withdraw)
                 threading.Thread(target=self.start_macro, daemon=True).start()
 
-            elif key == self.hotkey_screenshot:
+            elif key == self.vars["screenshot_key"].get():
                 self._take_debug_screenshot()
 
             elif key == self.hotkey_stop:

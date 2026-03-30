@@ -285,7 +285,7 @@ class App(CTk):
 
         # Window 
         self.geometry("800x600")
-        self.title("I Can't Fish V2.5")
+        self.title("I Can't Fish V2.6")
 
         # Macro state
         self.macro_running = False
@@ -339,7 +339,7 @@ class App(CTk):
         # Logo Label
         logo_label = CTkLabel(
             top_bar, 
-            text="I CAN'T FISH V2.5",
+            text="I CAN'T FISH V2.6",
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, sticky="w")
@@ -357,21 +357,21 @@ class App(CTk):
             text="Website",
             corner_radius=32,
             command=self.open_link("https://sites.google.com/view/icf-automation-network/")
-       ).pack(side="left", padx=6)
+        ).pack(side="left", padx=6)
 
         CTkButton(
             button_frame,
             text="Upcoming Features",
             corner_radius=32,
             command=self.open_link("https://docs.google.com/document/d/1WwWWMR-eN-R-GO42IioToHpWTgiXkLoiNE_4NeE-GsU/edit?tab=t.0")
-       ).pack(side="left", padx=6)
+        ).pack(side="left", padx=6)
 
         CTkButton(
             button_frame,
             text="Tutorial",
             corner_radius=32,
             command=self.open_link("https://docs.google.com/document/d/1qjhgcONxpZZbSAEYiSCXoUXGjQwd7Jghf4EysWC4Cps/edit?usp=drive_link")
-       ).pack(side="left", padx=6)
+        ).pack(side="left", padx=6)
 
         # Bar Areas Variables
         self.shake_selector = None
@@ -466,11 +466,11 @@ class App(CTk):
             )
             capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
             self.comboboxes["capture_mode"] = capture_cb
-        CTkLabel(configs, text="Rod Type:").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(configs, text="Rod Type:").grid(row=2, column=0, padx=12, pady=6, sticky="w" )
         config_list = self.load_configs()
         config_var = StringVar(value=config_list[0] if config_list else "default.json")
         self.vars["active_config"] = config_var
-        config_cb = CTkComboBox( configs, values=config_list, 
+        config_cb = CTkComboBox(configs, values=config_list, 
                                 variable=config_var, command=lambda v: self.load_settings(v) )
         config_cb.grid(row=2, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
@@ -502,26 +502,26 @@ class App(CTk):
         CTkLabel(hotkey_hotbar_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(hotkey_hotbar_settings, text="Hotbar Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=2, padx=12, pady=8, sticky="w")
         # Key binds
-        CTkLabel(hotkey_hotbar_settings, text="Start Key").grid( row=1, column=0, padx=12, pady=6, sticky="w" )
-        CTkLabel(hotkey_hotbar_settings, text="Change Bar Areas Key").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
-        CTkLabel(hotkey_hotbar_settings, text="Stop Key").grid( row=3, column=0, padx=12, pady=6, sticky="w" )
-        CTkLabel(hotkey_hotbar_settings, text="Screenshot Key").grid( row=4, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Start Key").grid(row=1, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Change Bar Areas Key").grid(row=2, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Stop Key").grid(row=3, column=0, padx=12, pady=6, sticky="w" )
+        CTkLabel(hotkey_hotbar_settings, text="Screenshot Key").grid(row=4, column=0, padx=12, pady=6, sticky="w" )
         # Keys text changer
         start_key_var = StringVar(value="F5")
         self.vars["start_key"] = start_key_var
-        start_key_entry = CTkEntry( hotkey_hotbar_settings, width=120, textvariable=start_key_var )
+        start_key_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=start_key_var )
         start_key_entry.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         change_bar_areas_key_var = StringVar(value="F6")
         self.vars["change_bar_areas_key"] = change_bar_areas_key_var
-        change_bar_areas_key_entry = CTkEntry( hotkey_hotbar_settings, width=120, textvariable=change_bar_areas_key_var )
+        change_bar_areas_key_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=change_bar_areas_key_var )
         change_bar_areas_key_entry.grid(row=2, column=1, padx=12, pady=10, sticky="w")
         stop_key_var = StringVar(value="F7")
         self.vars["stop_key"] = stop_key_var
-        stop_key_entry = CTkEntry( hotkey_hotbar_settings, width=120, textvariable=stop_key_var )
+        stop_key_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=stop_key_var )
         stop_key_entry.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         screenshot_key_var = StringVar(value="F8")
         self.vars["screenshot_key"] = screenshot_key_var
-        screenshot_key_entry = CTkEntry( hotkey_hotbar_settings, width=120, textvariable=screenshot_key_var )
+        screenshot_key_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=screenshot_key_var )
         screenshot_key_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
         # Hotkey for items
         CTkLabel(hotkey_hotbar_settings, text="Fishing Rod Slot:").grid(row=1, column=2, padx=12, pady=6, sticky="w" )
@@ -549,11 +549,12 @@ class App(CTk):
         automation = CTkFrame(scroll, border_width=2)
         automation.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(automation, text="Automation Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        # Create and store checkboxes with StringVar
+        # Auto Select Rod and Zoom In
         auto_rod_var = StringVar(value="off")
         self.vars["auto_select_rod"] = auto_rod_var
         auto_rod_cb = CTkCheckBox(automation, text="Auto Select Rod", variable=auto_rod_var, onvalue="on", offvalue="off")
         auto_rod_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        # Auto Zoom In
         auto_zoom_var = StringVar(value="off")
         self.vars["auto_zoom_in"] = auto_zoom_var
         auto_zoom_cb = CTkCheckBox(automation, text="Auto Zoom In", variable=auto_zoom_var, onvalue="on", offvalue="off")
@@ -562,14 +563,17 @@ class App(CTk):
         overlay_options = CTkFrame(scroll, border_width=2)
         overlay_options.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        # Fish Overlay
         fish_overlay_var = StringVar(value="off")
         self.vars["fish_overlay"] = fish_overlay_var
         fish_overlay_cb = CTkCheckBox(overlay_options, text="Fish Overlay", variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        # Show Bar Size
         bar_size_var = StringVar(value="off")
         self.vars["bar_size"] = bar_size_var
         bar_size_cb = CTkCheckBox(overlay_options, text="Show Bar Size", variable=bar_size_var, onvalue="on", offvalue="off")
         bar_size_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
+        # Draw PD padding
         draw_pd_padding_var = StringVar(value="off")
         self.vars["draw_pd_padding"] = draw_pd_padding_var
         draw_pd_padding_cb = CTkCheckBox(overlay_options, text="Show PD padding", variable=draw_pd_padding_var, onvalue="on", offvalue="off")
@@ -585,16 +589,12 @@ class App(CTk):
         sequence_options = CTkFrame(scroll, border_width=2)
         sequence_options.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(sequence_options, text="Sequences Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(sequence_options, text="Select Rod Delay").grid( row=2, column=0, padx=12, pady=8, sticky="w")
+        # Rod Delay
+        CTkLabel(sequence_options, text="Select Rod Delay").grid(row=2, column=0, padx=12, pady=8, sticky="w")
         bag_delay_var = StringVar(value="0.2")
         self.vars["bag_delay"] = bag_delay_var
         bag_delay_entry = CTkEntry(sequence_options, width=120, textvariable=bag_delay_var)
         bag_delay_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
-        CTkLabel(sequence_options, text="Delay before casting").grid( row=3, column=0, padx=12, pady=8, sticky="w")
-        casting_delay2_var = StringVar(value="0.0")
-        self.vars["casting_delay2"] = casting_delay2_var
-        casting_delay2_entry = CTkEntry(sequence_options, width=120, textvariable=casting_delay2_var)
-        casting_delay2_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
         # Arrow Tracking Settings
         arrow_settings = CTkFrame(scroll, border_width=2)
         arrow_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
@@ -633,16 +633,22 @@ class App(CTk):
         normal_casting = CTkFrame(scroll, border_width=2)
         normal_casting.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(normal_casting, text="Normal Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(normal_casting, text="Cast duration").grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        # Delay Before Casting
+        CTkLabel(normal_casting, text="Delay").grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        casting_delay2_var = StringVar(value="0.0")
+        self.vars["casting_delay2"] = casting_delay2_var
+        casting_delay2_entry = CTkEntry(normal_casting, width=120, textvariable=casting_delay2_var)
+        casting_delay2_entry.grid(row=1, column=1, padx=12, pady=8, sticky="w")
+        CTkLabel(normal_casting, text="Cast for ________ seconds").grid(row=2, column=0, padx=12, pady=8, sticky="w")
         cast_duration_var = StringVar(value="0.6")
         self.vars["cast_duration"] = cast_duration_var
         cast_duration_entry = CTkEntry(normal_casting, width=120, textvariable=cast_duration_var)
-        cast_duration_entry.grid(row=1, column=1, padx=12, pady=8, sticky="w")
-        CTkLabel(normal_casting, text="Cast Delay").grid(row=2, column=0, padx=12, pady=8, sticky="w")
+        cast_duration_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
+        CTkLabel(normal_casting, text="Delay").grid(row=3, column=0, padx=12, pady=8, sticky="w")
         cast_delay_var = StringVar(value="0.6")
         self.vars["cast_delay"] = cast_delay_var
         cast_delay_entry = CTkEntry(normal_casting, width=120, textvariable=cast_delay_var)
-        cast_delay_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
+        cast_delay_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
         # Perfect Cast Settings 
         perfect_casting = CTkFrame(scroll, border_width=2)
         perfect_casting.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
@@ -706,7 +712,7 @@ class App(CTk):
         CTkLabel(shake_configuration, text="Shake Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         shake_mode_var = StringVar(value="Click")
         self.vars["shake_mode"] = shake_mode_var
-        shake_cb = CTkComboBox( shake_configuration, values=["Click", "Navigation"], 
+        shake_cb = CTkComboBox(shake_configuration, values=["Click", "Navigation"], 
                                variable=shake_mode_var, command=lambda v: self.set_status(f"Shake mode: {v}")
                                )
         shake_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
@@ -718,7 +724,7 @@ class App(CTk):
         CTkLabel(shake_configuration, text="Shake Scan Delay:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         shake_scan_delay_var = StringVar(value="0.01")
         self.vars["shake_scan_delay"] = shake_scan_delay_var
-        CTkEntry( shake_configuration, width=120, textvariable=shake_scan_delay_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(shake_configuration, width=120, textvariable=shake_scan_delay_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # Click Shake Settings
         click_shake = CTkFrame(
             scroll,
@@ -726,10 +732,16 @@ class App(CTk):
         )
         click_shake.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(click_shake, text="Click Shake Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        # Shake Tolerance
         CTkLabel(click_shake, text="Click Shake Color Tolerance:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         shake_tolerance_var = StringVar(value="5")
         self.vars["shake_tolerance"] = shake_tolerance_var
         CTkEntry(click_shake, width=120, textvariable=shake_tolerance_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        # Clicks
+        CTkLabel(click_shake, text="Click Shake Color clicks:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
+        shake_clicks_var = StringVar(value="5")
+        self.vars["shake_clicks"] = shake_clicks_var
+        CTkEntry(click_shake, width=120, textvariable=shake_clicks_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
         # Minigame Detection Settings
         minigame_detection = CTkFrame(
@@ -891,7 +903,7 @@ class App(CTk):
         CTkCheckBox(discord_webhook, text="Send Screenshot (instead of text)", variable=discord_screenshot_var, onvalue="on", offvalue="off"
                     ).grid(row=4, column=0, columnspan=2, padx=12, pady=8, sticky="w")
         # Test webhook button
-        CTkButton( discord_webhook, text="Test Webhook", command=self.test_discord_webhook
+        CTkButton(discord_webhook, text="Test Webhook", command=self.test_discord_webhook
                   ).grid(row=5, column=0, columnspan=2, padx=12, pady=12, sticky="w")
     # UTILITIES TAB
     def build_utilities_tab(self, parent):
@@ -924,14 +936,10 @@ class App(CTk):
         self.vars["totem_cycles"] = totem_cycles_var
         CTkEntry(auto_totem, width=120, textvariable=totem_cycles_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(auto_totem, text="Use Sundial When:").grid(row=4, column=0, padx=12, pady=10, sticky="w" )
-        use_sundial_mode_var = StringVar(value="Disabled")
-        self.vars["use_sundial_mode"] = use_sundial_mode_var
-        use_sundial_cb = CTkComboBox(auto_totem, values=["Enabled", "Disabled"], 
-                               variable=use_sundial_mode_var, command=lambda v: self.set_status(f"Macro now uses sundial totem when {v}")
-                               )
-        use_sundial_cb.grid(row=4, column=1, padx=12, pady=10, sticky="w")
-        self.comboboxes["use_sundial_mode"] = use_sundial_cb
+        use_sundial_var = StringVar(value="off")
+        self.vars["use_sundial"] = use_sundial_var
+        use_sundial_cb = CTkCheckBox(auto_totem, text="Fish Overlay", variable=use_sundial_var, onvalue="on", offvalue="off")
+        use_sundial_cb.grid(row=4, column=0, padx=12, pady=8, sticky="w")
 
         CTkLabel(auto_totem, text="Totem Fail Color:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
         totem_color_var = StringVar(value="#7effad")
@@ -1167,16 +1175,6 @@ class App(CTk):
         if not os.path.exists(path):
             self.set_status(f"Config not found: {name}")
             return
-        # Get rod folder based on config name
-        left_bar_path  = os.path.join(rod_folder, "left_bar.png")
-        right_bar_path = os.path.join(rod_folder, "right_bar.png")
-        fish_path      = os.path.join(rod_folder, "fish.png")
-
-        self.templates = {
-            "left_bar":  cv2.imread(left_bar_path, 0)  if os.path.exists(left_bar_path)  else None,
-            "right_bar": cv2.imread(right_bar_path, 0) if os.path.exists(right_bar_path) else None,
-            "fish":      cv2.imread(fish_path, 0)      if os.path.exists(fish_path)      else None,
-        }
         
         try:
             with open(path, "r") as f:
@@ -1685,7 +1683,7 @@ class App(CTk):
         tolerance=15,
         tolerance2=15,
         scan_height_ratio=0.55
-    ):
+     ):
         if frame is None:
             return None, None
 
@@ -1746,7 +1744,7 @@ class App(CTk):
         tolerance=15,
         tolerance2=15,
         scan_height_ratio=0.55
-    ):
+     ):
         if frame is None:
             return None, None
 
@@ -2071,7 +2069,7 @@ class App(CTk):
         show_bar_center=False,
         bar_y1=10,
         bar_y2=40,
-    ):
+     ):
         """
         Draws:
         - Square box with size
@@ -2263,7 +2261,7 @@ class App(CTk):
             target_slot = str(self.vars["target_slot"].get())
             totem_color = self.vars["totem_color"].get()
             totem_tolerance = self.vars["totem_tolerance"].get()
-            use_sundial_mode = self.vars["use_sundial_mode"].get()
+            use_sundial = self.vars["use_sundial"].get()
 
             # Press the totem key
             keyboard_controller.press(target_slot)
@@ -2285,7 +2283,7 @@ class App(CTk):
                 day_night = day_night[0]
             except:
                 pass # it's already in the normal format
-            if not day_night == None and not use_sundial_mode == "Disabled":
+            if not day_night == None and use_sundial == "on":
                 time.sleep(0.2) # small delay between totems to prevent roblox from having issues
                 # Press the sundial key
                 keyboard_controller.press(sundial_slot)

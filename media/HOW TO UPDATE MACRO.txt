@@ -1,0 +1,3 @@
+-- THIS IS IMPORTANT AND CAN GET YOU INTO TROUBLE --
+First, replace discord webhook with []
+Second, replace web hook name with []

@@ -20,7 +20,7 @@
     "left_color": "#540000",
     "right_color": "#220000",
     "arrow_color": "#364167",
-    "Fish + Bar_color": "#44110f",
+    "fish_color": "#44110f",
     "Fish + Bar2_color": "#44110f",
     "left_tolerance": "3",
     "right_tolerance": "3",
@@ -33,7 +33,7 @@
     "proportional_gain": "0.5",
     "derivative_gain": "0.3",
     "velocity_smoothing": "2",
-    "combobox_active_config": "polaris.json",
+    "Removed1": "polaris.json",
     "combobox_capture_mode": "MSS",
     "combobox_shake_mode": "Navigation"
 }

@@ -1,2 +1,0 @@
-Config pack version: 2.5
-Made for: ICF 2.5 and later

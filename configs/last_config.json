@@ -1,9 +1,19 @@
 {
-    "last_config": "default.json",
+    "last_config": "astraeus.json",
     "last_rod": "Basic Rod",
     "bar_areas": {
-        "shake": null,
-        "fish": null
+        "shake": {
+            "x": 398,
+            "y": 174,
+            "width": 1102,
+            "height": 631
+        },
+        "fish": {
+            "x": 541,
+            "y": 836,
+            "width": 830,
+            "height": 67
+        }
     },
     "start_key": "F5",
     "change_bar_areas_key": "F6",

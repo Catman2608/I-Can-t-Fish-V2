@@ -13,7 +13,7 @@
     "cast_scan_delay": "0.05",
     "bar_size": "off",
     "arrow_pid": "off",
-    "shake_mode": "Navigation",
+    "shake_mode": "Click",
     "shake_tolerance": "5",
     "shake_scan_delay": "0.1",
     "shake_failsafe": "20",

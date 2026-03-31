@@ -23,7 +23,7 @@
     "release_method": "Simple",
     "perfect_release_delay": "0",
     "perfect_threshold": "28",
-    "shake_mode": "Navigation",
+    "shake_mode": "Click",
     "shake_failsafe": "6",
     "shake_scan_delay": "0.1",
     "shake_tolerance": "5",

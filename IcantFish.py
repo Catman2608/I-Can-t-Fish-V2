@@ -67,6 +67,7 @@ keyboard_controller = KeyboardController()
 mouse_controller = MouseController()
 # Set appearance
 set_default_color_theme("blue")
+set_appearance_mode("dark") # Force ultra dark mode
 # from AppKit import NSEvent
 # Last Config Path / Fix macOS DMG issues
 def get_base_path():
@@ -116,7 +117,7 @@ class DualAreaSelector:
         self.window.overrideredirect(True)
         self.window.attributes("-topmost", True)
 
-        self.window.configure(bg="black")
+        self.window.configure(bg="#181818")
         self.window.attributes("-alpha", 0.5)
         w = self.window.winfo_screenwidth()
         h = self.window.winfo_screenheight()
@@ -284,6 +285,7 @@ class App(CTk):
         self.SCREEN_HEIGHT = self.winfo_screenheight()
 
         # Window 
+        self.configure(fg_color="#131313")   # <- Main Window Ultra Dark
         self.geometry("800x600")
         self.title("I Can't Fish V2.6")
 
@@ -313,7 +315,7 @@ class App(CTk):
         # Hotkey variables
         self.hotkey_start = Key.f5
         self.hotkey_stop = Key.f7
-        self.hotkey_change_areas = Key.f6            # added for the bar area selector
+        self.hotkey_change_areas = Key.f6 # added for the bar area selector
         self.hotkey_reserved = Key.f8
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
 
@@ -378,9 +380,15 @@ class App(CTk):
         self.fish_selector = None
 
         # Tabs 
-        self.tabs = CTkTabview(
-            self,
-            anchor="w",
+        self.tabs = CTkTabview( self, anchor="w", border_color = "#00FF00", fg_color = "#181818")
+
+        self.tabs._segmented_button.configure(
+            fg_color="#202020",
+            selected_color="#404040",
+            selected_hover_color="#505050",
+            unselected_color="#202020",
+            unselected_hover_color="#303030",
+            text_color="#FFFFFF"
         )
 
         self.tabs.grid(
@@ -442,13 +450,13 @@ class App(CTk):
         self.last_fish_x = None
     # BASIC SETTINGS TAB
     def build_basic_tab(self, parent):
-        scroll = CTkScrollableFrame(parent)
+        scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
         # Configs 
-        configs = CTkFrame(scroll, border_width=2)
+        configs = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         configs.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(configs, text="Config & Capture", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(configs, text="Capture Mode:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
@@ -497,7 +505,7 @@ class App(CTk):
                     command=self._take_debug_screenshot # Screen Recording
                     ).grid(row=3, column=3, padx=12, pady=12, sticky="w")
         # Hotkey and Hotbar Settings
-        hotkey_hotbar_settings = CTkFrame(scroll, border_width=2)
+        hotkey_hotbar_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         hotkey_hotbar_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(hotkey_hotbar_settings, text="Hotkey Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(hotkey_hotbar_settings, text="Hotbar Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=2, padx=12, pady=8, sticky="w")
@@ -546,7 +554,7 @@ class App(CTk):
         target_slot_entry = CTkEntry(hotkey_hotbar_settings, width=120, textvariable=target_slot_var)
         target_slot_entry.grid(row=4, column=3, padx=12, pady=8, sticky="w")
         # Automation 
-        automation = CTkFrame(scroll, border_width=2)
+        automation = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         automation.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(automation, text="Automation Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Auto Select Rod and Zoom In
@@ -560,7 +568,7 @@ class App(CTk):
         auto_zoom_cb = CTkCheckBox(automation, text="Auto Zoom In", variable=auto_zoom_var, onvalue="on", offvalue="off")
         auto_zoom_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
         # Overlay Options 
-        overlay_options = CTkFrame(scroll, border_width=2)
+        overlay_options = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         overlay_options.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Fish Overlay
@@ -580,13 +588,13 @@ class App(CTk):
         draw_pd_padding_cb.grid(row=3, column=0, padx=12, pady=8, sticky="w")
     # MISC SETTINGS TAB
     def build_misc_tab(self, parent):
-        scroll = CTkScrollableFrame(parent)
+        scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
         # Sequence Options
-        sequence_options = CTkFrame(scroll, border_width=2)
+        sequence_options = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         sequence_options.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(sequence_options, text="Sequences Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Rod Delay
@@ -596,30 +604,24 @@ class App(CTk):
         bag_delay_entry = CTkEntry(sequence_options, width=120, textvariable=bag_delay_var)
         bag_delay_entry.grid(row=2, column=1, padx=12, pady=8, sticky="w")
         # Arrow Tracking Settings
-        arrow_settings = CTkFrame(scroll, border_width=2)
+        arrow_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         arrow_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(arrow_settings, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        centroid_tracking_var = StringVar(value="off")
-        self.vars["centroid_tracking"] = centroid_tracking_var
-        centroid_tracking_cb = CTkCheckBox(arrow_settings, text="Estimate Bar From Arrows", 
-                                           variable=centroid_tracking_var, onvalue="on", 
-                                           offvalue="off")
-        centroid_tracking_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
         lock_cursor_var = StringVar(value="off")
         self.vars["lock_cursor"] = lock_cursor_var
         lock_cursor_cb = CTkCheckBox(arrow_settings, text="Lock Cursor", 
                                            variable=lock_cursor_var, onvalue="on", 
                                            offvalue="off")
-        lock_cursor_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
+        lock_cursor_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # CAST SETTINGS TAB
     def build_cast_tab(self, parent):
-        scroll = CTkScrollableFrame(parent)
+        scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
         # Casting Mode (Combobox)
-        casting_mode = CTkFrame(scroll, border_width=2)
+        casting_mode = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         casting_mode.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(casting_mode, text="Casting Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         casting_mode_var = StringVar(value="Normal")
@@ -630,7 +632,7 @@ class App(CTk):
         casting_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["casting_mode"] = casting_cb
         # Normal Casting Group
-        normal_casting = CTkFrame(scroll, border_width=2)
+        normal_casting = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         normal_casting.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(normal_casting, text="Normal Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Delay Before Casting
@@ -650,7 +652,7 @@ class App(CTk):
         cast_delay_entry = CTkEntry(normal_casting, width=120, textvariable=cast_delay_var)
         cast_delay_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
         # Perfect Cast Settings 
-        perfect_casting = CTkFrame(scroll, border_width=2)
+        perfect_casting = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         perfect_casting.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
 
         CTkLabel(perfect_casting, text="Perfect Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
@@ -697,15 +699,12 @@ class App(CTk):
         perfect_threshold_entry.grid(row=7, column=1, padx=12, pady=10, sticky="w")
     # SHAKE SETTINGS TAB
     def build_shake_tab(self, parent):
-        scroll = CTkScrollableFrame(parent)
+        scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-        shake_configuration = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        shake_configuration = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         shake_configuration.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         # Shake Configuration
         CTkLabel(shake_configuration, text="Shake Configuration", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
@@ -726,10 +725,7 @@ class App(CTk):
         self.vars["shake_scan_delay"] = shake_scan_delay_var
         CTkEntry(shake_configuration, width=120, textvariable=shake_scan_delay_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # Click Shake Settings
-        click_shake = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        click_shake = CTkFrame( scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         click_shake.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(click_shake, text="Click Shake Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Shake Tolerance
@@ -738,16 +734,13 @@ class App(CTk):
         self.vars["shake_tolerance"] = shake_tolerance_var
         CTkEntry(click_shake, width=120, textvariable=shake_tolerance_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
         # Clicks
-        CTkLabel(click_shake, text="Click Shake Color clicks:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
-        shake_clicks_var = StringVar(value="5")
+        CTkLabel(click_shake, text="Amount of Clicks:").grid(row=2, column=0, padx=12, pady=10, sticky="w" )
+        shake_clicks_var = StringVar(value="1")
         self.vars["shake_clicks"] = shake_clicks_var
-        CTkEntry(click_shake, width=120, textvariable=shake_clicks_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        CTkEntry(click_shake, width=120, textvariable=shake_clicks_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
         # Minigame Detection Settings
-        minigame_detection = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        minigame_detection = CTkFrame( scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         minigame_detection.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(minigame_detection, text="Minigame Detection", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(minigame_detection, text="Detection Method:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
@@ -768,13 +761,13 @@ class App(CTk):
         self.comboboxes["restart_method"] = restart_cb
     # FISHING SETTINGS TAB
     def build_fishing_tab(self, parent):
-        scroll = CTkScrollableFrame(parent)
+        scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
         # Pixel Settings
-        pixel_settings = CTkFrame(scroll, border_width=2)
+        pixel_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         pixel_settings.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(pixel_settings, text="Bar Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkButton(pixel_settings, text="Pick Colors", corner_radius=10, command=self._pick_colors).grid(row=0, column=1, padx=12, pady=12, sticky="w")
@@ -813,26 +806,16 @@ class App(CTk):
         fish_tolerance_var = StringVar(value="0")
         self.vars["fish_tolerance"] = fish_tolerance_var
         CTkEntry(pixel_settings, width=120, textvariable=fish_tolerance_var).grid(row=5, column=3, padx=12, pady=10, sticky="w")
-        # Minigame Timing and Limits
-        ratio_settings = CTkFrame(
-            scroll,
-            border_width=2
-        )
+        # Move Check Settings
+        ratio_settings = CTkFrame( scroll, border_width=2 , border_color = "#00FF00", fg_color = "#181818")
         ratio_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(ratio_settings, text="Move Check Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        CTkLabel(ratio_settings, text="Bar Ratio From Side:").grid(
-            row=1, column=0, padx=12, pady=10, sticky="w"
-        )
-
+        # Bar Ratio From Side
+        CTkLabel(ratio_settings, text="Bar Ratio From Side:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
         bar_ratio_var = StringVar(value="0.5")
         self.vars["bar_ratio"] = bar_ratio_var
+        CTkEntry(ratio_settings,width=120,textvariable=bar_ratio_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
-        CTkEntry(
-            ratio_settings,
-            width=120,
-            textvariable=bar_ratio_var
-        ).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        
         CTkLabel(ratio_settings, text="Scan Delay (seconds):").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         minigame_scan_delay_var = StringVar(value="0.05")
         self.vars["minigame_scan_delay"] = minigame_scan_delay_var
@@ -848,7 +831,7 @@ class App(CTk):
         self.vars["stopping_distance"] = stopping_distance_var
         CTkEntry(ratio_settings, width=120, textvariable=stopping_distance_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
 
-        pid_settings = CTkFrame(scroll, border_width=2 )
+        pid_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         pid_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(pid_settings, text="PD Controller Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
 
@@ -873,14 +856,14 @@ class App(CTk):
         CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
     # LOGGING SETTINGS TAB
     def build_logging_tab(self, parent):
-        scroll = CTkScrollableFrame(parent)
+        scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
 
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
 
         # Discord Webhook Settings
-        discord_webhook = CTkFrame(scroll, border_width=2)
+        discord_webhook = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         discord_webhook.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(discord_webhook, text="Discord Webhook", font=CTkFont(size=16, weight="bold") ).grid(row=0, column=0, columnspan=2, padx=12, pady=(10, 5), sticky="w")
 
@@ -907,13 +890,13 @@ class App(CTk):
                   ).grid(row=5, column=0, columnspan=2, padx=12, pady=12, sticky="w")
     # UTILITIES TAB
     def build_utilities_tab(self, parent):
-        scroll = CTkScrollableFrame(parent)
+        scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
         # Auto Totem
-        auto_totem = CTkFrame(scroll, border_width=2)
+        auto_totem = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         auto_totem.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(auto_totem, text="Auto Totem", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         
@@ -952,7 +935,7 @@ class App(CTk):
         CTkEntry(auto_totem, width=120, textvariable=totem_tolerance_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
     
         # Auto Reconnect
-        # auto_reconnect = CTkFrame(scroll, border_width=2)
+        # auto_reconnect = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         # auto_reconnect.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         # CTkLabel(auto_reconnect, text="Auto Reconnect", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
 
@@ -962,14 +945,14 @@ class App(CTk):
         # auto_reconnect_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # ADVANCED SETTINGS TAB
     def build_advanced_tab(self, parent):
-        scroll = CTkScrollableFrame(parent)
+        scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
 
         # Advanced Colors
-        advanced_colors = CTkFrame(scroll, border_width=2)
+        advanced_colors = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         advanced_colors.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(advanced_colors, text="Advanced Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")   
         
@@ -988,7 +971,7 @@ class App(CTk):
         self.vars["perfect_color2"] = perfect_color2_var
         CTkEntry(advanced_colors, width=120, textvariable=perfect_color2_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        gift_settings = CTkFrame(scroll, border_width=2)
+        gift_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         gift_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(gift_settings, text="Gift Box Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w") 
 
@@ -1021,7 +1004,7 @@ class App(CTk):
         CTkEntry(gift_settings, width=120, textvariable=note_cooldown_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
 
         # Compatibility Settings
-        compatibility_settings = CTkFrame(scroll, border_width=2)
+        compatibility_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         compatibility_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(compatibility_settings, text="Compatibility Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")  
         click_after_minigame_var = StringVar(value="off")
@@ -1378,33 +1361,17 @@ class App(CTk):
     def open_link(self, url):
         """Open a URL in the default web browser."""
         return lambda: webbrowser.open(url)
-    def _click_at(self, x, y, click_count=1):
-        if sys.platform == "win32":
-            # Move cursor
-            windll.SetCursorPos(x, y)
-            # Important: tiny movement so Roblox registers input
-            windll.mouse_event(MOUSEEVENTF_MOVE, 0, 1, 0, 0)
-            for i in range(click_count):
-                windll.mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0)
-                windll.mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0)
-                if i < click_count - 1:
-                    time.sleep(0.03)
-        elif sys.platform == "darwin":
-            x = int(x)
-            y = int(y)
+    def _click_at(self, x, y, z):
+        mouse_controller.position = (x, y)
+        time.sleep(0.01)
 
-            # Move cursor
-            _move_mouse(x, y)
+        # micro-jitter
+        mouse_controller.position = (x + 3, y + 3)
+        mouse_controller.position = (x, y)
 
-            # Tiny movement (Roblox trick)
-            _move_mouse(x, y + 1)
-
-            for i in range(click_count):
-                _mouse_event(Quartz.kCGEventLeftMouseDown, x, y)
-                _mouse_event(Quartz.kCGEventLeftMouseUp, x, y)
-
-                if i < click_count - 1:
-                    time.sleep(0.03)
+        mouse_controller.press(Button.left)
+        time.sleep(0.04)
+        mouse_controller.release(Button.left)
     def accessibility_perms(self):
         """Askes macOS to grant the permission to do a single click"""
         mouse_controller.press(Button.left)
@@ -1943,71 +1910,70 @@ class App(CTk):
 
     def _update_arrow_box_estimation(self, arrow_centroid_x, is_holding, capture_width):
         """
-        Estimate box position based on arrow indicator using IRUS-style logic.
-        
-        If holding: arrow is on RIGHT edge, extend LEFT
-        If not holding: arrow is on LEFT edge, extend RIGHT
-        When state swaps: measure distance between arrows to get box size
-        
-        Args:
-            arrow_centroid_x: X coordinate of arrow center
-            is_holding: Whether mouse button is currently held
-            capture_width: Width of capture region
-        
-        Returns:
-            Estimated bar center X coordinate, or None if can't estimate
+        Find bar center based on arrow position
+        - If holding: arrow is RIGHT edge → box extends LEFT
+        - If not holding: arrow is LEFT edge → box extends RIGHT
+        - When state swaps: measure arrow-to-arrow distance = box length
         """
-        # Handle missing arrow
+
+        current_time = time.time()
+
+        # ---- Handle missing arrow ----
         if arrow_centroid_x is None:
             if self.last_known_box_center_x is not None:
-                return self.last_known_box_center_x
-            return None
-        
-        # Check if state swapped (holding <-> not holding)
-        state_swapped = (self.last_holding_state is not None and 
-                        is_holding != self.last_holding_state)
-        
-        # When swapping: measure new box size from arrow positions
+                return self.last_known_box_center_x, self.last_left_x, self.last_right_x
+            
+            if self.last_left_x is not None and self.last_right_x is not None:
+                center = (self.last_left_x + self.last_right_x) / 2.0
+                return center, self.last_left_x, self.last_right_x
+            
+            return None, None, None
+
+        # ---- Detect state swap ----
+        state_swapped = (
+            self.last_holding_state is not None and 
+            is_holding != self.last_holding_state
+        )
+
+        # ---- Recalculate box size when swapped ----
         if state_swapped and self.last_indicator_x is not None:
             new_box_size = abs(arrow_centroid_x - self.last_indicator_x)
-            if new_box_size >= 10:  # Reasonable minimum
+            if new_box_size >= 10:
                 self.estimated_box_length = new_box_size
-        
-        # Set default box size if we don't have one
+
+        # ---- Default box size ----
         if self.estimated_box_length is None or self.estimated_box_length <= 0:
             self.estimated_box_length = min(capture_width * 0.3, 200)
-        
-        # Position the box based on current hold state
+
+        # ---- Position the box ----
         if is_holding:
-            # Holding: arrow is on RIGHT, extend LEFT
+            # arrow on RIGHT
             self.last_right_x = float(arrow_centroid_x)
             self.last_left_x = self.last_right_x - self.estimated_box_length
         else:
-            # Not holding: arrow is on LEFT, extend RIGHT
+            # arrow on LEFT
             self.last_left_x = float(arrow_centroid_x)
             self.last_right_x = self.last_left_x + self.estimated_box_length
-        
-        # Clamp to capture bounds (keep arrow anchored)
+
+        # ---- Clamp to capture bounds ----
         if self.last_left_x < 0:
             self.last_left_x = 0.0
-            self.last_right_x = min(self.estimated_box_length, capture_width)
-        
+            self.last_right_x = self.estimated_box_length
+
         if self.last_right_x > capture_width:
             self.last_right_x = float(capture_width)
-            self.last_left_x = max(0.0, self.last_right_x - self.estimated_box_length)
-        
-        # Calculate and store center
+            self.last_left_x = self.last_right_x - self.estimated_box_length
+
+        # ---- Calculate center ----
         box_center = (self.last_left_x + self.last_right_x) / 2.0
         self.last_known_box_center_x = box_center
-        
-        # Update tracking variables for next frame
+        self.last_known_box_timestamp = current_time
+
+        # ---- Update state ----
         self.last_indicator_x = arrow_centroid_x
         self.last_holding_state = is_holding
 
-        # Return values
-        left_x = self.last_left_x
-        right_x = self.last_right_x
-        return box_center, left_x, right_x
+        return box_center, self.last_left_x, self.last_right_x
     # === MINIGAME WINDOW (instance methods) ===
     def init_overlay_window(self):
         """
@@ -2462,6 +2428,7 @@ class App(CTk):
         failsafe = int(self.vars["shake_failsafe"].get() or 40)
         bar_hex = self.vars["left_color"].get() # Left bar color replaced by left color
         bar_tolerance = int(self.vars["left_tolerance"].get())
+        shake_clicks = int(self.vars["shake_clicks"].get())
         # Initialize attempts counter
         attempts = 0
         while self.macro_running and attempts < failsafe:
@@ -2479,7 +2446,7 @@ class App(CTk):
                 x, y = shake_pixel
                 screen_x = shake_left + x
                 screen_y = shake_top + y
-                self._click_at(screen_x, screen_y)
+                self._click_at(screen_x, screen_y, shake_clicks)
 
             # 2. Fish detection (Fish + Bar)
             detected = False
@@ -2630,7 +2597,6 @@ class App(CTk):
         # Thresh / clamp settings
         thresh = float(self.vars["stabilize_threshold2"].get() or 8)
         pid_clamp = float(self.vars["pid_clamp"].get() or 100)
-        use_centroid = self.vars["centroid_tracking"].get()
         mouse_down = False
         # initialise/zero PD state before entering the tracking loop
         self.prev_error = 0.0
@@ -2785,34 +2751,23 @@ class App(CTk):
                     pid_found = 1
                     return
                 arrow_screen_x = arrow_indicator_x + fish_left
-                if use_centroid == "on":
-                    estimated_bar_center, estimated_left, estimated_right = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
-                    if estimated_bar_center is not None:
-                        bar_center = int(estimated_bar_center + fish_left)
-                        bar_left_screen  = estimated_left  + fish_left - stopping_distance   # ← add this
-                        bar_right_screen = estimated_right + fish_left + stopping_distance   # ← add this
-                        if bar_left_screen <= fish_x <= bar_right_screen:  # PID
-                            pid_found = 0
+                estimated_bar_center, estimated_left, estimated_right = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
+                estimated_size = abs(estimated_right - estimated_left)
+                if estimated_bar_center is not None:
+                    bar_center = int(estimated_bar_center + fish_left)
+                    bar_left_screen  = estimated_left  + fish_left - stopping_distance   # ← add this
+                    bar_right_screen = estimated_right + fish_left + stopping_distance   # ← add this
+                    if bar_left_screen <= fish_x <= bar_right_screen:  # PID
+                        pid_found = 0
+                    else:
+                        if fish_x > bar_center:
+                            pid_found = 2
                         else:
-                            if fish_x > bar_center:
-                                pid_found = 2
-                            else:
-                                pid_found = 1                        
-                        if self.vars["fish_overlay"].get() == "on":
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=40,color="yellow",canvas_offset=fish_left))
-                    else:
-                        pid_found = 1
-                else:
-                    distance = arrow_screen_x - fish_x
-                    if distance > 0:
-                        pid_found = 1   # release mouse
-                    elif distance < 0:
-                        pid_found = 2   # hold mouse
-                    else:
-                        pid_found = 1
+                            pid_found = 1                        
                     if self.vars["fish_overlay"].get() == "on":
-                        self.after(0, lambda: self.draw_overlay(bar_center=arrow_screen_x,box_size=10,
-                                          color="yellow",canvas_offset=fish_left, show_bar_center=False, bar_y1=20, bar_y2=30))
+                        self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="yellow",canvas_offset=fish_left))
+                else:
+                    pid_found = 1
             else: # No arrow / bar found
                 pid_found = 1
             # PID calculation

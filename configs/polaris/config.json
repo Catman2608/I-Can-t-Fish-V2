@@ -13,7 +13,7 @@
     "perfect_cast_green_y_tol": "3",
     "perfect_cast_min_white": "3",
     "bar_size": "off",
-    "shake_mode": "Navigation",
+    "shake_mode": "Click",
     "shake_tolerance": "5",
     "shake_scan_delay": "0.01",
     "shake_failsafe": "2",

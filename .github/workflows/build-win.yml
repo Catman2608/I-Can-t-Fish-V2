@@ -24,8 +24,8 @@ jobs:
             - name: Build EXE with PyInstaller
               shell: cmd
               run: |
-                  pyinstaller --onefile --windowed v2.py ^
-                    --hidden-import=cv2 ^
+                  pyinstaller --onefile --windowed IcantFish.py ^
+                    --hidden-import=cIcantFish ^
                     --hidden-import=numpy ^
                     --collect-all customtkinter ^
                     --add-data "configs;configs" ^

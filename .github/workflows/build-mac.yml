@@ -27,14 +27,14 @@ jobs:
             - name: Build with PyInstaller
               run: |
                   pyinstaller --onedir --windowed \
-                    --icon="icf v2 icon.icns" \
+                    --icon="icf IcantFish icon.icns" \
                     --add-data "configs:configs" \
                     --osx-bundle-identifier="com.yourcompany.IcantFish" \
                     --target-architecture="arm64;x86_64" \
-                    --hidden-import=cv2 \
+                    --hidden-import=cIcantFish \
                     --hidden-import=numpy \
                     --collect-all customtkinter \
-                    v2.py
+                    IcantFish.py
 
             - name: Check dist contents
               run: |

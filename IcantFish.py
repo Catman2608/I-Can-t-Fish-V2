@@ -593,12 +593,14 @@ class App(CTk):
         self.vars["auto_zoom_in"] = auto_zoom_var
         auto_zoom_cb = CTkCheckBox(automation, text="Auto Zoom In", variable=auto_zoom_var, onvalue="on", offvalue="off")
         auto_zoom_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(automation, text="Retina Scaling:").grid(row=3, column=0, padx=12, pady=6, sticky="w" )
         if sys.platform == "darwin":
-            CTkLabel(automation, text="Retina Scaling:").grid(row=3, column=0, padx=12, pady=6, sticky="w" )
             retina_scaling_var = StringVar(value="1")
             self.vars["retina_scaling"] = retina_scaling_var
             retina_scaling_entry = CTkEntry(automation, width=120, textvariable=retina_scaling_var)
             retina_scaling_entry.grid(row=3, column=1, padx=12, pady=8, sticky="w")
+        else:
+            CTkLabel(automation, text="1").grid(row=3, column=1, padx=12, pady=6, sticky="w")
         # Overlay Options 
         overlay_options = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         overlay_options.grid(row=3, column=0, padx=20, pady=20, sticky="nw")

@@ -34,14 +34,13 @@ try:
         import dxcam
     else:
         dxcam = None
-        # macOS DPI awareness requires PyAutoGUI code but I use pynput.
 except Exception:
     dxcam = None
 import mss
 # Windows ctypes vs macOS Quartz
 if sys.platform == "win32":
     import ctypes # Windows
-    import ctypes as Quartz
+    import ctypes as Quartz # Used to disable quartz on Windows
     windll = ctypes.windll.user32
     MOUSEEVENTF_MOVE = 0x0001
     MOUSEEVENTF_LEFTDOWN = 0x0002
@@ -49,7 +48,7 @@ if sys.platform == "win32":
 elif sys.platform == "darwin":
     import threading
     import numpy as np
-    # import Quartz
+    # import Quartz # If you're on macOS remove the first hashtag
     def _move_mouse(x, y):
         point = Quartz.CGPointMake(float(x), float(y))
         Quartz.CGWarpMouseCursorPosition(point)

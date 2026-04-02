@@ -30,7 +30,7 @@ jobs:
                     --icon="icf IcantFish icon.icns" \
                     --add-data "configs:configs" \
                     --osx-bundle-identifier="com.yourcompany.IcantFish" \
-                    --target-architecture="arm64;x86_64" \
+                    --target-architecture="universal2" \
                     --hidden-import=cIcantFish \
                     --hidden-import=numpy \
                     --collect-all customtkinter \

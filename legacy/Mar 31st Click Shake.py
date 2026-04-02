@@ -2225,9 +2225,9 @@ class App(CTk):
             shake_bottom = shake["y"] + shake["height"]
         else:
             # fallback (old ratio logic)
-            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
+            shake_left   = int(self.SCREEN_WIDTH * 0.1333)
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
-            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
+            shake_right  = int(self.SCREEN_WIDTH * 0.8562)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
         detection_area = self._grab_screen_region(
             shake_left, shake_top, shake_right, shake_bottom
@@ -2318,9 +2318,9 @@ class App(CTk):
             shake_height = shake["height"]
         else:
             # fallback (old ratio logic)
-            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
+            shake_left   = int(self.SCREEN_WIDTH * 0.1333)
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
-            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
+            shake_right  = int(self.SCREEN_WIDTH * 0.8562)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
             shake_height = shake_bottom - shake_top
         # --- FISH AREA ---
@@ -2429,9 +2429,9 @@ class App(CTk):
             shake_bottom = shake["y"] + shake["height"]
         else:
             # fallback (old ratio logic)
-            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
+            shake_left   = int(self.SCREEN_WIDTH * 0.1333)
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
-            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
+            shake_right  = int(self.SCREEN_WIDTH * 0.8562)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
         # --- FISH AREA ---
         fish = self.bar_areas.get("fish")
@@ -2586,9 +2586,9 @@ class App(CTk):
             shake_y = int((shake_top + shake_bottom) / 2)
         else:
             # fallback (old ratio logic)
-            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
+            shake_left   = int(self.SCREEN_WIDTH * 0.1333)
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
-            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
+            shake_right  = int(self.SCREEN_WIDTH * 0.8562)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
             shake_x = int(self.SCREEN_WIDTH * 0.5)
             shake_y = int(self.SCREEN_HEIGHT * 0.3)

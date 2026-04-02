@@ -41,6 +41,7 @@ import mss
 # Windows ctypes vs macOS Quartz
 if sys.platform == "win32":
     import ctypes # Windows
+    import ctypes as Quartz
     windll = ctypes.windll.user32
     MOUSEEVENTF_MOVE = 0x0001
     MOUSEEVENTF_LEFTDOWN = 0x0002
@@ -48,7 +49,7 @@ if sys.platform == "win32":
 elif sys.platform == "darwin":
     import threading
     import numpy as np
-    import Quartz
+    # import Quartz
     def _move_mouse(x, y):
         point = Quartz.CGPointMake(float(x), float(y))
         Quartz.CGWarpMouseCursorPosition(point)

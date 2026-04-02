@@ -1,22 +1,22 @@
 {
-    "last_config": "astraeus.json",
+    "last_config": "default.json",
     "last_rod": "Basic Rod",
-    "bar_areas": {
-        "shake": {
-            "x": 398,
-            "y": 174,
-            "width": 1102,
-            "height": 631
-        },
-        "fish": {
-            "x": 541,
-            "y": 836,
-            "width": 830,
-            "height": 67
-        }
-    },
     "start_key": "F5",
     "change_bar_areas_key": "F6",
     "screenshot_key": "F8",
-    "stop_key": "F7"
+    "stop_key": "F7",
+    "bar_areas": {
+        "shake": {
+            "x": 416,
+            "y": 134,
+            "width": 1085,
+            "height": 679
+        },
+        "fish": {
+            "x": 546,
+            "y": 834,
+            "width": 827,
+            "height": 69
+        }
+    }
 }

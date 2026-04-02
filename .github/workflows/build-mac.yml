@@ -5,11 +5,14 @@ on:
 
 jobs:
     build-mac:
-        runs-on: macos-latest  # Using latest macOS runner
+        runs-on: macos-latest
+        # Opting into Node.js 24 globally for this job
+        env:
+            FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
         steps:
             - name: Checkout repo
-              uses: actions/checkout@v4
+              uses: actions/checkout@v4 # Keep an eye out for v5 if released soon
 
             - name: Set up Python
               uses: actions/setup-python@v5
@@ -41,11 +44,9 @@ jobs:
 
             - name: Create DMG from .app bundle
               run: |
-                  # Find the .app bundle in dist folder
                   APP_PATH=$(find dist -name "*.app" -type d | head -n 1)
                   echo "Found app at: $APP_PATH"
                   
-                  # Create DMG
                   hdiutil create \
                     -volname "IcantFish" \
                     -srcfolder "$APP_PATH" \
@@ -58,6 +59,3 @@ jobs:
 
             - name: Upload DMG artifact
               uses: actions/upload-artifact@v4
-              with:
-                  name: macOS-DMG
-                  path: IcantFish.dmg

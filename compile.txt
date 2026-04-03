@@ -2,7 +2,7 @@ First, run this code to change direction (change to your actual directory):
 cd /Users/YourName/directory/ICFIcantFish
 Then, run this code to convert to app:
 pyinstaller --onedir --windowed \
---icon="icf IcantFish icon.icns" \
+--icon="icf v2 icon.icns" \
 --add-data "configs:configs" \
 IcantFish.py
 For me, the first line of code in the terminal looks like this:

@@ -26,7 +26,7 @@ jobs:
             - name: Build with PyInstaller
               run: |
                   pyinstaller --onedir --windowed \
-                    --icon="icf IcantFish icon.icns" \
+                    --icon="icf v2 icon.icns" \
                     --add-data "configs:configs" \
                     --osx-bundle-identifier="com.yourcompany.IcantFish" \
                     --target-architecture="arm64" \

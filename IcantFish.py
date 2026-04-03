@@ -511,9 +511,9 @@ class App(CTk):
         CTkButton(configs, text="Open Configs Folder", corner_radius=10, 
                   command=self.open_configs_folder
                   ).grid(row=3, column=0, padx=12, pady=12, sticky="w")
-        # Save misc settings (most important)
-        CTkButton(configs, text="Save Misc Settings", 
-                  corner_radius=10, command=self.save_misc_settings
+        # Save settings
+        CTkButton(configs, text="Save Settings", 
+                  corner_radius=10, command=self.save_settings
         ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
         # Grant Permissions (macOS only)
         if sys.platform == "darwin":
@@ -1144,13 +1144,16 @@ class App(CTk):
         with open(path, "w") as f:
             json.dump(data, f, indent=4)
 
-    def save_settings(self, name):
+    def save_settings(self, name=None):
         """Save all settings to a JSON config file."""
+        if name == None:
+            name = self.vars["active_config"].get()
         config_dir = USER_CONFIG_DIR
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
         
         data = {}
+        self.set_status(f"Settings saved to {name}")
         # Save all StringVar and related variables
         try:
             for key, var in self.vars.items():
@@ -1187,7 +1190,6 @@ class App(CTk):
             self.save_misc_settings()  # Also save misc settings
         except Exception as e:
             self.set_status(f"Error saving config: {e}")
-    
     def load_settings(self, name):
         """Load settings from a JSON config file."""
         config_dir = USER_CONFIG_DIR
@@ -1338,13 +1340,15 @@ class App(CTk):
             self.set_status(f"Error saving screenshot: {e}")
     # Eyedropper-related functions
     def _pick_colors(self):
-        """Live eyedropper tool — uses the active capture backend (Quartz/DXCAM/MSS)."""
+        """Live eyedropper tool."""
         self.eyedropper = tk.Toplevel(self)
 
         w = self.winfo_screenwidth()
         h = self.winfo_screenheight()
 
         self.eyedropper.geometry(f"{w}x{h}+0+0")
+
+        # Initial nearly-transparent overlay (for hover)
         self.eyedropper.attributes("-alpha", 0.01)
         self.eyedropper.attributes("-topmost", True)
         self.eyedropper.config(cursor="crosshair")
@@ -1365,37 +1369,38 @@ class App(CTk):
         the captured region may be 2×2 physical pixels on a Retina display.
         We always sample [0, 0] — accurate enough for colour picking.
         """
-        # Hide the eyedropper window so it doesn't taint the capture
-        if hasattr(self, 'eyedropper') and self.eyedropper and self.eyedropper.winfo_exists():
-            self.eyedropper.withdraw()
-            self.update_idletasks()   # flush so the window is actually hidden before grab
-
         frame = self._grab_screen_region(x, y, x + 1, y + 1)
-
-        # Restore the eyedropper window
-        if hasattr(self, 'eyedropper') and self.eyedropper and self.eyedropper.winfo_exists():
-            self.eyedropper.deiconify()
-
         if frame is None or frame.size == 0:
             return None
-        # _grab_screen_region returns BGR; frame may be (1,1,3) or (2,2,3) on Retina
         b, g, r = int(frame[0, 0, 0]), int(frame[0, 0, 1]), int(frame[0, 0, 2])
         return r, g, b
 
     def _on_pick_color(self, event):
+        # Step 1: Save exact pointer coords BEFORE hiding
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
 
-        pixel = self._eyedropper_pixel_at(x, y)
-        if pixel is None:
-            return
-        r, g, b = pixel
+        # Step 2: Make window *fully invisible* (alpha = 0)
+        if self.eyedropper and self.eyedropper.winfo_exists():
+            self.eyedropper.attributes("-alpha", 0.0)
+            self.update_idletasks()   # compositor flush
+        time.sleep(0.05)  # empirical delay to ensure compositor updates (especially on Windows)
+        # Step 3: Capture pixel with no brightness contamination
+        frame = self._grab_screen_region(x, y, x + 1, y + 1)
 
+        # Step 4: Handle fails
+        if frame is None or frame.size == 0:
+            self._close_eyedropper()
+            return
+
+        b, g, r = int(frame[0, 0, 0]), int(frame[0, 0, 1]), int(frame[0, 0, 2])
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
 
-        self.set_status(f"Picked: {hex_color}")
+        # Step 5: Update UI
         self.last_picked_color = hex_color
+        self.set_status(f"Picked: {hex_color}")
 
+        # Step 6: Close eyedropper
         self._close_eyedropper()
 
     def _update_hover_color(self, event):
@@ -1405,11 +1410,11 @@ class App(CTk):
         pixel = self._eyedropper_pixel_at(x, y)
         if pixel is None:
             return
+
         r, g, b = pixel
-
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
-
-        self.set_status(f"Hover: {hex_color}  |  Click to pick")
+        self.set_status(f"Hover: {hex_color} | Click to pick")
+        
     def _close_eyedropper(self, event=None):
         if self.eyedropper:
             self.eyedropper.destroy()

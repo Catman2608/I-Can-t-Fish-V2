@@ -7,7 +7,7 @@
     "screenshot_key": "F8",
     "auto_select_rod": "on",
     "auto_zoom_in": "on",
-    "fish_overlay": "off",
+    "fish_overlay": "Disabled",
     "bar_size": "off",
     "draw_pd_padding": "off",
     "bag_delay": "0.2",

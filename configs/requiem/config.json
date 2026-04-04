@@ -11,7 +11,7 @@
     "target_slot": "7",
     "auto_select_rod": "on",
     "auto_zoom_in": "off",
-    "fish_overlay": "on",
+    "fish_overlay": "Disabled",
     "bar_size": "on",
     "draw_pd_padding": "off",
     "bag_delay": "0.2",

@@ -8,15 +8,15 @@
     "bar_areas": {
         "shake": {
             "x": 416,
-            "y": 134,
-            "width": 1085,
-            "height": 679
+            "y": 45,
+            "width": 1079,
+            "height": 768
         },
         "fish": {
-            "x": 546,
-            "y": 834,
-            "width": 827,
-            "height": 69
+            "x": 567,
+            "y": 855,
+            "width": 783,
+            "height": 48
         }
     }
 }

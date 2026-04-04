@@ -48,7 +48,7 @@ if sys.platform == "win32":
 elif sys.platform == "darwin":
     import threading
     import numpy as np
-    # import Quartz # If you're on macOS remove the first hashtag
+    import Quartz # If you're on macOS remove the first hashtag
     def _move_mouse(x, y):
         point = Quartz.CGPointMake(float(x), float(y))
         Quartz.CGWarpMouseCursorPosition(point)
@@ -347,6 +347,12 @@ class App(CTk):
         self._thread_local = threading.local()
         self._monitor = {}      # pre-allocated monitor dict, reused every grab
         self._scale_cache = None  # cached DPI scale factor
+
+        # Dual-buffer for capture/logic thread decoupling (used in _enter_minigame)
+        self._cap_lock = threading.Lock()
+        self._cap_fish_img = None    # latest fish-area frame
+        self._cap_gift_img = None    # latest gift/shake-area frame
+        self._cap_event = threading.Event()  # signals a new frame pair is ready
         # Invalidate scale cache if the window moves to a different monitor
         if sys.platform == "darwin":
             self.bind("<Configure>", lambda e: self._invalidate_scale_cache())
@@ -1562,28 +1568,39 @@ class App(CTk):
         else:  # Linux
             subprocess.run(["xdg-open", folder])
     # Logging-related functions
-    def _discord_text_worker(self, webhook_url, message_prefix, loop_count):
+    def _discord_text_worker(self, webhook_url, message_prefix, loop_count, show_status):
         """Worker function to send text webhook."""
         discord_webhook_name = self.vars["discord_webhook_name"].get()
         try:
-            payload = {
-                'content': f'{message_prefix}🎣 Cycle completed\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
-                'username': discord_webhook_name,
-                'embeds': [{
-                    'description': f'Completed loop #{loop_count}',
-                    'color': 0x5865F2,
-                    'timestamp': time.strftime("%Y-%m-%dT%H:%M:%S")
-                }]
-            }
-            
+            if show_status == True:
+                payload = {
+                    'content': f'{message_prefix}🎣 Cycle completed\n🔄 {loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                    'username': discord_webhook_name,
+                    'embeds': [{
+                        'description': f'Completed loop #{loop_count}',
+                        'color': 0x5865F2,
+                        'timestamp': time.strftime("%Y-%m-%dT%H:%M:%S")
+                    }]
+                }
+            else:
+                payload = {
+                    'content': f'{message_prefix}🎣 Cycle failed\n🔄 {loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                    'username': discord_webhook_name,
+                    'embeds': [{
+                        'description': f'Completed loop #{loop_count}',
+                        'color': 0x5865F2,
+                        'timestamp': time.strftime("%Y-%m-%dT%H:%M:%S")
+                    }]
+                }
             response = requests.post(webhook_url, json=payload, timeout=10)
             if response.status_code == 200 or response.status_code == 204:
-                self.set_status(f"Discord text sent (Loop #{loop_count})")
+                if show_status == True:
+                    self.set_status(f"Discord text sent (Loop #{loop_count})")
             else:
                 self.set_status(f"Error: Discord text failed: {response.status_code}")
         except Exception as e:
             self.set_status(f"Error sending Discord text: {e}")
-    def _discord_screenshot_worker(self, webhook_url, message_prefix, loop_count):
+    def _discord_screenshot_worker(self, webhook_url, message_prefix, loop_count, show_status):
         discord_webhook_name = self.vars["discord_webhook_name"].get()
         try:
             with mss.mss() as sct:
@@ -1596,24 +1613,29 @@ class App(CTk):
             img_byte_arr = io.BytesIO(buffer.tobytes())
 
             files = {'file': ('screenshot.png', img_byte_arr, 'image/png')}
-
-            payload = {
-                'content': f'{message_prefix}🎣 **Cycle completed**\n🔄 Loop #{loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
-                'username': discord_webhook_name
-            }
-
+            if show_status == True:
+                payload = {
+                    'content': f'{message_prefix}🎣 **Cycle completed**\n🔄 {loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                    'username': discord_webhook_name
+                }
+            else:
+                payload = {
+                    'content': f'{message_prefix}🎣 **Cycle failed**\n🔄 {loop_count}\n🕐 {time.strftime("%Y-%m-%d %H:%M:%S")}',
+                    'username': discord_webhook_name
+                }
             response = requests.post(webhook_url, data=payload, files=files, timeout=10)
 
             if response.status_code in (200, 204):
-                self.set_status(f"Discord screenshot sent (Loop #{loop_count})")
+                if show_status == True:
+                    self.set_status(f"Discord screenshot sent (Loop #{loop_count})")
             else:
                 self.set_status(f"Error: Discord screenshot failed: {response.status_code}")
 
         except Exception as e:
             self.set_status(f"Error: sending Discord screenshot: {e}")
     def test_discord_webhook(self):
-        self.send_discord_webhook("**Discord Webhook is working**", 0)
-    def send_discord_webhook(self, text, loop_count):
+        self.send_discord_webhook("**Discord Webhook is working**", "TEST", show_status=True)
+    def send_discord_webhook(self, text, loop_count, show_status=True):
         if not self.vars["discord_enabled"].get() == "on":
             self.set_status("⚠ Discord webhook is disabled.")
             return
@@ -1631,13 +1653,13 @@ class App(CTk):
         if use_screenshot:
             thread = threading.Thread(
                 target=self._discord_screenshot_worker,
-                args=(webhook_url, f"{text}\n", loop_count),
+                args=(webhook_url, f"{text}\n", loop_count, show_status),
                 daemon=True
             )
         else:
             thread = threading.Thread(
                 target=self._discord_text_worker,
-                args=(webhook_url, f"{text}\n", loop_count),
+                args=(webhook_url, f"{text}\n", loop_count, show_status),
                 daemon=True
             )
         thread.start()
@@ -2382,7 +2404,7 @@ class App(CTk):
             # Update cycle on overlay
             self.set_overlay_status(1, f"Current cycle: {cycle}")
             # Send Discord Webhook
-            self.send_discord_webhook(f"**Loop Completed**", cycle)
+            self.send_discord_webhook(f"**Loop Completed**", f"Loop #{cycle}")
             # Check Totem
             if not self.vars["auto_totem_mode"].get() == "Disabled":
                self.execute_totem(cycle, shake_x, shake_y)
@@ -2816,467 +2838,587 @@ class App(CTk):
                 return  # exit shake cleanly
             attempts += 1
             time.sleep(scan_delay)
-    def _enter_minigame(self):
-        # --- SHAKE AREA ---
-        shake = self.bar_areas.get("shake")
-        if isinstance(shake, dict):
-            shake_left   = shake["x"]
-            shake_top    = shake["y"]
-            shake_right  = shake["x"] + shake["width"]
-            shake_bottom = shake["y"] + shake["height"]
-            shake_x = int((shake_left + shake_right) / 2)
-            shake_y = int((shake_top + shake_bottom) / 2)
-        else:
-            # fallback (old ratio logic)
-            shake_left   = int(self.SCREEN_WIDTH * 0.1333)
-            shake_top    = int(self.SCREEN_HEIGHT * 0.162)
-            shake_right  = int(self.SCREEN_WIDTH * 0.8562)
-            shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
-            shake_x = int(self.SCREEN_WIDTH * 0.5)
-            shake_y = int(self.SCREEN_HEIGHT * 0.3)
-        # --- FISH AREA ---
-        fish = self.bar_areas.get("fish")
-        if isinstance(fish, dict):
-            fish_left   = fish["x"]
-            fish_top    = fish["y"]
-            fish_right  = fish["x"] + fish["width"]
-            fish_bottom = fish["y"] + fish["height"]
-            fish_width = fish["width"]
-        else:
-            fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
-            fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
-            fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
-            fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
-            fish_width = fish_right - fish_left
-        # SCREEN RATIO 
-        scale = int(self.SCREEN_WIDTH / 1920)
-        # Misc Settings
-        restart_delay = float(self.vars["restart_delay"].get())
-        pd_padding2 = float(self.vars["pd_padding2"].get())
-        pd_padding2 = pd_padding2 * scale
-        click_after_minigame = (self.vars["click_after_minigame"].get())
-        lock_cursor = (self.vars["lock_cursor"].get())
-        # Gift box color and timer settings
-        gift_box_hex = self.vars["gift_box_color"].get()
-        gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
-        gift_track_ratio = float(self.vars["gift_track_ratio"].get())
-        # Arrow tracking variables
-        arrow_hex = self.vars["arrow_color"].get()
-        arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
-        bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
-        scan_delay = float(self.vars["minigame_scan_delay"].get() or 0.05)
-        # Thresh / clamp settings
-        thresh = float(self.vars["stabilize_threshold"].get() or 8)
-        pid_clamp = float(self.vars["pid_clamp"].get() or 100)
-        mouse_down = False
-        # PID mode settings
-        self.pid_last_time = None
-        self.pid_integral = 0.0
-        # initialise/zero PD state before entering the tracking loop
-        self.prev_error = 0.0
-        self.last_time = None
-        tracking_focus2 = self.vars["tracking_focus"].get()
-        if tracking_focus2 == "Gift":
-            tracking_focus = 0
-        elif tracking_focus2 == "Gift + Fish":
-            tracking_focus = 1
-        else:
-            tracking_focus = 2
-        # Restart Method
-        restart_method = (self.vars["restart_method"].get())
-        # Deadzone action
-        deadzone_action = 0
-        def hold_mouse():
-            nonlocal mouse_down
-            if not mouse_down:
-                mouse_controller.press(Button.left)
-                mouse_down = True
-        def release_mouse():
-            nonlocal mouse_down
-            if mouse_down:
-                mouse_controller.release(Button.left)
-                mouse_down = False
-        while self.macro_running: # Main macro loop
-            # Pixel search
-            gift_img = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
-            img = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
-            if img is None:
-                return
-            fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
-            arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
-            # Gift box (if tracking focus is not fish)
-            if not tracking_focus == 2:
-                gift_box_pos = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
+    # ------------------------------------------------------------------
+    # Capture-thread helpers
+    # ------------------------------------------------------------------
+    def _grab_screen_region_cap(self, left, top, right, bottom, monitor_dict, thread_local):
+        """
+        Thread-safe screen grab for the dedicated capture thread.
+
+        Uses its own pre-allocated *monitor_dict* and *thread_local* so it
+        never races with the main thread's self._monitor / self._thread_local.
+        """
+        scale = self._get_scale_factor()
+        left   = int(left   * scale)
+        top    = int(top    * scale)
+        right  = int(right  * scale)
+        bottom = int(bottom * scale)
+        width  = right - left
+        height = bottom - top
+        if width <= 0 or height <= 0:
+            return None
+
+        monitor_dict["left"]   = left
+        monitor_dict["top"]    = top
+        monitor_dict["width"]  = width
+        monitor_dict["height"] = height
+
+        mode = self.vars.get("capture_mode")
+
+        if sys.platform == "win32":
+            if mode and mode.get() == "DXCAM" and self.camera:
+                frame = self.camera.get_latest_frame()
+                if frame is None:
+                    return None
+                cropped = frame[top:bottom, left:right]
+                return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
+            if not hasattr(thread_local, "sct"):
+                thread_local.sct = mss.mss()
+            img = thread_local.sct.grab(monitor_dict)
+            return np.frombuffer(img.raw, dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
+
+        # macOS — MSS
+        if not hasattr(thread_local, "sct"):
+            thread_local.sct = mss.mss()
+        img = thread_local.sct.grab(monitor_dict)
+        return np.frombuffer(img.raw, dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
+
+    def _capture_loop_minigame(self, fish_left, fish_top, fish_right, fish_bottom,
+                                shake_left, shake_top, shake_right, shake_bottom,
+                                tracking_focus, scan_delay):
+        """
+        Dedicated capture thread for the bar minigame.
+
+        Continuously grabs both screen regions and stores them in the shared
+        frame buffer (_cap_fish_img / _cap_gift_img).  The logic thread reads
+        from these without blocking on I/O.
+
+        scan_delay: seconds to sleep between captures (mirrors minigame_scan_delay).
+        Runs until self.macro_running is False.
+        """
+        mon  = {}                    # private monitor dict — no race with self._monitor
+        tl   = threading.local()     # private thread-local MSS instance
+
+        while self.macro_running:
+            fish_img = self._grab_screen_region_cap(
+                fish_left, fish_top, fish_right, fish_bottom, mon, tl
+            )
+            if tracking_focus != 2:
+                gift_img = self._grab_screen_region_cap(
+                    shake_left, shake_top, shake_right, shake_bottom, mon, tl
+                )
             else:
-                gift_box_pos = None
-            # Clear minigame before exiting macro
-            self.clear_overlay()
-            # FISH HANDLING
-            if restart_method == "Fish + Bar":
-                if fish_x is not None:
-                    self.last_fish_x = fish_x
+                gift_img = None
+
+            if fish_img is not None:
+                with self._cap_lock:
+                    self._cap_fish_img = fish_img
+                    self._cap_gift_img = gift_img
+                self._cap_event.set()   # wake logic thread
+
+            if scan_delay > 0:
+                time.sleep(scan_delay)
+
+        # Signal one last time so the logic thread can exit its wait
+        self._cap_event.set()
+
+    # ------------------------------------------------------------------
+    def _enter_minigame(self):
+        try:
+            # --- SHAKE AREA ---
+            shake = self.bar_areas.get("shake")
+            if isinstance(shake, dict):
+                shake_left   = shake["x"]
+                shake_top    = shake["y"]
+                shake_right  = shake["x"] + shake["width"]
+                shake_bottom = shake["y"] + shake["height"]
+                shake_x = int((shake_left + shake_right) / 2)
+                shake_y = int((shake_top + shake_bottom) / 2)
+            else:
+                # fallback (old ratio logic)
+                shake_left   = int(self.SCREEN_WIDTH * 0.1333)
+                shake_top    = int(self.SCREEN_HEIGHT * 0.162)
+                shake_right  = int(self.SCREEN_WIDTH * 0.8562)
+                shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
+                shake_x = int(self.SCREEN_WIDTH * 0.5)
+                shake_y = int(self.SCREEN_HEIGHT * 0.3)
+            # --- FISH AREA ---
+            fish = self.bar_areas.get("fish")
+            if isinstance(fish, dict):
+                fish_left   = fish["x"]
+                fish_top    = fish["y"]
+                fish_right  = fish["x"] + fish["width"]
+                fish_bottom = fish["y"] + fish["height"]
+                fish_width = fish["width"]
+            else:
+                fish_left   = int(self.SCREEN_WIDTH  * 0.2844)
+                fish_top    = int(self.SCREEN_HEIGHT * 0.7981)
+                fish_right  = int(self.SCREEN_WIDTH  * 0.7141)
+                fish_bottom = int(self.SCREEN_HEIGHT * 0.8370)
+                fish_width = fish_right - fish_left
+            # SCREEN RATIO 
+            scale = int(self.SCREEN_WIDTH / 1920)
+            # Misc Settings
+            restart_delay = float(self.vars["restart_delay"].get())
+            pd_padding2 = float(self.vars["pd_padding2"].get())
+            pd_padding2 = pd_padding2 * scale
+            click_after_minigame = (self.vars["click_after_minigame"].get())
+            lock_cursor = (self.vars["lock_cursor"].get())
+            # Gift box color and timer settings
+            gift_box_hex = self.vars["gift_box_color"].get()
+            gift_box_tol = int(self.vars["gift_box_tolerance"].get() or 8)
+            gift_track_ratio = float(self.vars["gift_track_ratio"].get())
+            # Arrow tracking variables
+            arrow_hex = self.vars["arrow_color"].get()
+            arrow_tol = int(self.vars["arrow_tolerance"].get() or 8)
+            bar_ratio = float(self.vars["bar_ratio"].get() or 0.5)
+            scan_delay = float(self.vars["minigame_scan_delay"].get() or 0.05)
+            # Thresh / clamp settings
+            thresh = float(self.vars["stabilize_threshold"].get() or 8)
+            pid_clamp = float(self.vars["pid_clamp"].get() or 100)
+            mouse_down = False
+            # PID mode settings
+            self.pid_last_time = None
+            self.pid_integral = 0.0
+            # initialise/zero PD state before entering the tracking loop
+            self.prev_error = 0.0
+            self.last_time = None
+            tracking_focus2 = self.vars["tracking_focus"].get()
+            if tracking_focus2 == "Gift":
+                tracking_focus = 0
+            elif tracking_focus2 == "Gift + Fish":
+                tracking_focus = 1
+            else:
+                tracking_focus = 2
+            # Restart Method
+            restart_method = (self.vars["restart_method"].get())
+            # Deadzone action
+            deadzone_action = 0
+            def hold_mouse():
+                nonlocal mouse_down
+                if not mouse_down:
+                    mouse_controller.press(Button.left)
+                    mouse_down = True
+            def release_mouse():
+                nonlocal mouse_down
+                if mouse_down:
+                    mouse_controller.release(Button.left)
+                    mouse_down = False
+
+            # --- Start dedicated capture thread ---
+            # Reset shared state so stale frames from a previous run are not used.
+            with self._cap_lock:
+                self._cap_fish_img = None
+                self._cap_gift_img = None
+            self._cap_event.clear()
+
+            cap_thread = threading.Thread(
+                target=self._capture_loop_minigame,
+                args=(fish_left, fish_top, fish_right, fish_bottom,
+                    shake_left, shake_top, shake_right, shake_bottom,
+                    tracking_focus, scan_delay),
+                daemon=True,
+                name="MinigameCaptureThread"
+            )
+            cap_thread.start()
+
+            while self.macro_running: # Main macro loop
+                # Wait for the capture thread to deposit a fresh frame pair.
+                # Timeout avoids a deadlock if macro_running flips to False
+                # while we're waiting.
+                self._cap_event.wait(timeout=0.5)
+                self._cap_event.clear()
+
+                with self._cap_lock:
+                    img      = self._cap_fish_img
+                    gift_img = self._cap_gift_img
+
+                if img is None:
+                    return
+                fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
+                arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
+                # Gift box (if tracking focus is not fish)
+                if not tracking_focus == 2:
+                    gift_box_pos = self._find_color_center(gift_img, gift_box_hex, gift_box_tol)
                 else:
-                    if left_x is None and right_x is None:
+                    gift_box_pos = None
+                # Clear minigame before exiting macro
+                self.clear_overlay()
+                # FISH HANDLING
+                if restart_method == "Fish + Bar":
+                    if fish_x is not None:
+                        self.last_fish_x = fish_x
+                    else:
+                        if left_x is None and right_x is None:
+                            release_mouse()
+                            time.sleep(restart_delay)
+                            if click_after_minigame == "on":
+                                self._click_at(fish_left, fish_top)
+                            return
+                        else:
+                            fish_x = self.last_fish_x
+                else:
+                    if fish_x is not None:
+                        self.last_fish_x = fish_x
+                    else:
                         release_mouse()
                         time.sleep(restart_delay)
                         if click_after_minigame == "on":
                             self._click_at(fish_left, fish_top)
                         return
-                    else:
-                        fish_x = self.last_fish_x
-            else:
-                if fish_x is not None:
-                    self.last_fish_x = fish_x
-                else:
-                    release_mouse()
-                    time.sleep(restart_delay)
-                    if click_after_minigame == "on":
-                        self._click_at(fish_left, fish_top)
-                    return
-            # Stabilize frame
-            deadzone_action = deadzone_action + 1
-            if deadzone_action == 2:
-                deadzone_action = 0
-            # Lock cursor
-            if lock_cursor == "on":
-                mouse_controller.position = (shake_x, shake_y)
-            # Calculate deadzone and padding based on bar (skipped if not found)
-            bars_found = left_x is not None and right_x is not None
-            if fish_x is None:
-                pass
-            elif isinstance(fish_x, (list, tuple)):
-                fish_x = fish_x[0] + fish_left
-            else:
-                fish_x = fish_x + fish_left
-            if bars_found and left_x is not None and right_x is not None:
-                bar_center = int((left_x + right_x) / 2 + fish_left)
-                bar_size = abs(right_x - left_x)
-                rod_control = round(((bar_size / fish_width) - 0.3) * 100) / 100
-                if self.initial_bar_size is None:
-                    self.initial_bar_size = bar_size
-                deadzone = bar_size * bar_ratio
-                max_left = fish_left + deadzone
-                max_right = fish_right - deadzone
-            else:
-                bar_center = None
-                max_left = None
-                max_right = None
-                controller_mode = 3
-            if bars_found and bar_center is not None: # Bar found
-                # Gift tracking logic
-                if gift_box_pos is not None:
-                    ## Step 1: Convert note to screen coordinates
-                    shake_width = shake_right - shake_left
-                    fish_width = fish_right - fish_left
-                    gift_screen_x = int((gift_box_pos[0] / shake_width) * fish_width) + fish_left
-                    gift_screen_y = gift_box_pos[1] - shake_top
-                    gift_screen_y_ratio = gift_screen_y / (shake_bottom - shake_top)
-                if gift_box_pos is not None and tracking_focus == 0:
-                    if gift_screen_y_ratio >= gift_track_ratio:
-                        fish_x = gift_screen_x
-                        controller_mode = 3
-                elif tracking_focus == 1:
+                # Stabilize frame
+                deadzone_action = deadzone_action + 1
+                if deadzone_action == 2:
+                    deadzone_action = 0
+                # Lock cursor
+                if lock_cursor == "on":
+                    mouse_controller.position = (shake_x, shake_y)
+                # Calculate deadzone and padding based on bar (skipped if not found)
+                bars_found = left_x is not None and right_x is not None
+                if fish_x is None:
                     pass
-                bar_left_screen  = left_x  + fish_left - pd_padding2   # ← add this
-                bar_right_screen = right_x + fish_left + pd_padding2   # ← add this
-                deadzone_size = bar_right_screen - bar_left_screen
-                if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
-                    self.set_overlay_status(1, "Tracking source: Bars")
-                    if self.vars["fish_overlay"].get() == "Enabled":
-                        if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
-                        else:
-                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
-                        self.after(0, lambda _ml=max_left, _fl=fish_left: self.draw_overlay(bar_center=_ml, box_size=15, color="lightblue", canvas_offset=_fl))
-                        self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
-                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (Max Left)")
-                    controller_mode = 2
-                elif max_right is not None and fish_x >= max_right:
-                    self.set_overlay_status(1, "Tracking source: Bars")
-                    if self.vars["fish_overlay"].get() == "Enabled":
-                        if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
-                        else:
-                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
-                        self.after(0, lambda _mr=max_right, _fl=fish_left: self.draw_overlay(bar_center=_mr, box_size=15, color="lightblue", canvas_offset=_fl))
-                        self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
-                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (Max Right)")
-                    controller_mode = 3
+                elif isinstance(fish_x, (list, tuple)):
+                    fish_x = fish_x[0] + fish_left
                 else:
-                    self.set_overlay_status(0, f"Status: Playing Bar Minigame | Control: {rod_control}")
-                    self.set_overlay_status(1, "Tracking source: Bars")
-                    # Check if using PID or simple tracking is better
-                    if bar_left_screen <= fish_x <= bar_right_screen:  # PD
-                        draw_color = "green"
-                        if self.vars["bar_controller_mode"].get() == "PID":
-                            controller_mode = 0
-                            self.set_overlay_status(2, "Tracking Mode: PD")
-                        else:
-                            controller_mode = 1
-                            self.set_overlay_status(2, "Tracking Mode: Stopping Distance")
-                    else:
-                        if self.vars["arrow_controller_mode"].get() == "Simple Tracking":
-                            if fish_x > bar_center:
-                                draw_color = "yellow"
-                                self.set_overlay_status(2, "Tracking Mode: Simple Tracking (>)")
-                                controller_mode = 3
-                            else:
-                                self.set_overlay_status(2, "Tracking Mode: Simple Tracking (<)")
-                                controller_mode = 2
-                        else:
-                            controller_mode = 0
-                            self.set_overlay_status(2, "Tracking Mode: PD")
-                    if self.vars["fish_overlay"].get() == "Enabled":
-                        # Draw code
-                        if self.vars["bar_size"].get() == "on":
-                            # Draw extra PD padding
-                            if self.vars["draw_pd_padding"].get() == "on":
-                                self.after(0, lambda _bc=bar_center, _bs=deadzone_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="purple", canvas_offset=_fl, show_bar_center=True))
-                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color=draw_color, canvas_offset=_fl, show_bar_center=True))
-                        else:
-                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color=draw_color, canvas_offset=_fl))
-                        self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
-            elif arrow_center:
-                self.set_overlay_status(0, f"Status: Playing Bar Minigame | Control: {rod_control}")
-                self.set_overlay_status(1, f"Tracking source: Arrows")
-                capture_width = fish_right - fish_left
-                arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
-                if arrow_indicator_x is None:
-                    controller_mode = 2
-                    return
-                arrow_screen_x = arrow_indicator_x + fish_left
-                estimated_bar_center, estimated_left, estimated_right = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
-                estimated_size = abs(estimated_right - estimated_left)
-                if estimated_bar_center is not None:
-                    bar_center = int(estimated_bar_center + fish_left)
-                    bar_left_screen  = estimated_left  + fish_left - pd_padding2   # ← add this
-                    bar_right_screen = estimated_right + fish_left + pd_padding2   # ← add this
-                    if bar_left_screen <= fish_x <= bar_right_screen:  # PD
-                        if self.vars["bar_controller_mode"].get() == "PID":
-                            self.set_overlay_status(2, "Tracking Mode: PD")
-                            controller_mode = 0
-                        else:
-                            self.set_overlay_status(2, "Tracking Mode: Stopping Distance")
-                            controller_mode = 1                        
+                    fish_x = fish_x + fish_left
+                if bars_found and left_x is not None and right_x is not None:
+                    bar_center = int((left_x + right_x) / 2 + fish_left)
+                    bar_size = abs(right_x - left_x)
+                    rod_control = round(((bar_size / fish_width) - 0.3) * 100) / 100
+                    if self.initial_bar_size is None:
+                        self.initial_bar_size = bar_size
+                    deadzone = bar_size * bar_ratio
+                    max_left = fish_left + deadzone
+                    max_right = fish_right - deadzone
+                else:
+                    bar_center = None
+                    max_left = None
+                    max_right = None
+                    controller_mode = 3 # default to simple tracking if no bars found
+                if bars_found and bar_center is not None: # Bar found
+                    # Gift tracking logic
+                    if gift_box_pos is not None:
+                        ## Step 1: Convert note to screen coordinates
+                        shake_width = shake_right - shake_left
+                        fish_width = fish_right - fish_left
+                        gift_screen_x = int((gift_box_pos[0] / shake_width) * fish_width) + fish_left
+                        gift_screen_y = gift_box_pos[1] - shake_top
+                        gift_screen_y_ratio = gift_screen_y / (shake_bottom - shake_top)
+                    if gift_box_pos is not None and tracking_focus == 0:
+                        if gift_screen_y_ratio >= gift_track_ratio:
+                            fish_x = gift_screen_x
+                            controller_mode = 3
+                    elif tracking_focus == 1:
+                        pass
+                    bar_left_screen  = left_x  + fish_left - pd_padding2   # ← add this
+                    bar_right_screen = right_x + fish_left + pd_padding2   # ← add this
+                    deadzone_size = bar_right_screen - bar_left_screen
+                    if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
+                        self.set_overlay_status(1, "Tracking source: Bars")
                         if self.vars["fish_overlay"].get() == "Enabled":
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="green",canvas_offset=fish_left))
-                    else:
-                        if self.vars["arrow_controller_mode"].get() == "Simple Tracking":
-                            if fish_x > bar_center:
-                                self.set_overlay_status(2, "Tracking Mode: Simple Tracking (>)")
-                                controller_mode = 3
+                            if self.vars["bar_size"].get() == "on":
+                                self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
                             else:
-                                self.set_overlay_status(2, "Tracking Mode: Simple Tracking (<)")
-                                controller_mode = 2
-                        else:
-                            self.set_overlay_status(2, "Tracking Mode: PD")
-                            controller_mode = 0
+                                self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                            self.after(0, lambda _ml=max_left, _fl=fish_left: self.draw_overlay(bar_center=_ml, box_size=15, color="lightblue", canvas_offset=_fl))
+                            self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
+                        self.set_overlay_status(2, "Tracking Mode: Simple Tracking (Max Left)")
+                        controller_mode = 2
+                    elif max_right is not None and fish_x >= max_right:
+                        self.set_overlay_status(1, "Tracking source: Bars")
                         if self.vars["fish_overlay"].get() == "Enabled":
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="yellow",canvas_offset=fish_left))
-                    self.after(0, lambda: self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left))
-                else:
+                            if self.vars["bar_size"].get() == "on":
+                                self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
+                            else:
+                                self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                            self.after(0, lambda _mr=max_right, _fl=fish_left: self.draw_overlay(bar_center=_mr, box_size=15, color="lightblue", canvas_offset=_fl))
+                            self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
+                        self.set_overlay_status(2, "Tracking Mode: Simple Tracking (Max Right)")
+                        controller_mode = 3
+                    else:
+                        try:
+                            self.set_overlay_status(0, f"Status: Playing Bar Minigame | Control: {rod_control}")
+                        except:
+                            self.set_overlay_status(0, "Status: Playing Bar Minigame")
+                        self.set_overlay_status(1, "Tracking source: Bars")
+                        # Check if using PID or simple tracking is better
+                        if bar_left_screen <= fish_x <= bar_right_screen:  # PD
+                            draw_color = "green"
+                            if self.vars["bar_controller_mode"].get() == "PID":
+                                controller_mode = 0
+                                self.set_overlay_status(2, "Tracking Mode: PD")
+                            else:
+                                controller_mode = 1
+                                self.set_overlay_status(2, "Tracking Mode: Stopping Distance")
+                        else:
+                            if self.vars["arrow_controller_mode"].get() == "Simple Tracking":
+                                if fish_x > bar_center:
+                                    draw_color = "yellow"
+                                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (>)")
+                                    controller_mode = 3
+                                else:
+                                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (<)")
+                                    controller_mode = 2
+                            else:
+                                controller_mode = 0
+                                self.set_overlay_status(2, "Tracking Mode: PD")
+                        if self.vars["fish_overlay"].get() == "Enabled":
+                            # Draw code
+                            if self.vars["bar_size"].get() == "on":
+                                # Draw extra PD padding
+                                if self.vars["draw_pd_padding"].get() == "on":
+                                    self.after(0, lambda _bc=bar_center, _bs=deadzone_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="purple", canvas_offset=_fl, show_bar_center=True))
+                                self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color=draw_color, canvas_offset=_fl, show_bar_center=True))
+                            else:
+                                self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color=draw_color, canvas_offset=_fl))
+                            self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
+                elif arrow_center:
+                    try:
+                        self.set_overlay_status(0, f"Status: Playing Bar Minigame | Control: {rod_control}")
+                    except:
+                        self.set_overlay_status(0, "Status: Playing Bar Minigame")
+                    self.set_overlay_status(1, f"Tracking source: Arrows")
+                    capture_width = fish_right - fish_left
+                    arrow_indicator_x = self._find_arrow_indicator_x(img, arrow_hex, arrow_tol, mouse_down)
+                    if arrow_indicator_x is None:
+                        controller_mode = 2
+                        return
+                    arrow_screen_x = arrow_indicator_x + fish_left
+                    estimated_bar_center, estimated_left, estimated_right = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
+                    estimated_size = abs(estimated_right - estimated_left)
+                    if estimated_bar_center is not None:
+                        bar_center = int(estimated_bar_center + fish_left)
+                        bar_left_screen  = estimated_left  + fish_left - pd_padding2   # ← add this
+                        bar_right_screen = estimated_right + fish_left + pd_padding2   # ← add this
+                        if bar_left_screen <= fish_x <= bar_right_screen:  # PD
+                            if self.vars["bar_controller_mode"].get() == "PID":
+                                self.set_overlay_status(2, "Tracking Mode: PD")
+                                controller_mode = 0
+                            else:
+                                self.set_overlay_status(2, "Tracking Mode: Stopping Distance")
+                                controller_mode = 1                        
+                            if self.vars["fish_overlay"].get() == "Enabled":
+                                self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="green",canvas_offset=fish_left))
+                        else:
+                            if self.vars["arrow_controller_mode"].get() == "Simple Tracking":
+                                if fish_x > bar_center:
+                                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (>)")
+                                    controller_mode = 3
+                                else:
+                                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (<)")
+                                    controller_mode = 2
+                            else:
+                                self.set_overlay_status(2, "Tracking Mode: PD")
+                                controller_mode = 0
+                            if self.vars["fish_overlay"].get() == "Enabled":
+                                self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="yellow",canvas_offset=fish_left))
+                        self.after(0, lambda: self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left))
+                    else:
+                        controller_mode = 2
+                else: # No arrow / bar found
+                    self.set_overlay_status(0, "Status: Playing Bar Minigame | Control: None")
+                    self.set_overlay_status(1, "Tracking Source: None")
+                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (None)")
                     controller_mode = 2
-            else: # No arrow / bar found
-                self.set_overlay_status(0, "Status: Playing Bar Minigame | Control: None")
-                self.set_overlay_status(1, "Tracking Source: None")
-                self.set_overlay_status(2, "Tracking Mode: Simple Tracking (None)")
-                controller_mode = 2
-            # PID calculation
-            if controller_mode == 0 and bar_center is not None:
-                error = fish_x - bar_center
-                if bar_left_screen <= fish_x <= bar_right_screen:
-                    control = self._pid_control_strict(error, bar_center)
-                else:
-                    control = self._pid_control(error)
-                # Map PID output to mouse clicks using hysteresis to avoid jitter/oscillation
-                control = max((0 - pid_clamp), min(pid_clamp, control))
-                # Stabilize Deadzone Checker
-                if control > thresh:
-                    hold_mouse()
-                elif control < -thresh:
-                    release_mouse()
-                else:
-                    if deadzone_action == 1:
+                # PID calculation
+                if controller_mode == 0 and bar_center is not None:
+                    error = fish_x - bar_center
+                    if bar_left_screen <= fish_x <= bar_right_screen:
+                        control = self._pid_control_strict(error, bar_center)
+                    else:
+                        control = self._pid_control(error)
+                    # Map PID output to mouse clicks using hysteresis to avoid jitter/oscillation
+                    control = max((0 - pid_clamp), min(pid_clamp, control))
+                    # Stabilize Deadzone Checker
+                    if control > thresh:
                         hold_mouse()
-                    else:
+                    elif control < -thresh:
                         release_mouse()
-            elif controller_mode == 1:
-                # ==============================================
-                # IRUS STOPPING DISTANCE + MOVEMENT THRESHOLD
-                # ==============================================
+                    else:
+                        if deadzone_action == 1:
+                            hold_mouse()
+                        else:
+                            release_mouse()
+                elif controller_mode == 1:
+                    # IRUS STOPPING DISTANCE + MOVEMENT THRESHOLD
 
-                # --- Ensure bar and target exist ---
-                if bar_center is None or fish_x is None:
-                    release_mouse()
-                    continue
+                    # --- Ensure bar and target exist ---
+                    if bar_center is None or fish_x is None:
+                        release_mouse()
+                        continue
 
-                # ==================================================
-                # 1. MOVEMENT STABILIZATION / MOVEMENT THRESHOLD
-                # ==================================================
+                    # 1. MOVEMENT STABILIZATION / MOVEMENT THRESHOLD
 
-                # Load values from GUI
-                try:
-                    move_stabilize_frames = float(self.vars["stabilize_threshold"].get())
-                except:
-                    move_stabilize_frames = 3.0
+                    # Load values from GUI
+                    try:
+                        move_stabilize_frames = float(self.vars["stabilize_threshold"].get())
+                    except:
+                        move_stabilize_frames = 3.0
 
-                try:
-                    movement_threshold = float(self.vars["movement_threshold"].get())
-                except:
-                    movement_threshold = 3.0
+                    try:
+                        movement_threshold = float(self.vars["movement_threshold"].get())
+                    except:
+                        movement_threshold = 3.0
 
-                # Initialize persistent storage
-                if not hasattr(self, "_irus_move_stable_count"):
-                    self._irus_move_stable_count = 0
-                    self._irus_last_target = None
-                    self._irus_last_bar = None
-                    self._irus_initial_target = None
-                    self._irus_initial_bar = None
-                    self._irus_ready = False
+                    # Initialize persistent storage
+                    if not hasattr(self, "_irus_move_stable_count"):
+                        self._irus_move_stable_count = 0
+                        self._irus_last_target = None
+                        self._irus_last_bar = None
+                        self._irus_initial_target = None
+                        self._irus_initial_bar = None
+                        self._irus_ready = False
 
-                # -------------------------
-                # Stabilization phase
-                # -------------------------
-                if not self._irus_ready:
+                    # -------------------------
+                    # Stabilization phase
+                    # -------------------------
+                    if not self._irus_ready:
 
-                    # First stabilization
-                    if self._irus_initial_target is None:
+                        # First stabilization
+                        if self._irus_initial_target is None:
 
-                        # Compare with previous frame
-                        if self._irus_last_target is not None and self._irus_last_bar is not None:
-                            if fish_x == self._irus_last_target and bar_center == self._irus_last_bar:
-                                self._irus_move_stable_count += 1
+                            # Compare with previous frame
+                            if self._irus_last_target is not None and self._irus_last_bar is not None:
+                                if fish_x == self._irus_last_target and bar_center == self._irus_last_bar:
+                                    self._irus_move_stable_count += 1
+                                else:
+                                    self._irus_move_stable_count = 1
                             else:
                                 self._irus_move_stable_count = 1
+
+                            # Save last positions
+                            self._irus_last_target = fish_x
+                            self._irus_last_bar = bar_center
+
+                            # Enough stable frames → lock initial positions
+                            if self._irus_move_stable_count >= move_stabilize_frames:
+                                self._irus_initial_target = fish_x
+                                self._irus_initial_bar = bar_center
+
+                            continue   # do not run IRUS logic yet
+
+                        # -------------------------
+                        # Movement threshold phase
+                        # -------------------------
+                        target_moved = abs(fish_x - self._irus_initial_target) > movement_threshold
+                        bar_moved = abs(bar_center - self._irus_initial_bar) > movement_threshold
+
+                        if target_moved or bar_moved:
+                            # IRUS requires that the mouse is HELD when entering loop 3
+                            hold_mouse()
+                            self._irus_ready = True
                         else:
-                            self._irus_move_stable_count = 1
+                            continue  # wait until movement occurs
 
-                        # Save last positions
-                        self._irus_last_target = fish_x
-                        self._irus_last_bar = bar_center
+                    # ==================================================
+                    # 2. IRUS STOPPING DISTANCE CONTROLLER (ACTIVE MODE)
+                    # ==================================================
 
-                        # Enough stable frames → lock initial positions
-                        if self._irus_move_stable_count >= move_stabilize_frames:
-                            self._irus_initial_target = fish_x
-                            self._irus_initial_bar = bar_center
+                    # Velocity smoothing coefficient
+                    velocity_smoothing = float(self.vars["velocity_smoothing"].get())
 
-                        continue   # do not run IRUS logic yet
+                    # Create persistent storage for velocity
+                    if not hasattr(self, "_irus_prev_bar2"):
+                        self._irus_prev_bar2 = bar_center
+                        self._irus_prev_target2 = fish_x
+                        self._irus_prev_time2 = time.perf_counter()
+                        self._irus_bar_vel2 = 0.0
+                        self._irus_target_vel2 = 0.0
 
-                    # -------------------------
-                    # Movement threshold phase
-                    # -------------------------
-                    target_moved = abs(fish_x - self._irus_initial_target) > movement_threshold
-                    bar_moved = abs(bar_center - self._irus_initial_bar) > movement_threshold
+                    # Time step
+                    now = time.perf_counter()
+                    dt = now - self._irus_prev_time2
+                    if dt <= 0:
+                        dt = 1e-6
 
-                    if target_moved or bar_moved:
-                        # IRUS requires that the mouse is HELD when entering loop 3
-                        hold_mouse()
-                        self._irus_ready = True
-                    else:
-                        continue  # wait until movement occurs
+                    # Raw velocities
+                    raw_bar_v = (bar_center - self._irus_prev_bar2) / dt
+                    raw_target_v = (fish_x - self._irus_prev_target2) / dt
 
-                # ==================================================
-                # 2. IRUS STOPPING DISTANCE CONTROLLER (ACTIVE MODE)
-                # ==================================================
+                    # Smoothed velocities
+                    self._irus_bar_vel2 = (
+                        velocity_smoothing * raw_bar_v +
+                        (1 - velocity_smoothing) * self._irus_bar_vel2
+                    )
+                    self._irus_target_vel2 = (
+                        velocity_smoothing * raw_target_v +
+                        (1 - velocity_smoothing) * self._irus_target_vel2
+                    )
 
-                # Velocity smoothing coefficient
-                velocity_smoothing = float(self.vars["velocity_smoothing"].get())
-
-                # Create persistent storage for velocity
-                if not hasattr(self, "_irus_prev_bar2"):
+                    # Save old values
                     self._irus_prev_bar2 = bar_center
                     self._irus_prev_target2 = fish_x
-                    self._irus_prev_time2 = time.perf_counter()
-                    self._irus_bar_vel2 = 0.0
-                    self._irus_target_vel2 = 0.0
+                    self._irus_prev_time2 = now
 
-                # Time step
-                now = time.perf_counter()
-                dt = now - self._irus_prev_time2
-                if dt <= 0:
-                    dt = 1e-6
+                    # IRUS core signals
+                    error = bar_center - fish_x
+                    relative_v = self._irus_bar_vel2 - self._irus_target_vel2
 
-                # Raw velocities
-                raw_bar_v = (bar_center - self._irus_prev_bar2) / dt
-                raw_target_v = (fish_x - self._irus_prev_target2) / dt
+                    # Stopping distance
+                    try:
+                        stopping_mult = float(self.vars["stopping_distance"].get())
+                    except:
+                        stopping_mult = 20.0
 
-                # Smoothed velocities
-                self._irus_bar_vel2 = (
-                    velocity_smoothing * raw_bar_v +
-                    (1 - velocity_smoothing) * self._irus_bar_vel2
-                )
-                self._irus_target_vel2 = (
-                    velocity_smoothing * raw_target_v +
-                    (1 - velocity_smoothing) * self._irus_target_vel2
-                )
+                    stopping_distance = abs(relative_v) * stopping_mult
 
-                # Save old values
-                self._irus_prev_bar2 = bar_center
-                self._irus_prev_target2 = fish_x
-                self._irus_prev_time2 = now
+                    # IRUS constants
+                    emergency_brake_velocity = 1400
+                    micro_nudge_velocity = 5
+                    error_deadzone = 3
+                    cushion = 4
 
-                # IRUS core signals
-                error = bar_center - fish_x
-                relative_v = self._irus_bar_vel2 - self._irus_target_vel2
+                    # Emergency brake
+                    if abs(relative_v) > emergency_brake_velocity:
+                        release_mouse()
+                        continue
 
-                # Stopping distance
-                try:
-                    stopping_mult = float(self.vars["stopping_distance"].get())
-                except:
-                    stopping_mult = 20.0
+                    # Perfect alignment deadzone
+                    if abs(error) < error_deadzone and abs(relative_v) < micro_nudge_velocity:
+                        release_mouse()
+                        continue
 
-                stopping_distance = abs(relative_v) * stopping_mult
+                    # ---------------------
+                    # Main stopping-distance logic
+                    # ---------------------
+                    if error < 0:   # bar left of target → move right
+                        if abs(error) > (stopping_distance + cushion):
+                            hold_mouse()
+                        else:
+                            if relative_v > 0:
+                                release_mouse()
+                            else:
+                                hold_mouse()
+                        continue
 
-                # IRUS constants
-                emergency_brake_velocity = 1400
-                micro_nudge_velocity = 5
-                error_deadzone = 3
-                cushion = 4
-
-                # Emergency brake
-                if abs(relative_v) > emergency_brake_velocity:
-                    release_mouse()
-                    continue
-
-                # Perfect alignment deadzone
-                if abs(error) < error_deadzone and abs(relative_v) < micro_nudge_velocity:
-                    release_mouse()
-                    continue
-
-                # ---------------------
-                # Main stopping-distance logic
-                # ---------------------
-                if error < 0:   # bar left of target → move right
-                    if abs(error) > (stopping_distance + cushion):
-                        hold_mouse()
-                    else:
-                        if relative_v > 0:
+                    if error > 0:   # bar right of target → move left
+                        if abs(error) > (stopping_distance + cushion):
                             release_mouse()
                         else:
-                            hold_mouse()
-                    continue
+                            if relative_v < 0:
+                                hold_mouse()
+                            else:
+                                release_mouse()
+                        continue
 
-                if error > 0:   # bar right of target → move left
-                    if abs(error) > (stopping_distance + cushion):
-                        release_mouse()
-                    else:
-                        if relative_v < 0:
+                    # Micro-nudge fallback
+                    if abs(relative_v) < micro_nudge_velocity:
+                        if error < 0:
                             hold_mouse()
                         else:
                             release_mouse()
-                    continue
-
-                # Micro-nudge fallback
-                if abs(relative_v) < micro_nudge_velocity:
-                    if error < 0:
-                        hold_mouse()
-                    else:
-                        release_mouse()
-            elif controller_mode == 2:
-                release_mouse()
-            elif controller_mode == 3:
-                hold_mouse()
-            time.sleep(scan_delay)
+                elif controller_mode == 2:
+                    release_mouse()
+                elif controller_mode == 3:
+                    hold_mouse()
+                # No sleep here — the capture thread regulates cadence via
+                # _cap_event.wait() at the top of this loop.
+        except Exception as e:
+            self.send_discord_webhook("⚠️ **Macro crashed during minigame**", f"Error: {e}", False)
+            self.macro_running = False
+            self._reset_pid_state()
+            self.after(0, self.deiconify)  # show window safely
+            self.set_status(f"Macro crashed during minigame: {e}")
     def stop_macro(self):
         if not self.macro_running:
             return

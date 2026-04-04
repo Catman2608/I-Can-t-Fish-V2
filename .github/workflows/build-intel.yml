@@ -1,4 +1,4 @@
-name: Build macOS DMG
+name: Build Intel DMG
 
 on:
     workflow_dispatch:
@@ -29,8 +29,8 @@ jobs:
                     --icon="icf v2 icon.icns" \
                     --add-data "configs:configs" \
                     --osx-bundle-identifier="com.yourcompany.IcantFish" \
-                    --target-architecture="arm64" \
-                    --hidden-import=cIcantFish \
+                    --target-architecture="x86_64" \
+                    --hidden-import=cv2 \
                     --hidden-import=numpy \
                     --collect-all customtkinter \
                     IcantFish.py

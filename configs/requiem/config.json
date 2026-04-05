@@ -55,7 +55,7 @@
     "derivative_gain": "0.5",
     "stabilize_threshold": "6",
     "pid_clamp": "200",
-    "discord_enabled": "on",
+     "discord_enabled": "off",
     "discord_webhook_url": "https://discord.com/api/webhooks/",
     "discord_webhook_name": "I Can't Fish",
     "discord_screenshot": "off",

@@ -1316,11 +1316,11 @@ class App(CTk):
             self.bar_areas = {"fish": None, "shake": None, "friend": None}
     # Key press functions
     def _apply_hotkeys_from_vars(self):
-            """Apply hotkey StringVars to the live hotkey attributes used by on_key_press."""
-            self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
-            self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
-            self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
-            self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
+        """Apply hotkeys from StringVars to internal variables."""
+        self.hotkey_start = self._normalize_hotkey_string(self.vars["start_key"].get())
+        self.hotkey_change_areas = self._normalize_hotkey_string(self.vars["change_bar_areas_key"].get())
+        self.hotkey_screenshot = self._normalize_hotkey_string(self.vars["screenshot_key"].get())
+        self.hotkey_stop = self._normalize_hotkey_string(self.vars["stop_key"].get())
     def _string_to_key(self, key_string):
         key_string = key_string.strip().lower()
 
@@ -1333,25 +1333,35 @@ class App(CTk):
             return key.char.lower()  # letter keys
         except:
             return str(key).replace("Key.", "").lower()
-    def on_key_press(self, key):
-        if key == self.hotkey_start and not self.macro_running:
-            # Save settings
-            config_name = self.vars["active_config"].get()
-            self.save_settings(config_name)
-            if self.vars["auto_zoom_in"].get() == "on" and self.vars["casting_mode"].get() == "Perfect":
-                messagebox.showwarning("Error", "Auto Zoom In and Perfect Cast can't be enabled at once. \nDisable one of them to continue.")
-            else:
-                self.macro_running = True
-                self.after(0, self.withdraw)
-                threading.Thread(target=self.start_macro, daemon=True).start()
+    def _normalize_hotkey_string(self, s):
+        return s.strip().lower().replace("key.", "")
+    def _normalize_pynput_key(self, key):
+        """
+        Converts pynput key events into a unified lowercase string.
+        Works across macOS, Windows, laptops, and Fn-modified keyboards.
+        """
+        # Letter / number keys
+        try:
+            return key.char.lower()
+        except AttributeError:
+            pass
 
-        elif key == self.hotkey_change_areas:
+        # Special keys (Key.f5 → "f5")
+        name = str(key).replace("Key.", "").lower()
+        return name
+    def on_key_press(self, key):
+        k = self._normalize_pynput_key(key)
+
+        if k == self.hotkey_start and not self.macro_running:
+            self._start_macro_handler()
+
+        elif k == self.hotkey_change_areas:
             self.open_dual_area_selector()
 
-        elif self.normalize_key(key) == self.vars["screenshot_key"].get().lower():
+        elif k == self._normalize_hotkey_string(self.vars["screenshot_key"].get()):
             self._take_debug_screenshot()
 
-        elif key == self.hotkey_stop:
+        elif k == self.hotkey_stop:
             self.stop_macro()
     def set_status(self, text, key=None):
         self.status_label.configure(text=text)

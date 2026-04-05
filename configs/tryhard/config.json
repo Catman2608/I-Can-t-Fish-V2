@@ -27,16 +27,36 @@
     "shake_failsafe": "20",
     "shake_scan_delay": "0.1",
     "shake_tolerance": "5",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+=======
+    "shake_clicks": "5",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
+>>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "detection_method": "Fish",
     "restart_method": "Fish + Bar",
     "left_color": "#c80000",
     "right_color": "#430710",
     "arrow_color": "#bcacb0",
     "fish_color": "#000000",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "left_tolerance": "3",
     "right_tolerance": "3",
     "arrow_tolerance": "25",
     "Fish + Bar_tolerance": "5",
+<<<<<<< HEAD
+=======
+=======
+    "left_tolerance": "0",
+    "right_tolerance": "0",
+    "arrow_tolerance": "18",
+    "fish_tolerance": "4",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
+>>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "bar_ratio": "0.6",
     "minigame_scan_delay": "0.01",
     "restart_delay": "1.2",

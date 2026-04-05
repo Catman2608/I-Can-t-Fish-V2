@@ -27,8 +27,19 @@
     "shake_failsafe": "20",
     "shake_scan_delay": "0.1",
     "shake_tolerance": "5",
+<<<<<<< HEAD
     "detection_method": "Fish",
     "restart_method": "Fish + Bar",
+=======
+<<<<<<< HEAD
+    "detection_method": "Fish",
+    "restart_method": "Fish + Bar",
+=======
+    "shake_clicks": "5",
+    "detection_method": "Fish",
+    "restart_method": "Fish",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
+>>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "left_color": "#2F2F2F",
     "right_color": "#050506",
     "arrow_color": "#364167",

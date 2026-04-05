@@ -22,7 +22,7 @@ import threading
 # Time
 import time
 import json
-# Discord and Text logs
+# Logging and reconnect
 import requests
 import io
 # OpenCV for pixel searches and NumPy for arrow calculations
@@ -34,13 +34,13 @@ try:
         import dxcam
     else:
         dxcam = None
-        # macOS DPI awareness requires PyAutoGUI code but I use pynput.
 except Exception:
     dxcam = None
 import mss
 # Windows ctypes vs macOS Quartz
 if sys.platform == "win32":
     import ctypes # Windows
+    import ctypes as Quartz # Used to disable quartz on Windows
     windll = ctypes.windll.user32
     MOUSEEVENTF_MOVE = 0x0001
     MOUSEEVENTF_LEFTDOWN = 0x0002
@@ -48,7 +48,7 @@ if sys.platform == "win32":
 elif sys.platform == "darwin":
     import threading
     import numpy as np
-    import Quartz
+    # import Quartz # If you're on macOS remove the first hashtag
     def _move_mouse(x, y):
         point = Quartz.CGPointMake(float(x), float(y))
         Quartz.CGWarpMouseCursorPosition(point)
@@ -562,10 +562,12 @@ class App(CTk):
         overlay_options = CTkFrame(scroll, border_width=2)
         overlay_options.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        # Fish Overlay
         fish_overlay_var = StringVar(value="off")
         self.vars["fish_overlay"] = fish_overlay_var
         fish_overlay_cb = CTkCheckBox(overlay_options, text="Fish Overlay", variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        # Show Bar Size
         bar_size_var = StringVar(value="off")
         self.vars["bar_size"] = bar_size_var
         bar_size_cb = CTkCheckBox(overlay_options, text="Show Bar Size", variable=bar_size_var, onvalue="on", offvalue="off")
@@ -730,6 +732,11 @@ class App(CTk):
         shake_tolerance_var = StringVar(value="5")
         self.vars["shake_tolerance"] = shake_tolerance_var
         CTkEntry(click_shake, width=120, textvariable=shake_tolerance_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        # Clicks
+        CTkLabel(click_shake, text="Click Shake Color clicks:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
+        shake_clicks_var = StringVar(value="5")
+        self.vars["shake_clicks"] = shake_clicks_var
+        CTkEntry(click_shake, width=120, textvariable=shake_clicks_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
         # Minigame Detection Settings
         minigame_detection = CTkFrame(
@@ -2071,7 +2078,7 @@ class App(CTk):
         show_bar_center=False,
         bar_y1=10,
         bar_y2=40,
-    ):
+     ):
         """
         Draws:
         - Square box with size
@@ -2594,9 +2601,9 @@ class App(CTk):
             shake_y = int((shake_top + shake_bottom) / 2)
         else:
             # fallback (old ratio logic)
-            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
+            shake_left   = int(self.SCREEN_WIDTH * 0.1333)
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
-            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
+            shake_right  = int(self.SCREEN_WIDTH * 0.8562)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
             shake_x = int(self.SCREEN_WIDTH * 0.5)
             shake_y = int(self.SCREEN_HEIGHT * 0.3)

@@ -21,6 +21,10 @@
     "right_color": "#f2b82a",
     "arrow_color": "#b9901e",
     "fish_color": "#ff0101",
+<<<<<<< HEAD
+=======
+<<<<<<< HEAD
+>>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "Fish + Bar2_color": "#ff0101",
     "left_tolerance": "0",
     "right_tolerance": "0",
@@ -33,7 +37,13 @@
     "proportional_gain": "0.5",
     "derivative_gain": "0.3",
     "velocity_smoothing": "2",
+<<<<<<< HEAD
+=======
+    "combobox_active_config": "polaris.json",
+=======
+>>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "Removed1": "polaris.json",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
     "combobox_capture_mode": "MSS",
     "combobox_shake_mode": "Navigation"
 }

@@ -1,2 +1,0 @@
-1. Not opening link properly when reconnecting
-2. non-F keys issue

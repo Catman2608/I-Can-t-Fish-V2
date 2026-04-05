@@ -21,7 +21,7 @@
     "perfect_max_time": "3.5",
     "release_method": "Simple",
     "perfect_release_delay": "0",
-    "shake_mode": "Click",
+    "shake_mode": "Navigation",
     "shake_tolerance": "5",
     "shake_scan_delay": "0.1",
     "shake_failsafe": "20",

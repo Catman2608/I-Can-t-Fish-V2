@@ -11,30 +11,13 @@
     "target_slot": "7",
     "auto_select_rod": "on",
     "auto_zoom_in": "off",
-<<<<<<< HEAD
-    "fish_overlay": "on",
-    "bar_size": "on",
-    "draw_pd_padding": "off",
-    "bag_delay": "0.2",
-    "casting_delay2": "0.1",
-    "centroid_tracking": "off",
-=======
-<<<<<<< HEAD
-    "fish_overlay": "on",
-    "bar_size": "on",
-    "draw_pd_padding": "off",
-    "bag_delay": "0.2",
-    "casting_delay2": "0.1",
-    "centroid_tracking": "off",
-=======
     "fish_overlay": "Disabled",
     "bar_size": "on",
     "draw_pd_padding": "off",
     "bag_delay": "0.2",
->>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
->>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "lock_cursor": "on",
     "casting_mode": "Normal",
+    "casting_delay2": "0.1",
     "cast_duration": "0.6",
     "cast_delay": "0.6",
     "perfect_cast_tolerance": "16",
@@ -44,17 +27,11 @@
     "release_method": "Simple",
     "perfect_release_delay": "0.05",
     "perfect_threshold": "30",
-    "shake_mode": "Navigation",
+    "shake_mode": "Click",
     "shake_failsafe": "20",
     "shake_scan_delay": "0.1",
     "shake_tolerance": "5",
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
     "shake_clicks": "1",
->>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
->>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "detection_method": "Fish",
     "restart_method": "Fish",
     "left_color": "#3bb4a5",
@@ -68,10 +45,15 @@
     "bar_ratio": "0.3",
     "minigame_scan_delay": "0.2",
     "restart_delay": "1.2",
+    "bar_controller_mode": "Stopping Distance",
+    "arrow_controller_mode": "Simple Tracking",
     "stopping_distance": "20",
+    "velocity_smoothing": "0.5",
+    "pd_padding2": "20",
+    "movement_threshold": "6",
     "proportional_gain": "0.7",
     "derivative_gain": "0.5",
-    "stabilize_threshold2": "6",
+    "stabilize_threshold": "6",
     "pid_clamp": "200",
     "discord_enabled": "on",
     "discord_webhook_url": "https://discord.com/api/webhooks/",
@@ -79,15 +61,7 @@
     "discord_screenshot": "off",
     "auto_totem_mode": "Time",
     "totem_cycles": "70",
-<<<<<<< HEAD
-    "use_sundial_mode": "Disabled",
-=======
-<<<<<<< HEAD
-    "use_sundial_mode": "Disabled",
-=======
     "use_sundial": "off",
->>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
->>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "totem_color": "#7effad",
     "totem_tolerance": "4",
     "shake_color": "#FFFFFF",
@@ -99,35 +73,17 @@
     "gift_track_ratio": "0.1",
     "note_cooldown": "0.2",
     "click_after_minigame": "off",
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
     "click_mode2": "off",
->>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
->>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "combobox_capture_mode": "DXCAM",
-    "Removed1": "requiem.json",
+    "combobox_active_config": "requiem.json",
+    "combobox_fish_overlay": "Disabled",
     "combobox_casting_mode": "Normal",
     "combobox_release_method": "Simple",
-<<<<<<< HEAD
-    "combobox_shake_mode": "Navigation",
-    "combobox_detection_method": "Fish",
-    "combobox_restart_method": "Fish",
-=======
-<<<<<<< HEAD
-    "combobox_shake_mode": "Navigation",
-    "combobox_detection_method": "Fish",
-    "combobox_restart_method": "Fish",
-=======
     "combobox_shake_mode": "Click",
     "combobox_detection_method": "Fish",
     "combobox_restart_method": "Fish",
     "combobox_bar_controller_mode": "Stopping Distance",
     "combobox_arrow_controller_mode": "Simple Tracking",
->>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
->>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "combobox_auto_totem_mode": "Time",
-    "combobox_use_sundial_mode": "Disabled",
     "combobox_tracking_focus": "Fish + Bar"
 }

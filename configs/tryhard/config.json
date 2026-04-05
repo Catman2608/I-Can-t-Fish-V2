@@ -5,15 +5,19 @@
     "change_bar_areas_key": "F6",
     "stop_key": "F7",
     "screenshot_key": "F8",
+    "rod_slot": "1",
+    "bag_slot": "2",
+    "sundial_slot": "6",
+    "target_slot": "7",
     "auto_select_rod": "on",
     "auto_zoom_in": "on",
-    "Fish + Bar_overlay": "on",
-    "bar_size": "off",
+    "fish_overlay": "Disabled",
+    "bar_size": "on",
     "draw_pd_padding": "off",
     "bag_delay": "0.2",
-    "casting_delay2": "0.1",
-    "centroid_tracking": "on",
+    "lock_cursor": "off",
     "casting_mode": "Normal",
+    "casting_delay2": "0.1",
     "cast_duration": "0.6",
     "cast_delay": "0.6",
     "perfect_cast_tolerance": "5",
@@ -23,40 +27,21 @@
     "release_method": "Simple",
     "perfect_release_delay": "-0.1",
     "perfect_threshold": "28",
-    "shake_mode": "Navigation",
+    "shake_mode": "Click",
     "shake_failsafe": "20",
     "shake_scan_delay": "0.1",
     "shake_tolerance": "5",
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-=======
     "shake_clicks": "5",
->>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
->>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "detection_method": "Fish",
     "restart_method": "Fish + Bar",
     "left_color": "#c80000",
     "right_color": "#430710",
     "arrow_color": "#bcacb0",
     "fish_color": "#000000",
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
->>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
-    "left_tolerance": "3",
-    "right_tolerance": "3",
-    "arrow_tolerance": "25",
-    "Fish + Bar_tolerance": "5",
-<<<<<<< HEAD
-=======
-=======
     "left_tolerance": "0",
     "right_tolerance": "0",
     "arrow_tolerance": "18",
     "fish_tolerance": "4",
->>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
->>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "bar_ratio": "0.6",
     "minigame_scan_delay": "0.01",
     "restart_delay": "1.2",
@@ -70,10 +55,10 @@
     "discord_webhook_name": "I Can't Fish",
     "discord_screenshot": "off",
     "auto_totem_mode": "Time",
-    "totem_delay": "900",
     "totem_cycles": "70",
-    "use_sundial_mode": "Disabled",
-    "auto_reconnect": "off",
+    "use_sundial": "off",
+    "totem_color": "#7effad",
+    "totem_tolerance": "4",
     "shake_color": "#FFFFFF",
     "perfect_color": "#5FA84B",
     "perfect_color2": "#d4d3ca",
@@ -83,14 +68,14 @@
     "gift_track_ratio": "0.1",
     "note_cooldown": "0.2",
     "click_after_minigame": "off",
+    "click_mode2": "off",
     "combobox_capture_mode": "DXCAM",
-    "Removed1": "tryhard.json",
+    "combobox_active_config": "tryhard.json",
     "combobox_casting_mode": "Normal",
     "combobox_release_method": "Simple",
-    "combobox_shake_mode": "Navigation",
-    "combobox_detection_method": "Fish + Bar",
+    "combobox_shake_mode": "Click",
+    "combobox_detection_method": "Fish",
     "combobox_restart_method": "Fish + Bar",
     "combobox_auto_totem_mode": "Time",
-    "combobox_use_sundial_mode": "Disabled",
     "combobox_tracking_focus": "Fish + Bar"
 }

@@ -31,7 +31,10 @@
     "shake_failsafe": "20",
     "shake_scan_delay": "0.1",
     "shake_tolerance": "5",
+<<<<<<< HEAD
+=======
     "shake_clicks": "1",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
     "detection_method": "Fish",
     "restart_method": "Fish + Bar",
     "left_color": "#ff88d2",

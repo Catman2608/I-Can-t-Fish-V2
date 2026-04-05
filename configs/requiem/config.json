@@ -11,10 +11,19 @@
     "target_slot": "7",
     "auto_select_rod": "on",
     "auto_zoom_in": "off",
+<<<<<<< HEAD
+    "fish_overlay": "on",
+    "bar_size": "on",
+    "draw_pd_padding": "off",
+    "bag_delay": "0.2",
+    "casting_delay2": "0.1",
+    "centroid_tracking": "off",
+=======
     "fish_overlay": "Disabled",
     "bar_size": "on",
     "draw_pd_padding": "off",
     "bag_delay": "0.2",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
     "lock_cursor": "on",
     "casting_mode": "Normal",
     "casting_delay2": "0.1",
@@ -31,7 +40,10 @@
     "shake_failsafe": "20",
     "shake_scan_delay": "0.1",
     "shake_tolerance": "5",
+<<<<<<< HEAD
+=======
     "shake_clicks": "1",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
     "detection_method": "Fish",
     "restart_method": "Fish",
     "left_color": "#3bb4a5",
@@ -61,7 +73,11 @@
     "discord_screenshot": "off",
     "auto_totem_mode": "Time",
     "totem_cycles": "70",
+<<<<<<< HEAD
+    "use_sundial_mode": "Disabled",
+=======
     "use_sundial": "off",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
     "totem_color": "#7effad",
     "totem_tolerance": "4",
     "shake_color": "#FFFFFF",
@@ -73,17 +89,26 @@
     "gift_track_ratio": "0.1",
     "note_cooldown": "0.2",
     "click_after_minigame": "off",
+<<<<<<< HEAD
+=======
     "click_mode2": "off",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
     "combobox_capture_mode": "DXCAM",
     "combobox_active_config": "requiem.json",
     "combobox_fish_overlay": "Disabled",
     "combobox_casting_mode": "Normal",
     "combobox_release_method": "Simple",
+<<<<<<< HEAD
+    "combobox_shake_mode": "Navigation",
+    "combobox_detection_method": "Fish",
+    "combobox_restart_method": "Fish",
+=======
     "combobox_shake_mode": "Click",
     "combobox_detection_method": "Fish",
     "combobox_restart_method": "Fish",
     "combobox_bar_controller_mode": "Stopping Distance",
     "combobox_arrow_controller_mode": "Simple Tracking",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
     "combobox_auto_totem_mode": "Time",
     "combobox_tracking_focus": "Fish + Bar"
 }

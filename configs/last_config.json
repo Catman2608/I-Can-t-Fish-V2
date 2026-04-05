@@ -1,6 +1,25 @@
 {
+<<<<<<< HEAD
+    "last_config": "onirifalx",
+    "last_rod": "Basic Rod",
+    "bar_areas": {
+        "shake": {
+            "x": 393,
+            "y": 111,
+            "width": 1101,
+            "height": 666
+        },
+        "fish": {
+            "x": 570,
+            "y": 865,
+            "width": 778,
+            "height": 38
+        }
+    },
+=======
     "last_config": "ruinousoath.json",
     "last_rod": "Basic Rod",
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
     "start_key": "F5",
     "change_bar_areas_key": "F6",
     "screenshot_key": "F8",

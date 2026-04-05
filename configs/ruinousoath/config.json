@@ -64,6 +64,8 @@
     "use_sundial": "off",
     "totem_color": "#7effad",
     "totem_tolerance": "4",
+    "auto_reconnect": "off",
+    "reconnect_link": "https://www.roblox.com/games/16732694052/Fisch?privateServerLinkCode=18045795843383847993884150042526",
     "shake_color": "#FFFFFF",
     "perfect_color": "#5FA84B",
     "perfect_color2": "#d4d3ca",

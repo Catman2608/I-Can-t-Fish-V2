@@ -22,10 +22,9 @@ import threading
 # Time
 import time
 import json
-# Logging and reconnect
+# Discord and Text logs
 import requests
 import io
-import psutil
 # OpenCV for pixel searches and NumPy for arrow calculations
 import cv2
 import numpy as np
@@ -49,7 +48,7 @@ if sys.platform == "win32":
 elif sys.platform == "darwin":
     import threading
     import numpy as np
-    # import Quartz # If you're on macOS remove the first hashtag
+    import Quartz # If you're on macOS remove the first hashtag
     def _move_mouse(x, y):
         point = Quartz.CGPointMake(float(x), float(y))
         Quartz.CGWarpMouseCursorPosition(point)
@@ -107,9 +106,10 @@ if sys.platform == "darwin":
 else:
     pass # You're on Windows, no need to change the working directory
 # Dual Area Selector class
-class TripleAreaSelector:
+class DualAreaSelector:
     HANDLE_SIZE = 8
-    def __init__(self, parent, shake_area, fish_area, friend_area, callback):
+
+    def __init__(self, parent, shake_area, fish_area, callback):
         self.parent = parent
         self.callback = callback
 
@@ -150,7 +150,6 @@ class TripleAreaSelector:
 
         self.shake = shake_area.copy()
         self.fish = fish_area.copy()
-        self.friend = friend_area.copy()
 
         self.dragging = None
         self.resize_corner = None
@@ -178,9 +177,8 @@ class TripleAreaSelector:
 
         self.canvas.delete("all")
 
-        self.draw_area(self.shake, "#ff007a")
-        self.draw_area(self.fish, "#00daff")
-        self.draw_area(self.friend, "#f7ff00")
+        self.draw_area(self.shake, "#ff6b35")
+        self.draw_area(self.fish, "#7ed321")
 
     def draw_area(self, area, color):
 
@@ -222,7 +220,7 @@ class TripleAreaSelector:
         self.start_x = e.x
         self.start_y = e.y
 
-        for area,name in [(self.fish,"fish"),(self.shake,"shake"),(self.friend,"friend")]:
+        for area,name in [(self.fish,"fish"),(self.shake,"shake")]:
 
             handle = self.get_handle(e.x,e.y,area)
 
@@ -271,7 +269,7 @@ class TripleAreaSelector:
         self.active_area = None
 
     def mouse_move(self, e):
-        for area in [self.fish,self.shake,self.friend]:
+        for area in [self.fish,self.shake]:
             handle = self.get_handle(e.x,e.y,area)
             if handle:
                 cursor = {
@@ -293,7 +291,7 @@ class TripleAreaSelector:
     # Save
     def close(self):
 
-        self.callback(self.shake,self.fish,self.friend)
+        self.callback(self.shake,self.fish)
         self.window.destroy()
 # Main app
 class App(CTk):
@@ -325,8 +323,7 @@ class App(CTk):
         self.last_bar_size = None
         self.pid_source = None  # "bar" or "arrow"
         self.pid_integral = 0.0 # Used for normal PID
-        self.pid_last_time = 0
-        self.pid_last_error = 0.0
+
         # Arrow-based box estimation variables
         self.last_indicator_x = None
         self.last_holding_state = None
@@ -414,7 +411,6 @@ class App(CTk):
         # Bar Areas Variables
         self.shake_selector = None
         self.fish_selector = None
-        self.friend_selector = None
 
         # Tabs 
         self.tabs = CTkTabview( self, anchor="w", border_color = "#00FF00", fg_color = "#181818")
@@ -1010,19 +1006,14 @@ class App(CTk):
         CTkEntry(auto_totem, width=120, textvariable=totem_tolerance_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
     
         # Auto Reconnect
-        auto_reconnect = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
-        auto_reconnect.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(auto_reconnect, text="Auto Reconnect", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        # auto_reconnect = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
+        # auto_reconnect.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
+        # CTkLabel(auto_reconnect, text="Auto Reconnect", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
 
-        auto_reconnect_var = StringVar(value="off")
-        self.vars["auto_reconnect"] = auto_reconnect_var
-        auto_reconnect_cb = CTkCheckBox(auto_reconnect, text="Auto Reconnect (Roblox)", variable=auto_reconnect_var, onvalue="on", offvalue="off")
-        auto_reconnect_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
-        # Reconnect Link
-        CTkLabel(auto_reconnect, text="Reconnect Link:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
-        reconnect_link_var = StringVar(value="https://www.roblox.com/games/16732694052/Fisch?privateServerLinkCode=18045795843383847993884150042526")
-        self.vars["reconnect_link"] = reconnect_link_var
-        CTkEntry(auto_reconnect, width=220, textvariable=reconnect_link_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
+        # auto_reconnect_var = StringVar(value="off")
+        # self.vars["auto_reconnect"] = auto_reconnect_var
+        # auto_reconnect_cb = CTkCheckBox(auto_reconnect, text="Auto Reconnect", variable=auto_reconnect_var, onvalue="on", offvalue="off")
+        # auto_reconnect_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # ADVANCED SETTINGS TAB
     def build_advanced_tab(self, parent):
         scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
@@ -1164,7 +1155,7 @@ class App(CTk):
 
         # Build clean bar areas
         clean_bar_areas = {}
-        for key in ["shake", "fish", "friend"]:
+        for key in ["shake", "fish"]:
             area = self.bar_areas.get(key)
             if isinstance(area, dict):
                 clean_bar_areas[key] = {
@@ -1287,7 +1278,7 @@ class App(CTk):
                 with open(path, "r") as f:
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
-                    self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None, "friend": None})
+                    self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
                     # IMPORTANT: Load hotkeys if present
                     start_key = data.get("start_key", "F5")
                     change_key = data.get("change_bar_areas_key", "F6")
@@ -1306,10 +1297,10 @@ class App(CTk):
                     self.hotkey_stop = self._string_to_key(stop_key)
             else:
                 self.current_rod_name = "Basic Rod"
-                self.bar_areas = {"fish": None, "shake": None, "friend": None}
+                self.bar_areas = {"fish": None, "shake": None}
         except:
             self.current_rod_name = "Basic Rod"
-            self.bar_areas = {"fish": None, "shake": None, "friend": None}
+            self.bar_areas = {"fish": None, "shake": None}
     # Key press functions
     def _apply_hotkeys_from_vars(self):
             """Apply hotkey StringVars to the live hotkey attributes used by on_key_press."""
@@ -1547,13 +1538,6 @@ class App(CTk):
             bottom = int(screen_h * 0.8370)
             return {"x": left, "y": top, 
                     "width": right - left, "height": bottom - top}
-        def default_friend_area():
-            left = int(screen_w * 0.0046)
-            top = int(screen_h * 0.8583)
-            right = int(screen_w * 0.0401)
-            bottom = int(screen_h * 0.94)
-            return {"x": left, "y": top, 
-                    "width": right - left, "height": bottom - top}
         # Load saved areas or fallback 
         shake_area = (
             self.bar_areas.get("shake")
@@ -1565,21 +1549,15 @@ class App(CTk):
             if isinstance(self.bar_areas.get("fish"), dict)
             else default_fish_area()
         )
-        friend_area = (
-            self.bar_areas.get("friend")
-            if isinstance(self.bar_areas.get("friend"), dict)
-            else default_friend_area()
-        )
         # Callback when user closes selector 
-        def on_done(shake, fish, friend):
+        def on_done(shake, fish):
             self.bar_areas["shake"] = shake
             self.bar_areas["fish"] = fish
-            self.bar_areas["friend"] = friend
             self.save_misc_settings()
             self.area_selector = None
             self.set_status("Bar areas saved")
         # Open selector 
-        self.area_selector = TripleAreaSelector(parent=self, shake_area=shake_area, fish_area=fish_area, friend_area=friend_area, callback=on_done)
+        self.area_selector = DualAreaSelector(parent=self, shake_area=shake_area, fish_area=fish_area, callback=on_done)
         self.set_status("Area selector opened (press key again to close)")
     def open_configs_folder(self):
         folder = USER_CONFIG_DIR
@@ -1589,50 +1567,6 @@ class App(CTk):
             subprocess.run(["open", folder])
         else:  # Linux
             subprocess.run(["xdg-open", folder])
-    # Reconnect-related functions
-    def get_roblox_proc(self):
-        """Finds the Roblox process if it is running."""
-        for p in psutil.process_iter(['pid', 'name']):
-            try:
-                if 'RobloxPlayerBeta' in p.info['name']:
-                    return p
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-        return None
-
-    def get_connection_count(self, proc):
-        """Counts active established network connections for the process."""
-        try:
-            connections = proc.connections()
-            established = [c for c in connections if c.status == 'ESTABLISHED']
-            return len(established)
-        except Exception:
-            return 0
-
-    def check_roblox_connection(self):
-        """
-        Runs once to verify Roblox is healthy before starting the main macro loop.
-        Returns True if connection is stable, False otherwise.
-        """
-        proc = self.get_roblox_proc()
-        if not proc:
-            self.set_status("Error: Roblox is not running!")
-            return False
-            
-        self.set_status(f"Verifying Roblox (PID: {proc.pid})...")
-        
-        # Check baseline over a short 2-second window to ensure stability
-        baseline = self.get_connection_count(proc)
-        time.sleep(1)
-        current = self.get_connection_count(proc)
-        
-        # If connections are non-existent or dropped immediately, consider it a fail
-        if baseline == 0 or current < (baseline * 0.5):
-            self.set_status("Connection unstable. Start aborted.")
-            return False
-            
-        self.set_status("Connection verified. Starting sequence...")
-        return True
     # Logging-related functions
     def _discord_text_worker(self, webhook_url, message_prefix, loop_count, show_status):
         """Worker function to send text webhook."""
@@ -2103,35 +2037,33 @@ class App(CTk):
     def _pid_control(self, error):
         now = time.perf_counter()
 
-        # first sample: initialize state and return zero control
-        if self.last_time is None:
-            self.last_time = now
-            self.prev_error = error
+        if self.pid_last_time is None:
+            self.pid_last_time = now
+            self.pid_prev_error = error
             return 0.0
 
-        time_delta = now - self.last_time
-        if time_delta <= 0:
+        dt = now - self.pid_last_time
+        if dt <= 0:
             return 0.0
 
         kp, kd = self._get_pid_gains()
         ki = 0.15
 
         # Integral (anti-windup)
-        self.pid_integral += error * time_delta
+        self.pid_integral += error * dt
         self.pid_integral = max(-100, min(100, self.pid_integral))
 
-        # Derivative (Error rate)
-        error_rate = (error - self.pid_last_error) / time_delta
+        # Derivative
+        derivative = (error - self.pid_prev_error) / dt
 
         output = (
             kp * error +
             ki * self.pid_integral +
-            kd * error_rate
+            kd * derivative
         )
 
-        # update history
-        self.prev_error = error
-        self.last_time = now
+        self.pid_prev_error = error
+        self.pid_last_time = now
 
         return output
     
@@ -2471,17 +2403,6 @@ class App(CTk):
             cycle += 1
             # Update cycle on overlay
             self.set_overlay_status(1, f"Current cycle: {cycle}")
-            # Reconnect every X cycles if enabled
-            roblox_state = False
-            if self.vars["auto_reconnect"].get() == "on":
-                # roblox_state = self.check_roblox_connection()
-                if roblox_state == False:
-                    link = self.vars["reconnect_link"].get()
-                    self.set_overlay_status(0, "Process: Reconnecting")
-                    self.set_overlay_status(1, link)
-                    self.send_discord_webhook(f"**Loop Failed**", f"Reconnecting...")
-                    self.open_link(link)
-                    time.sleep(30)
             # Send Discord Webhook
             self.send_discord_webhook(f"**Loop Completed**", f"Loop #{cycle}")
             # Check Totem

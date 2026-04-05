@@ -107,9 +107,10 @@ if sys.platform == "darwin":
 else:
     pass # You're on Windows, no need to change the working directory
 # Dual Area Selector class
-class TripleAreaSelector:
+class DualAreaSelector:
     HANDLE_SIZE = 8
-    def __init__(self, parent, shake_area, fish_area, friend_area, callback):
+
+    def __init__(self, parent, shake_area, fish_area, callback):
         self.parent = parent
         self.callback = callback
 
@@ -150,7 +151,6 @@ class TripleAreaSelector:
 
         self.shake = shake_area.copy()
         self.fish = fish_area.copy()
-        self.friend = friend_area.copy()
 
         self.dragging = None
         self.resize_corner = None
@@ -178,9 +178,8 @@ class TripleAreaSelector:
 
         self.canvas.delete("all")
 
-        self.draw_area(self.shake, "#ff007a")
-        self.draw_area(self.fish, "#00daff")
-        self.draw_area(self.friend, "#f7ff00")
+        self.draw_area(self.shake, "#ff6b35")
+        self.draw_area(self.fish, "#7ed321")
 
     def draw_area(self, area, color):
 
@@ -222,7 +221,7 @@ class TripleAreaSelector:
         self.start_x = e.x
         self.start_y = e.y
 
-        for area,name in [(self.fish,"fish"),(self.shake,"shake"),(self.friend,"friend")]:
+        for area,name in [(self.fish,"fish"),(self.shake,"shake")]:
 
             handle = self.get_handle(e.x,e.y,area)
 
@@ -271,7 +270,7 @@ class TripleAreaSelector:
         self.active_area = None
 
     def mouse_move(self, e):
-        for area in [self.fish,self.shake,self.friend]:
+        for area in [self.fish,self.shake]:
             handle = self.get_handle(e.x,e.y,area)
             if handle:
                 cursor = {
@@ -293,7 +292,7 @@ class TripleAreaSelector:
     # Save
     def close(self):
 
-        self.callback(self.shake,self.fish,self.friend)
+        self.callback(self.shake,self.fish)
         self.window.destroy()
 # Main app
 class App(CTk):
@@ -414,7 +413,6 @@ class App(CTk):
         # Bar Areas Variables
         self.shake_selector = None
         self.fish_selector = None
-        self.friend_selector = None
 
         # Tabs 
         self.tabs = CTkTabview( self, anchor="w", border_color = "#00FF00", fg_color = "#181818")
@@ -1164,7 +1162,7 @@ class App(CTk):
 
         # Build clean bar areas
         clean_bar_areas = {}
-        for key in ["shake", "fish", "friend"]:
+        for key in ["shake", "fish"]:
             area = self.bar_areas.get(key)
             if isinstance(area, dict):
                 clean_bar_areas[key] = {
@@ -1287,7 +1285,7 @@ class App(CTk):
                 with open(path, "r") as f:
                     data = json.load(f)
                     self.current_rod_name = data.get("last_rod", "Basic Rod")
-                    self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None, "friend": None})
+                    self.bar_areas = data.get("bar_areas", {"shake": None, "fish": None})
                     # IMPORTANT: Load hotkeys if present
                     start_key = data.get("start_key", "F5")
                     change_key = data.get("change_bar_areas_key", "F6")
@@ -1306,10 +1304,10 @@ class App(CTk):
                     self.hotkey_stop = self._string_to_key(stop_key)
             else:
                 self.current_rod_name = "Basic Rod"
-                self.bar_areas = {"fish": None, "shake": None, "friend": None}
+                self.bar_areas = {"fish": None, "shake": None}
         except:
             self.current_rod_name = "Basic Rod"
-            self.bar_areas = {"fish": None, "shake": None, "friend": None}
+            self.bar_areas = {"fish": None, "shake": None}
     # Key press functions
     def _apply_hotkeys_from_vars(self):
             """Apply hotkey StringVars to the live hotkey attributes used by on_key_press."""
@@ -1547,13 +1545,6 @@ class App(CTk):
             bottom = int(screen_h * 0.8370)
             return {"x": left, "y": top, 
                     "width": right - left, "height": bottom - top}
-        def default_friend_area():
-            left = int(screen_w * 0.0046)
-            top = int(screen_h * 0.8583)
-            right = int(screen_w * 0.0401)
-            bottom = int(screen_h * 0.94)
-            return {"x": left, "y": top, 
-                    "width": right - left, "height": bottom - top}
         # Load saved areas or fallback 
         shake_area = (
             self.bar_areas.get("shake")
@@ -1565,21 +1556,15 @@ class App(CTk):
             if isinstance(self.bar_areas.get("fish"), dict)
             else default_fish_area()
         )
-        friend_area = (
-            self.bar_areas.get("friend")
-            if isinstance(self.bar_areas.get("friend"), dict)
-            else default_friend_area()
-        )
         # Callback when user closes selector 
-        def on_done(shake, fish, friend):
+        def on_done(shake, fish):
             self.bar_areas["shake"] = shake
             self.bar_areas["fish"] = fish
-            self.bar_areas["friend"] = friend
             self.save_misc_settings()
             self.area_selector = None
             self.set_status("Bar areas saved")
         # Open selector 
-        self.area_selector = TripleAreaSelector(parent=self, shake_area=shake_area, fish_area=fish_area, friend_area=friend_area, callback=on_done)
+        self.area_selector = DualAreaSelector(parent=self, shake_area=shake_area, fish_area=fish_area, callback=on_done)
         self.set_status("Area selector opened (press key again to close)")
     def open_configs_folder(self):
         folder = USER_CONFIG_DIR

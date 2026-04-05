@@ -1,5 +1,5 @@
 {
-    "last_config": "default.json",
+    "last_config": "ruinousoath.json",
     "last_rod": "Basic Rod",
     "start_key": "F5",
     "change_bar_areas_key": "F6",
@@ -17,6 +17,12 @@
             "y": 855,
             "width": 783,
             "height": 48
+        },
+        "friend": {
+            "x": 8,
+            "y": 926,
+            "width": 68,
+            "height": 89
         }
     }
 }

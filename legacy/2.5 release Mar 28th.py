@@ -22,7 +22,7 @@ import threading
 # Time
 import time
 import json
-# Logging and reconnect
+# Discord and Text logs
 import requests
 import io
 # OpenCV for pixel searches and NumPy for arrow calculations
@@ -34,21 +34,27 @@ try:
         import dxcam
     else:
         dxcam = None
+        # macOS DPI awareness requires PyAutoGUI code but I use pynput.
 except Exception:
     dxcam = None
 import mss
-# Windows ctypes vs macOS Quartz
+# Windows ctypes vs macOS ScreenCaptureKit
 if sys.platform == "win32":
     import ctypes # Windows
-    import ctypes as Quartz # Used to disable quartz on Windows
     windll = ctypes.windll.user32
     MOUSEEVENTF_MOVE = 0x0001
     MOUSEEVENTF_LEFTDOWN = 0x0002
     MOUSEEVENTF_LEFTUP = 0x0004
+    class SCKStreamOutput():
+        pass # Windows doesn't have this class
 elif sys.platform == "darwin":
+    import objc
     import threading
     import numpy as np
-    # import Quartz # If you're on macOS remove the first hashtag
+    import Quartz
+    import CoreMedia
+    import ScreenCaptureKit
+    from Cocoa import NSObject
     def _move_mouse(x, y):
         point = Quartz.CGPointMake(float(x), float(y))
         Quartz.CGWarpMouseCursorPosition(point)
@@ -62,6 +68,42 @@ elif sys.platform == "darwin":
             Quartz.kCGMouseButtonLeft
         )
         Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
+    # ScreenCaptureKit class (macOS-only)
+    class SCKStreamOutput(NSObject):
+        """Receives frames from SCStream asynchronously and stores newest frame."""
+
+        def initWithOwner_(self, owner):
+            self = objc.super(SCKStreamOutput, self).init()
+            if self:
+                self.owner = owner
+            return self
+
+        # Correct signature for Sonoma & Ventura
+        def stream_output_didOutputSampleBuffer_(self, stream, output, sample_buffer):
+            if sample_buffer is None:
+                return
+
+            image_buffer = sample_buffer.imageBuffer()
+            if image_buffer is None:
+                return
+
+            CoreMedia.CVPixelBufferLockBaseAddress(image_buffer, 0)
+
+            width  = CoreMedia.CVPixelBufferGetWidth(image_buffer)
+            height = CoreMedia.CVPixelBufferGetHeight(image_buffer)
+            row_bytes = CoreMedia.CVPixelBufferGetBytesPerRow(image_buffer)
+            base_addr = CoreMedia.CVPixelBufferGetBaseAddress(image_buffer)
+
+            # Convert BGRA → NumPy array
+            arr = np.frombuffer(base_addr, dtype=np.uint8)
+            arr = arr.reshape((height, row_bytes // 4, 4))
+            arr = arr[:, :width, :]       # remove padding
+            arr = arr[:, :, :3][:, :, ::-1].copy()  # BGRA → BGR
+
+            with self.owner.sck_lock:
+                self.owner.sck_buffer = arr
+
+            CoreMedia.CVPixelBufferUnlockBaseAddress(image_buffer, 0)
 # Initialize controllers
 keyboard_controller = KeyboardController()
 mouse_controller = MouseController()
@@ -317,10 +359,15 @@ class App(CTk):
         self.hotkey_reserved = Key.f8
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
 
-        # Screen capture variables — MSS instances are per-thread (see _thread_local)
-        self._thread_local = threading.local()
-        self._monitor = {}      # pre-allocated monitor dict, reused every grab
-        self._scale_cache = None  # cached DPI scale factor
+        # Screen capture variables
+        self.sct = mss.mss()
+        self.sck_stream = None
+        self.sck_output = None
+        self.sck_queue = None
+        self.sck_buffer = None
+        self.sck_ready = False
+        self.sck_lock = threading.Lock()
+        self.sck_content_ready = threading.Event()
         # Start hotkey listener
         self.key_listener = KeyListener(on_press=self.on_key_press)
         self.key_listener.daemon = True
@@ -447,13 +494,38 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
+        # Grant Permissions (macOS only)
+        if sys.platform == "darwin":
+            permission_settings = CTkFrame(scroll, border_width=2)
+            permission_settings.grid(row=0, column=1, padx=20, pady=20, sticky="nw")
+            CTkLabel(permission_settings, text="Required Functions", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+            CTkLabel(permission_settings, text="Accessibility:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
+            CTkLabel(permission_settings, text="Input Monitoring:").grid(row=2, column=0, padx=12, pady=6, sticky="w")
+            CTkLabel(permission_settings, text="Screen Recording:").grid(row=3, column=0, padx=12, pady=6, sticky="w")
+            CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                    command=self.accessibility_perms # Accessibility
+                    ).grid(row=1, column=1, padx=12, pady=12, sticky="w")
+            CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                    command=self.hotkey_perms # Input Monitoring
+                    ).grid(row=2, column=1, padx=12, pady=12, sticky="w")
+            CTkButton(permission_settings, text="Enable", corner_radius=10, 
+                    command=self._take_debug_screenshot # Screen Recording
+                    ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
         # Configs 
         configs = CTkFrame(scroll, border_width=2)
         configs.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(configs, text="Config & Capture", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(configs, text="Capture Mode:").grid(row=1, column=0, padx=12, pady=6, sticky="w")
         if sys.platform == "darwin":
-            CTkLabel(configs, text="MSS").grid(row=1, column=1, padx=12, pady=6, sticky="w")
+            capture_var = StringVar(value="ScreenCaptureKit")
+            self.vars["capture_mode"] = capture_var
+
+            capture_cb = CTkComboBox(
+                configs,
+                values=["ScreenCaptureKit", "MSS"],
+                variable=capture_var,
+                command=lambda v: self.set_status(f"Capture mode set to {v}")
+            )
         else:
             capture_var = StringVar(value="DXCAM")
             self.vars["capture_mode"] = capture_var
@@ -464,8 +536,9 @@ class App(CTk):
                 variable=capture_var,
                 command=lambda v: self.set_status(f"Capture mode set to {v}")
             )
-            capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
-            self.comboboxes["capture_mode"] = capture_cb
+
+        capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
+        self.comboboxes["capture_mode"] = capture_cb
         CTkLabel(configs, text="Rod Type:").grid( row=2, column=0, padx=12, pady=6, sticky="w" )
         config_list = self.load_configs()
         config_var = StringVar(value=config_list[0] if config_list else "default.json")
@@ -481,21 +554,6 @@ class App(CTk):
         CTkButton(configs, text="Save Misc Settings", 
                   corner_radius=10, command=self.save_misc_settings
         ).grid(row=3, column=1, padx=12, pady=12, sticky="w")
-        # Grant Permissions (macOS only)
-        if sys.platform == "darwin":
-            CTkLabel(configs, text="Required Functions", font=CTkFont(size=14, weight="bold")).grid(row=0, column=2, padx=12, pady=8, sticky="w")
-            CTkLabel(configs, text="Accessibility:").grid(row=1, column=2, padx=12, pady=6, sticky="w")
-            CTkLabel(configs, text="Input Monitoring:").grid(row=2, column=2, padx=12, pady=6, sticky="w")
-            CTkLabel(configs, text="Screen Recording:").grid(row=3, column=2, padx=12, pady=6, sticky="w")
-            CTkButton(configs, text="Enable", corner_radius=10, 
-                    command=self.accessibility_perms # Accessibility
-                    ).grid(row=1, column=3, padx=12, pady=12, sticky="w")
-            CTkButton(configs, text="Enable", corner_radius=10, 
-                    command=self.hotkey_perms # Input Monitoring
-                    ).grid(row=2, column=3, padx=12, pady=12, sticky="w")
-            CTkButton(configs, text="Enable", corner_radius=10, 
-                    command=self._take_debug_screenshot # Screen Recording
-                    ).grid(row=3, column=3, padx=12, pady=12, sticky="w")
         # Hotkey and Hotbar Settings
         hotkey_hotbar_settings = CTkFrame(scroll, border_width=2)
         hotkey_hotbar_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
@@ -562,12 +620,10 @@ class App(CTk):
         overlay_options = CTkFrame(scroll, border_width=2)
         overlay_options.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        # Fish Overlay
         fish_overlay_var = StringVar(value="off")
         self.vars["fish_overlay"] = fish_overlay_var
         fish_overlay_cb = CTkCheckBox(overlay_options, text="Fish Overlay", variable=fish_overlay_var, onvalue="on", offvalue="off")
         fish_overlay_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
-        # Show Bar Size
         bar_size_var = StringVar(value="off")
         self.vars["bar_size"] = bar_size_var
         bar_size_cb = CTkCheckBox(overlay_options, text="Show Bar Size", variable=bar_size_var, onvalue="on", offvalue="off")
@@ -732,11 +788,6 @@ class App(CTk):
         shake_tolerance_var = StringVar(value="5")
         self.vars["shake_tolerance"] = shake_tolerance_var
         CTkEntry(click_shake, width=120, textvariable=shake_tolerance_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-        # Clicks
-        CTkLabel(click_shake, text="Click Shake Color clicks:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
-        shake_clicks_var = StringVar(value="5")
-        self.vars["shake_clicks"] = shake_clicks_var
-        CTkEntry(click_shake, width=120, textvariable=shake_clicks_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
         # Minigame Detection Settings
         minigame_detection = CTkFrame(
@@ -1216,6 +1267,17 @@ class App(CTk):
                     cb.set(data[key])
         except Exception as e:
             print(f"Error loading comboboxes: {e}")
+
+        # DXCAM OR ScreenCaptureKit
+        mode = self.vars["capture_mode"].get()
+
+        if sys.platform == "win32" and mode in ("Quartz", "ScreenCaptureKit"):
+            self.vars["capture_mode"].set("DXCAM")
+            self.set_status("Capture mode automatically set to DXCAM")
+
+        elif sys.platform == "darwin" and mode == "DXCAM":
+            self.vars["capture_mode"].set("ScreenCaptureKit")
+            self.set_status("Capture mode automatically set to ScreenCaptureKit")
         self.save_last_config_name(name)
     def load_misc_settings(self):
         """Load miscellaneous settings from last_config.json."""
@@ -1596,62 +1658,162 @@ class App(CTk):
         if len(x_coords) > 0:
             return list(zip(x_coords, y_coords))
         return []
+    def _load_sck_content(self):
+        """Loads SCShareableContent using the correct API for any macOS version."""
+
+        self.sck_content = None
+
+        def handler(content, error):
+            if error is None:
+                self.sck_content = content
+            self.sck_content_ready.set()
+
+        # Try Sonoma (async-only API)
+        if hasattr(ScreenCaptureKit.SCShareableContent, "getShareableContentWithCompletionHandler_"):
+            ScreenCaptureKit.SCShareableContent.getShareableContentWithCompletionHandler_(handler)
+
+        # Try Ventura (sync API)
+        elif hasattr(ScreenCaptureKit.SCShareableContent, "defaultShareableContent"):
+            self.sck_content = ScreenCaptureKit.SCShareableContent.defaultShareableContent()
+            self.sck_content_ready.set()
+
+        else:
+            raise RuntimeError("ScreenCaptureKit is not supported on this macOS/PyObjC version.")
+
+        self.sck_content_ready.wait(timeout=3.0)
+    def _init_sck_stream(self, width, height):
+        if self.sck_stream:
+            return  # already running
+
+        # Load content once
+        self._load_sck_content()
+        content = self.sck_content
+        if content is None:
+            raise RuntimeError("Failed to load ScreenCaptureKit content.")
+
+        displays = content.displays()
+        if not displays:
+            raise RuntimeError("No displays available.")
+        display = displays[0]
+
+        # Create filter & config
+        filter = ScreenCaptureKit.SCContentFilter.alloc().initWithDisplay_excludingWindows_(display, [])
+
+        config = ScreenCaptureKit.SCStreamConfiguration.alloc().init()
+        config.setWidth_(width)
+        config.setHeight_(height)
+        config.setPixelFormat_(0x42475241)  # BGRA
+        config.setShowsCursor_(False)
+
+        # Prepare the output delegate
+        self.sck_output = SCKStreamOutput.alloc().initWithOwner_(self)
+
+        # Create dispatch queue
+        self.sck_queue = objc.dispatch_queue_create("sck.stream.queue", None)
+
+        # Build stream
+        self.sck_stream = ScreenCaptureKit.SCStream.alloc().initWithFilter_configuration_delegate_(
+            filter, config, None
+        )
+
+        # Attach output
+        self.sck_stream.addStreamOutput_type_minimumFrameInterval_queue_(
+            self.sck_output, 0, 0, self.sck_queue
+        )
+
+        # Start capturing
+        self.sck_stream.startCapture()
+        self.sck_ready = True
     def _get_scale_factor(self):
-        if self._scale_cache is not None:
-            return self._scale_cache
         if sys.platform == "darwin":
             main_display = Quartz.CGMainDisplayID()
             pixel_width = Quartz.CGDisplayPixelsWide(main_display)
             bounds = Quartz.CGDisplayBounds(main_display)
             logical_width = bounds.size.width
-            self._scale_cache = pixel_width / logical_width
+            return pixel_width / logical_width
         else:
-            self._scale_cache = 1
-        return self._scale_cache
+            return 1
+    def _grab_screen_region_sck(self, left, top, width, height):
+        if not self.sck_ready:
+            self._init_sck_stream(width, height)
+
+        # Wait until first frame is available
+        if self.sck_buffer is None:
+            return None
+
+        with self.sck_lock:
+            frame = self.sck_buffer
+            if frame is None:
+                return None
+
+            # Crop region
+            return frame[top: top+height, left: left+width].copy()
 
     def _grab_screen_region(self, left, top, right, bottom):
-        # Apply DPI scale once
+        # Get width, height and scale
         scale = self._get_scale_factor()
-        left   = int(left   * scale)
-        top    = int(top    * scale)
-        right  = int(right  * scale)
+        left   = int(left * scale)
+        top    = int(top * scale)
+        right  = int(right * scale)
         bottom = int(bottom * scale)
-        width  = right - left
+        width = right - left
         height = bottom - top
         if width <= 0 or height <= 0:
             return None
+        # Reuse monitor dict
+        if not hasattr(self, "_monitor"):
+            self._monitor = {}
 
-        # Reuse the monitor dict to avoid allocation each call
         m = self._monitor
-        m["left"]   = left
-        m["top"]    = top
-        m["width"]  = width
+        m["left"] = left
+        m["top"] = top
+        m["width"] = width
         m["height"] = height
 
         mode = self.vars.get("capture_mode")
 
-        # Windows — DXCAM or MSS
-        if sys.platform == "win32":
+        # macOS (Use ScreenCaptureKit and MSS)
+        if sys.platform == "darwin":
+            if mode == "ScreenCaptureKit":
+                return self._grab_screen_region_sck(left, top, width, height)
+
+            # --- MSS fallback (macOS) ---
+            if not hasattr(self, "_thread_local"):
+                self._thread_local = threading.local()
+
+            if not hasattr(self._thread_local, "sct"):
+                import mss
+                self._thread_local.sct = mss.mss()
+
+            sct = self._thread_local.sct
+
+            img = sct.grab(m)
+            frame = np.frombuffer(img.raw, dtype=np.uint8).reshape(img.height, img.width, 4)
+
+            return frame[:, :, :3]
+
+        # Windows (Use DXCAM and MSS)
+        else:
             if mode and mode.get() == "DXCAM" and self.camera:
                 frame = self.camera.get_latest_frame()
                 if frame is None:
                     return None
+
                 cropped = frame[top:bottom, left:right]
                 return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
-            # MSS (Windows)
+
+            # --- MSS fallback (Windows) ---
+            if not hasattr(self, "_thread_local"):
+                self._thread_local = threading.local()
+
             if not hasattr(self._thread_local, "sct"):
+                import mss
                 self._thread_local.sct = mss.mss()
-            img = self._thread_local.sct.grab(m)
-            # raw is BGRA; drop alpha in-place via np.frombuffer → reshape → slice
-            return np.frombuffer(img.raw, dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
 
-        # macOS — optimised MSS path
-        if not hasattr(self._thread_local, "sct"):
-            self._thread_local.sct = mss.mss()
-        img = self._thread_local.sct.grab(m)
-        # mss returns BGRA; take only first 3 channels (BGR) without a copy
-        return np.frombuffer(img.raw, dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
+            sct = self._thread_local.sct
 
+            img = np.array(sct.grab(m))[:, :, :3]
+            return img
         
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
@@ -2078,7 +2240,7 @@ class App(CTk):
         show_bar_center=False,
         bar_y1=10,
         bar_y2=40,
-     ):
+    ):
         """
         Draws:
         - Square box with size
@@ -2601,9 +2763,9 @@ class App(CTk):
             shake_y = int((shake_top + shake_bottom) / 2)
         else:
             # fallback (old ratio logic)
-            shake_left   = int(self.SCREEN_WIDTH * 0.1333)
+            shake_left   = int(self.SCREEN_WIDTH * 0.2083)
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
-            shake_right  = int(self.SCREEN_WIDTH * 0.8562)
+            shake_right  = int(self.SCREEN_WIDTH * 0.7813)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
             shake_x = int(self.SCREEN_WIDTH * 0.5)
             shake_y = int(self.SCREEN_HEIGHT * 0.3)

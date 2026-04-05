@@ -30,7 +30,14 @@
     "right_color": "#364167",
     "arrow_color": "#848587",
     "fish_color": "#434B5B",
+<<<<<<< HEAD
     "Fish + Bar2_color": "#434B5B",
+=======
+<<<<<<< HEAD
+    "Fish + Bar2_color": "#434B5B",
+=======
+>>>>>>> 10e2ab5008e7b9a577c29874e1817bfe2aab9a7d
+>>>>>>> 8fc10dd098b914627bf32d8f3575f4aa14e14fc7
     "left_tolerance": "0",
     "right_tolerance": "0",
     "arrow_tolerance": "8",

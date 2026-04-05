@@ -20,7 +20,7 @@
     "bar_size": "off",
     "arrow_pid": "on",
     "legacy_pixel_search": "on",
-    "shake_mode": "Click",
+    "shake_mode": "Navigation",
     "shake_tolerance": "5",
     "shake_scan_delay": "0.01",
     "shake_failsafe": "2",

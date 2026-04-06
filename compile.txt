@@ -6,4 +6,4 @@ pyinstaller --onedir --windowed \
 --add-data "configs:configs" \
 IcantFish.py
 For me, the first line of code in the terminal looks like this:
-cd "/Users/hcl/Documents/Code/Python/I Cant Fish IcantFish-4"
+cd "/Users/hcl/Documents/Code/Python/I Cant Fish V2-6"

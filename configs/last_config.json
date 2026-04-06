@@ -3,22 +3,22 @@
     "last_rod": "Basic Rod",
     "bar_areas": {
         "shake": {
-            "x": 299,
-            "y": 145,
-            "width": 826,
-            "height": 555
+            "x": 292,
+            "y": 93,
+            "width": 1384,
+            "height": 732
         },
         "fish": {
-            "x": 411,
-            "y": 721,
-            "width": 619,
-            "height": 73
+            "x": 542,
+            "y": 864,
+            "width": 830,
+            "height": 42
         },
         "friend": {
-            "x": 17,
-            "y": 804,
-            "width": 51,
-            "height": 74
+            "x": 13,
+            "y": 922,
+            "width": 94,
+            "height": 103
         }
     },
     "start_key": "F5",

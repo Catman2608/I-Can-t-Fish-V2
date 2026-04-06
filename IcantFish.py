@@ -1321,6 +1321,11 @@ class App(CTk):
             self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
             self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
             self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
+            """Apply hotkey StringVars to the live hotkey attributes used by on_key_press."""
+            self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
+            self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
+            self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
+            self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
     def _string_to_key(self, key_string):
         key_string = key_string.strip().lower()
 
@@ -2056,143 +2061,84 @@ class App(CTk):
     
     def _pid_control_strict(self, error, bar_center_x=None):
         """
-        Lag-stable strict PD controller.
-        Includes:
-        - dt clamping
-        - derivative smoothing
-        - velocity smoothing
-        - output clamping
+        Compute PD output using proportional gain system from comet reference.
+        Uses velocity-based derivative with asymmetric damping.
         """
 
         now = time.perf_counter()
-        pd_clamp = float(self.vars["pid_clamp"].get() or 1.0)
-
-        # First frame: prime state
+        pd_clamp = float(self.vars["pid_clamp"].get() or 1.0)  # Changed default to 1.0 like comet
+        # first sample: initialize state and return zero control
         if self.last_time is None:
             self.last_time = now
             self.prev_error = error
-            self.last_bar_x = bar_center_x
-            self._strict_prev_bar_vel = 0.0
-            self._strict_filtered_d = 0.0
+            if bar_center_x is not None:
+                self.last_bar_x = bar_center_x
             return 0.0
 
         dt = now - self.last_time
         if dt <= 0:
-            dt = 1e-6
-
-        # HARD dt clamp to stabilize derivative on laggy frames (1-10 ms)
-        dt = max(min(dt, 0.01), 0.001)
+            return 0.0
 
         kp, kd = self._get_pid_gains()
 
-        # ------- PROPORTIONAL -------
+        # P term - proportional to how far we need to move
         p_term = kp * error
 
-        # ------- DERIVATIVE (bar velocity–based) -------
+        # D term - asymmetric damping based on situation
         d_term = 0.0
-        bar_vel = 0.0
-
-        if bar_center_x is not None and self.last_bar_x is not None:
-            # Raw velocity
-            bar_vel = (bar_center_x - self.last_bar_x) / dt
-            
-            # Smooth velocity (critical for lag)
-            bar_vel = 0.2 * bar_vel + 0.8 * getattr(self, "_strict_prev_bar_vel", 0.0)
-            self._strict_prev_bar_vel = bar_vel
-
-            # Determine damping type
-            error_decreasing = abs(error) < abs(self.prev_error)
-            moving_toward_target = ((bar_vel > 0 and error > 0) or
-                                    (bar_vel < 0 and error < 0))
-
-            damping = 2.0 if (error_decreasing and moving_toward_target) else 0.5
-            raw_d = -kd * damping * bar_vel
-
+        if bar_center_x is not None and self.last_bar_x is not None and dt > 0:
+            bar_velocity = (bar_center_x - self.last_bar_x) / dt
+            error_magnitude_decreasing = abs(error) < abs(self.prev_error) if self.prev_error is not None else False
+            bar_moving_toward_target = (bar_velocity > 0 and error > 0) or (bar_velocity < 0 and error < 0)
+            damping_multiplier = 2.0 if (error_magnitude_decreasing and bar_moving_toward_target) else 0.5
+            d_term = -kd * damping_multiplier * bar_velocity
         else:
             # Fallback to standard derivative
-            raw_d = kd * (error - self.prev_error) / dt
+            if self.prev_error is not None and dt > 0:
+                d_term = kd * (error - self.prev_error) / dt
 
-        # Smooth derivative (lag-protection)
-        alpha = 0.25  # smoothing factor
-        d_term = alpha * raw_d + (1 - alpha) * getattr(self, "_strict_filtered_d", 0.0)
-        self._strict_filtered_d = d_term
+        # Combined control signal (PD controller output)
+        control_signal = p_term + d_term
+        control_signal = max(-pd_clamp, min(pd_clamp, control_signal))  # Clamp output
 
-        # Clamp derivative magnitude so it can't blow up from lag
-        d_term = max(min(d_term, pd_clamp), -pd_clamp)
-
-        # ------- OUTPUT -------
-        output = p_term + d_term
-
-        # Hard clamp output
-        output = max(-pd_clamp, min(pd_clamp, output))
-
-        # Update state
+        # update history
         self.prev_error = error
         self.last_time = now
         if bar_center_x is not None:
             self.last_bar_x = bar_center_x
 
-        return output
-        
+        return control_signal
+    
     def _pid_control(self, error):
-        """
-        Full PID controller with:
-        - dt clamping
-        - derivative smoothing
-        - integral anti-windup
-        - output normalization
-        - lag-stable derivative
-        """
-
         now = time.perf_counter()
 
-        # First call
-        if self.last_time is None:
-            self.last_time = now
-            self.pid_last_error = error
-            self.pid_integral = 0.0
-            self._pid_filtered_d = 0.0
+        if self.pid_last_time is None:
+            self.pid_last_time = now
+            self.pid_prev_error = error
             return 0.0
 
-        dt = now - self.last_time
+        dt = now - self.pid_last_time
         if dt <= 0:
-            dt = 1e-6
-
-        # Clamp dt to maintain stability (1–10 ms)
-        dt = max(min(dt, 0.01), 0.001)
+            return 0.0
 
         kp, kd = self._get_pid_gains()
-        ki = 0.15  # Your original value
+        ki = 0.15
 
-        # -------- INTEGRAL TERM (with anti-windup) --------
+        # Integral (anti-windup)
         self.pid_integral += error * dt
-        self.pid_integral = max(-50, min(50, self.pid_integral))
+        self.pid_integral = max(-100, min(100, self.pid_integral))
 
-        # -------- DERIVATIVE TERM (lag-stable) --------
-        raw_d = (error - self.pid_last_error) / dt
+        # Derivative
+        derivative = (error - self.pid_prev_error) / dt
 
-        # Smooth derivative (low-pass filter)
-        alpha = 0.25
-        d_term = alpha * raw_d + (1 - alpha) * self._pid_filtered_d
-        self._pid_filtered_d = d_term
-
-        # Clamp derivative to avoid catastrophic spikes
-        d_term = max(min(d_term, 25), -25)
-
-        # -------- PID OUTPUT --------
         output = (
             kp * error +
             ki * self.pid_integral +
-            kd * d_term
+            kd * derivative
         )
 
-        # Output clamp (safety)
-        max_out = float(self.vars["pid_clamp"].get() or 1.0)
-        output = max(-max_out, min(max_out, output))
-
-        # Update state
-        self.pid_last_error = error
-        self.last_time = now
+        self.pid_prev_error = error
+        self.pid_last_time = now
 
         return output
     

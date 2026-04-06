@@ -2091,7 +2091,6 @@ class App(CTk):
             dt = 1e-6
 
         # HARD dt clamp to stabilize derivative on laggy frames (1-10 ms)
-        print(dt)
         dt = max(min(dt, 0.01), 0.001)
 
         kp, kd = self._get_pid_gains()
@@ -2170,7 +2169,6 @@ class App(CTk):
             dt = 1e-6
 
         # Clamp dt to maintain stability (1–10 ms)
-        print(dt)
         dt = max(min(dt, 0.01), 0.001)
 
         kp, kd = self._get_pid_gains()

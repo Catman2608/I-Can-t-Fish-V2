@@ -504,15 +504,20 @@ class App(CTk):
         else:
             capture_var = StringVar(value="DXCAM")
             self.vars["capture_mode"] = capture_var
-            capture_cb = CTkComboBox(configs, width=150, values=["DXCAM", "MSS"], variable=capture_var, 
-                                     command=lambda v: self.set_status(f"Capture mode set to {v}"))
+
+            capture_cb = CTkComboBox(
+                configs,
+                values=["DXCAM", "MSS"],
+                variable=capture_var,
+                command=lambda v: self.set_status(f"Capture mode set to {v}")
+            )
             capture_cb.grid(row=1, column=1, padx=12, pady=6, sticky="w")
             self.comboboxes["capture_mode"] = capture_cb
         CTkLabel(configs, text="Rod Type:").grid(row=2, column=0, padx=12, pady=6, sticky="w" )
         config_list = self.load_configs()
         config_var = StringVar(value=config_list[0] if config_list else "default.json")
         self.vars["active_config"] = config_var
-        config_cb = CTkComboBox(configs, width=150, values=config_list, 
+        config_cb = CTkComboBox(configs, values=config_list, 
                                 variable=config_var, command=lambda v: self.load_settings(v) )
         config_cb.grid(row=2, column=1, padx=12, pady=6, sticky="w")
         self.comboboxes["active_config"] = config_cb
@@ -607,7 +612,7 @@ class App(CTk):
         CTkLabel(overlay_options, text="Overlay Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Fish Overlay
         CTkLabel(overlay_options, text="Fish Overlay:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
-        fish_overlay_var = StringVar(value="Enabled")
+        fish_overlay_var = StringVar(value="Click")
         self.vars["fish_overlay"] = fish_overlay_var
         overlay_cb = CTkComboBox(overlay_options, values=["Enabled", "Disabled"], 
                                variable=fish_overlay_var, command=self._toggle_overlay
@@ -844,11 +849,10 @@ class App(CTk):
         fish_tolerance_var = StringVar(value="0")
         self.vars["fish_tolerance"] = fish_tolerance_var
         CTkEntry(pixel_settings, width=120, textvariable=fish_tolerance_var).grid(row=5, column=3, padx=12, pady=10, sticky="w")
-
-        # Ratio & Delays
-        ratio_settings = CTkFrame(scroll, border_width=2 , border_color = "#00FF00", fg_color = "#181818")
+        # Move Check Settings
+        ratio_settings = CTkFrame( scroll, border_width=2 , border_color = "#00FF00", fg_color = "#181818")
         ratio_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(ratio_settings, text="Ratio & Delays", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(ratio_settings, text="Move Check Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         # Bar Ratio From Side
         CTkLabel(ratio_settings, text="Bar Ratio From Side:").grid( row=1, column=0, padx=12, pady=10, sticky="w" )
         bar_ratio_var = StringVar(value="0.5")
@@ -865,64 +869,52 @@ class App(CTk):
         self.vars["restart_delay"] = restart_delay_var
         CTkEntry(ratio_settings, width=120, textvariable=restart_delay_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
 
-        # Move Check Settings
-        move_check_settings = CTkFrame(scroll, border_width=2 , border_color = "#00FF00", fg_color = "#181818")
-        move_check_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
-        CTkLabel(move_check_settings, text="Move Check Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-
-        CTkLabel(move_check_settings, text="Bar Controller Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
+        CTkLabel(ratio_settings, text="Bar Controller Mode:").grid(row=4, column=0, padx=12, pady=10, sticky="w" )
         bar_controller_mode_var = StringVar(value="Stopping Distance")
         self.vars["bar_controller_mode"] = bar_controller_mode_var
-        bar_controller_cb = CTkComboBox(move_check_settings, width=150, values=["Stopping Distance", "PID"], 
+        bar_controller_cb = CTkComboBox(ratio_settings, values=["Stopping Distance", "PID"], 
                                variable=bar_controller_mode_var, command=lambda v: self.set_status(f"Bar controller mode: {v}")
                                )
-        bar_controller_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        bar_controller_cb.grid(row=4, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["bar_controller_mode"] = bar_controller_cb
 
-        CTkLabel(move_check_settings, text="Arrow Controller Mode:").grid(row=1, column=2, padx=12, pady=10, sticky="w" )
+        CTkLabel(ratio_settings, text="Arrow Controller Mode:").grid(row=5, column=0, padx=12, pady=10, sticky="w" )
         arrow_controller_mode_var = StringVar(value="PID")
         self.vars["arrow_controller_mode"] = arrow_controller_mode_var
-        arrow_controller_cb = CTkComboBox(move_check_settings, values=["Simple Tracking", "PID"], 
+        arrow_controller_cb = CTkComboBox(ratio_settings, values=["Simple Tracking", "PID"], 
                                variable=arrow_controller_mode_var, command=lambda v: self.set_status(f"Arrow controller mode: {v}")
                                )
-        arrow_controller_cb.grid(row=1, column=3, padx=12, pady=10, sticky="w")
+        arrow_controller_cb.grid(row=5, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["arrow_controller_mode"] = arrow_controller_cb
 
-        CTkLabel(move_check_settings, text="Arrow Tracking Threshold:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
-        pd_padding2_var = StringVar(value="20")
-        self.vars["pd_padding2"] = pd_padding2_var
-        CTkEntry(move_check_settings, width=120, textvariable=pd_padding2_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(move_check_settings, text="Stabilize Threshold:").grid(row=2, column=2, padx=12, pady=10, sticky="w")
-        stabilize_threshold_var = StringVar(value="6")
-        self.vars["stabilize_threshold"] = stabilize_threshold_var
-        CTkEntry(move_check_settings, width=120, textvariable=stabilize_threshold_var).grid(row=2, column=3, padx=12, pady=10, sticky="w")
-
-        # Stopping Distance and PID
         pid_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
-        pid_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
-        # Stopping Distance
+        pid_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(pid_settings, text="Movement Check Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
 
         CTkLabel(pid_settings, text="Stopping Distance Multiplier:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
-        stopping_distance_var = StringVar(value="0.9")
+        stopping_distance_var = StringVar(value="3")
         self.vars["stopping_distance"] = stopping_distance_var
         CTkEntry(pid_settings, width=120, textvariable=stopping_distance_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
 
         CTkLabel(pid_settings, text="Velocity Smoothing:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
-        velocity_smoothing_var = StringVar(value="0.25")
+        velocity_smoothing_var = StringVar(value="0.5")
         self.vars["velocity_smoothing"] = velocity_smoothing_var
         CTkEntry(pid_settings, width=120, textvariable=velocity_smoothing_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
 
-        CTkLabel(pid_settings, text="Movement Threshold:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
-        movement_threshold_var = StringVar(value="6")
+        CTkLabel(pid_settings, text="Arrow Tracking Threshold:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        pd_padding2_var = StringVar(value="20")
+        self.vars["pd_padding2"] = pd_padding2_var
+        CTkEntry(pid_settings, width=120, textvariable=pd_padding2_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(pid_settings, text="Movement Threshold:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
+        movement_threshold_var = StringVar(value="1")
         self.vars["movement_threshold"] = movement_threshold_var
-        CTkEntry(pid_settings, width=120, textvariable=movement_threshold_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-        # PID
+        CTkEntry(pid_settings, width=120, textvariable=movement_threshold_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+
         CTkLabel(pid_settings, text="PD Controller Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=2, padx=12, pady=8, sticky="w")
 
         CTkLabel(pid_settings, text="Proportional gain:").grid(row=1, column=2, padx=12, pady=10, sticky="w")
-        p_gain_var = StringVar(value="0.8")
+        p_gain_var = StringVar(value="0.9")
         self.vars["proportional_gain"] = p_gain_var
         CTkEntry(pid_settings, width=120, textvariable=p_gain_var).grid(row=1, column=3, padx=12, pady=10, sticky="w")
 
@@ -931,10 +923,15 @@ class App(CTk):
         self.vars["derivative_gain"] = d_gain_var
         CTkEntry(pid_settings, width=120, textvariable=d_gain_var).grid(row=2, column=3, padx=12, pady=10, sticky="w")
 
-        CTkLabel(pid_settings, text="P/D Clamp:").grid(row=3, column=2, padx=12, pady=10, sticky="w")
+        CTkLabel(pid_settings, text="Stabilize Threshold:").grid(row=3, column=2, padx=12, pady=10, sticky="w")
+        stabilize_threshold_var = StringVar(value="6")
+        self.vars["stabilize_threshold"] = stabilize_threshold_var
+        CTkEntry(pid_settings, width=120, textvariable=stabilize_threshold_var).grid(row=3, column=3, padx=12, pady=10, sticky="w")
+
+        CTkLabel(pid_settings, text="P/D Clamp:").grid(row=4, column=2, padx=12, pady=10, sticky="w")
         pid_clamp_var = StringVar(value="100")
         self.vars["pid_clamp"] = pid_clamp_var
-        CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=3, column=3, padx=12, pady=10, sticky="w")
+        CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=4, column=3, padx=12, pady=10, sticky="w")
 
     # LOGGING SETTINGS TAB
     def build_logging_tab(self, parent):
@@ -1324,6 +1321,11 @@ class App(CTk):
             self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
             self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
             self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
+            """Apply hotkey StringVars to the live hotkey attributes used by on_key_press."""
+            self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
+            self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
+            self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
+            self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
     def _string_to_key(self, key_string):
         key_string = key_string.strip().lower()
 
@@ -1562,12 +1564,21 @@ class App(CTk):
             return {"x": left, "y": top, 
                     "width": right - left, "height": bottom - top}
         # Load saved areas or fallback 
-        shake_area = (self.bar_areas.get("shake") 
-                      if isinstance(self.bar_areas.get("shake"), dict) else default_shake_area())
-        fish_area = (self.bar_areas.get("fish") 
-                     if isinstance(self.bar_areas.get("fish"), dict) else default_fish_area())
-        friend_area = (self.bar_areas.get("friend") 
-                       if isinstance(self.bar_areas.get("friend"), dict) else default_friend_area())
+        shake_area = (
+            self.bar_areas.get("shake")
+            if isinstance(self.bar_areas.get("shake"), dict)
+            else default_shake_area()
+        )
+        fish_area = (
+            self.bar_areas.get("fish")
+            if isinstance(self.bar_areas.get("fish"), dict)
+            else default_fish_area()
+        )
+        friend_area = (
+            self.bar_areas.get("friend")
+            if isinstance(self.bar_areas.get("friend"), dict)
+            else default_friend_area()
+        )
         # Callback when user closes selector 
         def on_done(shake, fish, friend):
             self.bar_areas["shake"] = shake
@@ -1837,7 +1848,7 @@ class App(CTk):
             # raw is BGRA; drop alpha in-place via np.frombuffer → reshape → slice
             return np.frombuffer(img.raw, dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
 
-        # macOS — optimized MSS path
+        # macOS — optimised MSS path
         if not hasattr(self._thread_local, "sct"):
             self._thread_local.sct = mss.mss()
         img = self._thread_local.sct.grab(m)
@@ -2177,7 +2188,7 @@ class App(CTk):
 
     def _update_arrow_box_estimation(self, arrow_centroid_x, is_holding, capture_width):
         """
-        Find bar center based on arrow position (similar to IRUS 675/Comet logic)
+        Find bar center based on arrow position
         - If holding: arrow is RIGHT edge → box extends LEFT
         - If not holding: arrow is LEFT edge → box extends RIGHT
         - When state swaps: measure arrow-to-arrow distance = box length
@@ -2259,8 +2270,13 @@ class App(CTk):
             self.overlay_window.overrideredirect(True)
         self.overlay_window.attributes("-topmost", True)
 
-        self.overlay_canvas = tk.Canvas(self.overlay_window, width=800, height=60, 
-                                        bg="#1d1d1d", highlightthickness=0)
+        self.overlay_canvas = tk.Canvas(
+            self.overlay_window,
+            width=800,
+            height=60,
+            bg="#1d1d1d",
+            highlightthickness=0
+        )
         self.overlay_canvas.pack(fill="both", expand=True)
 
     def _toggle_overlay(self, *_):
@@ -2287,7 +2303,7 @@ class App(CTk):
         self.overlay_status_lines = [""] * 5
     def set_overlay_status(self, index: int, text: str):
         """
-        Updates a specific overlay status line (0-4).
+        Updates a specific overlay status line (0–4).
         """
         if not (0 <= index < 5):
             return
@@ -2304,7 +2320,7 @@ class App(CTk):
         canvas_w = self.overlay_canvas.winfo_width()
         canvas_h = self.overlay_canvas.winfo_height()
 
-        start_x = 10              # left padding
+        start_x = 10       # left padding
         start_y = canvas_h - 70   # bottom padding (space for 5 lines)
 
         line_height = 14
@@ -2331,10 +2347,16 @@ class App(CTk):
             fill=fill
         )
 
-    def draw_overlay(self, 
-                     bar_center, box_size, 
-                     color, canvas_offset, show_bar_center=False, 
-                     bar_y1=25, bar_y2=55,):
+    def draw_overlay(
+        self,
+        bar_center,
+        box_size,
+        color,
+        canvas_offset,
+        show_bar_center=False,
+        bar_y1=25,
+        bar_y2=55,
+     ):
         """
         Draws:
         - Square box with size
@@ -2381,7 +2403,7 @@ class App(CTk):
             right_tol += 2
             fish_tol += 2
         fish_center = self._find_color_center(img, fish_hex, fish_tol)
-        # Strict Detection (main priority)
+        # --- STRICT DETECTION ---------------------------------------
         left_bar_center, right_bar_center = self._find_bar_edges_strict(
             img, left_bar_hex, right_bar_hex, left_tol, right_tol
         )
@@ -2401,7 +2423,7 @@ class App(CTk):
             )
             if r2 is not None:
                 left_bar_center, right_bar_center = l2, r2
-        # Normal detection (If strict fails and this doesn't detect black bars well)
+        # --- NORMAL DETECTION ---------------------------------------
         if left_bar_center is None and right_bar_center is None:
             left_bar_center, right_bar_center = self._find_bar_edges(
                 img, left_bar_hex, right_bar_hex, left_tol, right_tol
@@ -2550,7 +2572,9 @@ class App(CTk):
             shake_top    = int(self.SCREEN_HEIGHT * 0.162)
             shake_right  = int(self.SCREEN_WIDTH * 0.8562)
             shake_bottom = int(self.SCREEN_HEIGHT * 0.74)
-        detection_area = self._grab_screen_region(shake_left, shake_top, shake_right, shake_bottom)
+        detection_area = self._grab_screen_region(
+            shake_left, shake_top, shake_right, shake_bottom
+        )
         # Check for valid conditions
         mode = self.vars["auto_totem_mode"].get()
         if mode == "Disabled":
@@ -2746,10 +2770,6 @@ class App(CTk):
         mouse_controller.release(Button.left)
         time.sleep(delay)  # wait for cast to register in fisch
     def _execute_shake_click(self):
-        """
-        Search for first shake pixel then click
-        Duplicate pixel logic from v13 is coming soon
-        """
         # Set status
         self.set_overlay_status(0, "Shake Mode: Click")
         # SHAKE AREA 
@@ -2872,7 +2892,6 @@ class App(CTk):
             attempts += 1
             time.sleep(scan_delay)
     def _execute_shake_navigation(self):
-        """Spams the enter key until fish detection is found (ICF V1 logic)"""
         self.set_status("Shake Mode: Navigation")
         # --- FISH AREA ---
         fish = self.bar_areas.get("fish")
@@ -3057,10 +3076,6 @@ class App(CTk):
 
     # ------------------------------------------------------------------
     def _enter_minigame(self):
-        """
-        Controls the bar minigame based on multiple factors.
-        This is the secret sauce of ICF V2 that makes it better than Hydra.
-        """
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
         if isinstance(shake, dict):
@@ -3169,6 +3184,11 @@ class App(CTk):
             daemon=True
         )
         cap_thread.start()
+
+        # Hysteresis: remember which mode was active last frame so we don't
+        # thrash on the boundary when the bar is small.
+        controller_mode = 2          # safe default (release)
+        prev_controller_mode = 2     # used for stopping-state reset detection
 
         while self.macro_running: # Main macro loop
             # Wait for the capture thread to deposit a fresh frame pair.
@@ -3309,8 +3329,17 @@ class App(CTk):
                     except:
                         self.set_overlay_status(0, "Status: Playing Bar Minigame")
                     self.set_overlay_status(1, "Tracking source: Bars")
-                    # Check if using PID or simple tracking is better
-                    if bar_left_screen <= fish_x <= bar_right_screen:  # PD
+                    # Check if using PID or simple tracking is better.
+                    # Hysteresis: once inside the bar zone, require the fish to
+                    # travel `_bar_hysteresis_px` pixels *past* the edge before
+                    # switching to the outer controller.  This stops mode-flip
+                    # chatter on small bars where a 1-pixel jitter constantly
+                    # crosses the boundary.
+                    _bar_hysteresis_px = max(3, bar_size * 0.04)  # ~4% of bar width, min 3 px
+                    _in_bar_zone = bar_left_screen <= fish_x <= bar_right_screen
+                    _was_in_bar  = prev_controller_mode in (0, 1)
+                    if _in_bar_zone or (_was_in_bar and
+                            bar_left_screen - _bar_hysteresis_px <= fish_x <= bar_right_screen + _bar_hysteresis_px):
                         draw_color = "green"
                         if self.vars["bar_controller_mode"].get() == "PID":
                             controller_mode = 0
@@ -3368,18 +3397,30 @@ class App(CTk):
                         if self.vars["fish_overlay"].get() == "Enabled":
                             self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="green",canvas_offset=fish_left))
                     else:
-                        if self.vars["arrow_controller_mode"].get() == "Simple Tracking":
-                            if fish_x > bar_center:
-                                self.set_overlay_status(2, "Tracking Mode: Simple Tracking (>)")
-                                controller_mode = 3
+                        # Hysteresis: don't exit PID/Stopping mode unless fish is
+                        # clearly outside the boundary (same logic as bar branch).
+                        _arrow_hyst = max(3, estimated_size * 0.04)
+                        _was_in_bar_arrow = prev_controller_mode in (0, 1)
+                        if _was_in_bar_arrow and (bar_left_screen - _arrow_hyst <= fish_x <= bar_right_screen + _arrow_hyst):
+                            if self.vars["bar_controller_mode"].get() == "PID":
+                                controller_mode = 0
                             else:
-                                self.set_overlay_status(2, "Tracking Mode: Simple Tracking (<)")
-                                controller_mode = 2
+                                controller_mode = 1
+                            if self.vars["fish_overlay"].get() == "Enabled":
+                                self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="green",canvas_offset=fish_left))
                         else:
-                            self.set_overlay_status(2, "Tracking Mode: PD")
-                            controller_mode = 0
-                        if self.vars["fish_overlay"].get() == "Enabled":
-                            self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="yellow",canvas_offset=fish_left))
+                            if self.vars["arrow_controller_mode"].get() == "Simple Tracking":
+                                if fish_x > bar_center:
+                                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (>)")
+                                    controller_mode = 3
+                                else:
+                                    self.set_overlay_status(2, "Tracking Mode: Simple Tracking (<)")
+                                    controller_mode = 2
+                            else:
+                                self.set_overlay_status(2, "Tracking Mode: PD")
+                                controller_mode = 0
+                            if self.vars["fish_overlay"].get() == "Enabled":
+                                self.after(0, lambda: self.draw_overlay(bar_center=bar_center,box_size=estimated_size,color="yellow",canvas_offset=fish_left))
                     self.after(0, lambda: self.draw_overlay(bar_center=fish_x, box_size=10, color="red", canvas_offset=fish_left))
                 else:
                     controller_mode = 2
@@ -3391,10 +3432,11 @@ class App(CTk):
             # PID calculation
             if controller_mode == 0 and bar_center is not None:
                 error = fish_x - bar_center
-                if bar_left_screen <= fish_x <= bar_right_screen:
-                    control = self._pid_control_strict(error, bar_center)
-                else:
-                    control = self._pid_control(error)
+                # Always use _pid_control_strict — it handles both inside and
+                # outside the bar.  Switching between two separate PID
+                # accumulators at the bar boundary was resetting state each
+                # crossing, producing a zero-output spike then an overshoot.
+                control = self._pid_control_strict(error, bar_center)
                 # Map PID output to mouse clicks using hysteresis to avoid jitter/oscillation
                 control = max((0 - pid_clamp), min(pid_clamp, control))
                 # Stabilize Deadzone Checker
@@ -3428,8 +3470,12 @@ class App(CTk):
                 except:
                     movement_threshold = 3.0
 
-                # Initialize persistent storage
-                if not hasattr(self, "_stopping_move_stable_count"):
+                # Initialize persistent storage, OR reset it when we're
+                # re-entering mode 1 from a different mode (e.g. after the
+                # fish briefly left the bar zone).  Stale velocity/ready state
+                # from a previous activation causes immediate oscillation.
+                _entering_mode1 = prev_controller_mode != 1
+                if not hasattr(self, "_stopping_move_stable_count") or _entering_mode1:
                     self._stopping_move_stable_count = 0
                     self._stopping_last_target = None
                     self._stopping_last_bar = None
@@ -3485,8 +3531,8 @@ class App(CTk):
                 # Velocity smoothing coefficient
                 velocity_smoothing = float(self.vars["velocity_smoothing"].get())
 
-                # Create persistent storage for velocity
-                if not hasattr(self, "_stopping_prev_bar2"):
+                # Create persistent storage for velocity, reset on re-entry
+                if not hasattr(self, "_stopping_prev_bar2") or _entering_mode1:
                     self._stopping_prev_bar2 = bar_center
                     self._stopping_prev_target2 = fish_x
                     self._stopping_prev_time2 = time.perf_counter()
@@ -3530,11 +3576,15 @@ class App(CTk):
 
                 stopping_distance = abs(relative_v) * stopping_mult
 
-                # stopping constants
+                # stopping constants — scale with bar size so they don't
+                # dominate and cause hold/release flip on small bars.
+                # bar_size is in pixels; on a ~300 px bar, 3 px deadzone is
+                # fine.  On a 40 px bar it's huge — so we cap at 2 % of bar.
+                _bar_px = bar_size if (bars_found and bar_size > 0) else 80
                 emergency_brake_velocity = 1400
                 micro_nudge_velocity = 5
-                error_deadzone = 3
-                cushion = 4
+                error_deadzone = min(3, max(1, _bar_px * 0.02))
+                cushion        = min(4, max(1, _bar_px * 0.03))
 
                 # Emergency brake
                 if abs(relative_v) > emergency_brake_velocity:
@@ -3579,6 +3629,8 @@ class App(CTk):
                 release_mouse()
             elif controller_mode == 3:
                 hold_mouse()
+            # Track mode for next frame's hysteresis / reset logic.
+            prev_controller_mode = controller_mode
             # No sleep here — the capture thread regulates cadence via
             # _cap_event.wait() at the top of this loop.
     def stop_macro(self):

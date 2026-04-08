@@ -311,7 +311,7 @@ class App(CTk):
         # Window 
         self.configure(fg_color="#131313")   # <- Main Window Ultra Dark
         self.geometry("800x600")
-        self.title("I Can't Fish V2.6")
+        self.title("I Can't Fish V2.61")
 
         # Macro state
         self.macro_running = False
@@ -379,7 +379,7 @@ class App(CTk):
         # Logo Label
         logo_label = CTkLabel(
             top_bar, 
-            text="I CAN'T FISH V2.6",
+            text="I CAN'T FISH V2.61",
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, sticky="w")
@@ -2130,28 +2130,66 @@ class App(CTk):
         self.pid_last_time = now
 
         return output
-    
+        
     def _reset_pid_state(self):
         """
-        Reset PD control state variables.
+        Reset PD/PID control state variables for a new minigame cycle.
+        Ensures no derivative spikes, velocity carryover, or stabilization drift.
         """
-        # history fields used by ``_pid_control``
-        self.prev_error = 0.0
-        self.last_time = None
-        self.last_bar_x = None
 
-        # Clear PID source so next detection resets state correctly
-        self.prev_measurement = None
+        # -----------------------------
+        # Core PID error + timing state
+        # -----------------------------
+        self.prev_error = 0.0          # prevents derivative kick
+        self.last_time = None          # forces fresh dt on next frame
+
+        # -----------------------------
+        # Bar / measurement state
+        # -----------------------------
+        self.last_bar_x = None
+        self.prev_measurement = None   # derivative source
         self.filtered_derivative = 0.0
         self.pid_source = None
 
-        # Also reset arrow estimation state
+        # -----------------------------
+        # Velocity smoothing state
+        # -----------------------------
+        # (Prevents velocity from previous fish being reused)
+        self.velocity_filtered = 0.0
+        self.prev_velocity = 0.0
+
+        # -----------------------------
+        # Stabilization / oscillation control
+        # -----------------------------
+        # These prevent oscillation when kept across cycles
+        self.stabilize_counter = 0
+        self.last_direction = 0
+
+        # If you have any small smoothing buffers:
+        self.error_history = []
+        self.velocity_history = []
+
+        # -----------------------------
+        # Movement-threshold debounce
+        # -----------------------------
+        # Ensures that HOLD/UP can be applied normally at start of new cycle
+        self.frames_since_move = 0
+        self.last_move_time = None
+
+        # -----------------------------
+        # Arrow estimation / box detection state
+        # -----------------------------
         self.last_indicator_x = None
         self.last_holding_state = None
         self.estimated_box_length = None
         self.last_left_x = None
         self.last_right_x = None
         self.last_known_box_center_x = None
+
+        # -----------------------------
+        # General state flags
+        # -----------------------------
+        self.first_pid_frame = True
     
     def _find_arrow_indicator_x(self, frame, arrow_hex, tolerance, is_holding):
         """
@@ -3061,6 +3099,8 @@ class App(CTk):
         Controls the bar minigame based on multiple factors.
         This is the secret sauce of ICF V2 that makes it better than Hydra.
         """
+        # Reset PID state
+        self._reset_pid_state()
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
         if isinstance(shake, dict):

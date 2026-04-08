@@ -17,7 +17,7 @@
     "bag_delay": "0.2",
     "lock_cursor": "on",
     "casting_mode": "Normal",
-    "casting_delay2": "0.1",
+    "casting_delay2": "0.5",
     "cast_duration": "0.6",
     "cast_delay": "0.6",
     "perfect_cast_tolerance": "16",

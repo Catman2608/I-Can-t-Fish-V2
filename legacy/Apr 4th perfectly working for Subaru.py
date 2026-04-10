@@ -313,7 +313,7 @@ class App(CTk):
         # Hotkey variables
         self.hotkey_start = Key.f5
         self.hotkey_stop = Key.f7
-        self.hotkey_change_areas = Key.f6            # added for the bar area selector
+        self.hotkey_change_areas = Key.f6 # added for the bar area selector
         self.hotkey_reserved = Key.f8
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
 
@@ -424,6 +424,8 @@ class App(CTk):
             self.show_overlay()
         else:
             self.hide_overlay()
+        self._apply_hotkeys_from_vars()
+
         # Perfect cast variables
         self.right_mouse_down = False
         # Capture backend
@@ -1162,6 +1164,7 @@ class App(CTk):
                 json.dump(data, f, indent=4)
             self.save_last_config_name(name)
             self.save_misc_settings()  # Also save misc settings
+            self._apply_hotkeys_from_vars()  # Apply new hotkeys immediately
         except Exception as e:
             self.set_status(f"Error saving config: {e}")
     
@@ -1249,6 +1252,12 @@ class App(CTk):
             self.current_rod_name = "Basic Rod"
             self.bar_areas = {"fish": None, "shake": None}
     # Key press functions
+    def _apply_hotkeys_from_vars(self):
+            """Apply hotkey StringVars to the live hotkey attributes used by on_key_press."""
+            self.hotkey_start = self._string_to_key(self.vars["start_key"].get())
+            self.hotkey_change_areas = self._string_to_key(self.vars["change_bar_areas_key"].get())
+            self.hotkey_screenshot = self._string_to_key(self.vars["screenshot_key"].get())
+            self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
     def _string_to_key(self, key_string):
         key_string = key_string.strip().lower()
 

@@ -311,7 +311,7 @@ class App(CTk):
         # Window 
         self.configure(fg_color="#131313")   # <- Main Window Ultra Dark
         self.geometry("800x600")
-        self.title("I Can't Fish V2.6")
+        self.title("I Can't Fish V2.62")
 
         # Macro state
         self.macro_running = False
@@ -379,7 +379,7 @@ class App(CTk):
         # Logo Label
         logo_label = CTkLabel(
             top_bar, 
-            text="I CAN'T FISH V2.6",
+            text="I CAN'T FISH V2.62",
             font=CTkFont(size=16, weight="bold")
         )
         logo_label.grid(row=0, column=0, sticky="w")
@@ -616,8 +616,8 @@ class App(CTk):
         self.comboboxes["fish_overlay"] = overlay_cb
         # Show Bar Size
         bar_size_var = StringVar(value="off")
-        self.vars["bar_size"] = bar_size_var
-        bar_size_cb = CTkCheckBox(overlay_options, text="Show Bar Size", variable=bar_size_var, onvalue="on", offvalue="off")
+        self.vars["show_time"] = bar_size_var
+        bar_size_cb = CTkCheckBox(overlay_options, text="Show Time", variable=bar_size_var, onvalue="on", offvalue="off")
         bar_size_cb.grid(row=2, column=0, padx=12, pady=8, sticky="w")
         # Draw PD padding
         draw_pd_padding_var = StringVar(value="off")
@@ -936,7 +936,7 @@ class App(CTk):
         self.vars["pid_clamp"] = pid_clamp_var
         CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=3, column=3, padx=12, pady=10, sticky="w")
 
-    # LOGGING SETTINGS TAB
+    # LOGGING TAB
     def build_logging_tab(self, parent):
         scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
@@ -949,27 +949,43 @@ class App(CTk):
         discord_webhook.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(discord_webhook, text="Discord Webhook", font=CTkFont(size=16, weight="bold") ).grid(row=0, column=0, columnspan=2, padx=12, pady=(10, 5), sticky="w")
 
-        discord_enabled_var = StringVar(value="off")
-        self.vars["discord_enabled"] = discord_enabled_var
-        discord_enabled_cb = CTkCheckBox(discord_webhook, text="Enable Discord Webhook", variable=discord_enabled_var, onvalue="on", offvalue="off")
-        discord_enabled_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
+        CTkLabel(discord_webhook, text="Discord Webhook Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
+        discord_webhook_mode_var = StringVar(value="Time")
+        self.vars["discord_webhook_mode"] = discord_webhook_mode_var
+        discord_webhook_cb = CTkComboBox(discord_webhook, values=["Time", "Cycles", "Disabled"], 
+                               variable=discord_webhook_mode_var, command=lambda v: self.set_status(f"Discord Webhook mode: {v}")
+                               )
+        discord_webhook_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
+        self.comboboxes["discord_webhook_mode"] = discord_webhook_cb
 
-        CTkLabel(discord_webhook, text="Webhook URL:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
-        discord_webhook_url_var = StringVar(value="https://discord.com/api/webhooks/XXXXXXXXXX/XXXXXXXXXX")
-        self.vars["discord_webhook_url"] = discord_webhook_url_var
-        CTkEntry(discord_webhook, width=220, textvariable=discord_webhook_url_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
-        CTkLabel(discord_webhook, text="Webhook name:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
-        discord_webhook_name_var = StringVar(value="I Can't Fish")
-        self.vars["discord_webhook_name"] = discord_webhook_name_var
-        CTkEntry(discord_webhook, width=120, textvariable=discord_webhook_name_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         discord_screenshot_var = StringVar(value="off")
         self.vars["discord_screenshot"] = discord_screenshot_var
         CTkCheckBox(discord_webhook, text="Send Screenshot (instead of text)", variable=discord_screenshot_var, onvalue="on", offvalue="off"
-                    ).grid(row=4, column=0, columnspan=2, padx=12, pady=8, sticky="w")
+                    ).grid(row=2, column=0, columnspan=2, padx=12, pady=8, sticky="w")
+
+        CTkLabel(discord_webhook, text="Trigger on ___ cycles:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
+        discord_webhook_cycle_var = StringVar(value="3")
+        self.vars["discord_webhook_cycle"] = discord_webhook_cycle_var
+        CTkEntry(discord_webhook, width=160, textvariable=discord_webhook_cycle_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(discord_webhook, text="Trigger when time hits ___ (seconds):").grid(row=4, column=0, padx=12, pady=10, sticky="w")
+        discord_webhook_time_var = StringVar(value="60")
+        self.vars["discord_webhook_time"] = discord_webhook_time_var
+        CTkEntry(discord_webhook, width=160, textvariable=discord_webhook_time_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(discord_webhook, text="Webhook URL:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
+        discord_webhook_url_var = StringVar(value="https://discord.com/api/webhooks/XXXXXXXXXX/XXXXXXXXXX")
+        self.vars["discord_webhook_url"] = discord_webhook_url_var
+        CTkEntry(discord_webhook, width=260, textvariable=discord_webhook_url_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
+
+        CTkLabel(discord_webhook, text="Webhook name:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
+        discord_webhook_name_var = StringVar(value="I Can't Fish")
+        self.vars["discord_webhook_name"] = discord_webhook_name_var
+        CTkEntry(discord_webhook, width=160, textvariable=discord_webhook_name_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
+
         # Test webhook button
         CTkButton(discord_webhook, text="Test Webhook", command=self.test_discord_webhook
-                  ).grid(row=5, column=0, columnspan=2, padx=12, pady=12, sticky="w")
+                  ).grid(row=7, column=0, columnspan=2, padx=12, pady=12, sticky="w")
     # UTILITIES TAB
     def build_utilities_tab(self, parent):
         scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
@@ -1003,7 +1019,7 @@ class App(CTk):
 
         use_sundial_var = StringVar(value="off")
         self.vars["use_sundial"] = use_sundial_var
-        use_sundial_cb = CTkCheckBox(auto_totem, text="Fish Overlay", variable=use_sundial_var, onvalue="on", offvalue="off")
+        use_sundial_cb = CTkCheckBox(auto_totem, text="Use Sundial if Totem fails", variable=use_sundial_var, onvalue="on", offvalue="off")
         use_sundial_cb.grid(row=4, column=0, padx=12, pady=8, sticky="w")
 
         CTkLabel(auto_totem, text="Totem Fail Color:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
@@ -1700,7 +1716,7 @@ class App(CTk):
     def test_discord_webhook(self):
         self.send_discord_webhook("**Discord Webhook is working**", "TEST", show_status=True)
     def send_discord_webhook(self, text, loop_count, show_status=True):
-        if not self.vars["discord_enabled"].get() == "on":
+        if self.vars["discord_webhook_mode"].get() == "Disabled":
             self.set_status("⚠ Discord webhook is disabled.")
             return
         # discord_webhook_url
@@ -2130,35 +2146,60 @@ class App(CTk):
         self.pid_last_time = now
 
         return output
-    
+        
     def _reset_pid_state(self):
         """
-        Reset PD control state variables.
+        Reset PD/PID control state variables for a new minigame cycle.
+        Ensures no derivative spikes, velocity carryover, or stabilization drift.
         """
-        # history fields used by ``_pid_control``
-        self.prev_error = 0.0
-        self.last_time = None
-        self.last_bar_x = None
 
-        # Clear PID source so next detection resets state correctly
-        self.prev_measurement = None
+        # Core PID error + timing state + state variables (all used by _pid_control method)
+        self.prev_error = 0.0          # prevents derivative kick
+        self.last_time = None          # forces fresh dt on next frame
+        self.pid_last_time = None      # forces fresh dt calculation
+        self.pid_prev_error = 0.0      # prevents derivative kick
+        self.pid_integral = 0.0        # resets accumulated integral term
+
+        # Bar / measurement state
+        self.last_bar_x = None
+        self.prev_measurement = None   # derivative source
         self.filtered_derivative = 0.0
         self.pid_source = None
 
-        # Also reset arrow estimation state
+        # Velocity smoothing state (Stopping distance)
+        # (Prevents velocity from previous fish being reused)
+        self.velocity_filtered = 0.0
+        self.prev_velocity = 0.0
+
+        # Stabilization / oscillation control
+        # These prevent oscillation when kept across cycles
+        self.stabilize_counter = 0
+        self.last_direction = 0
+
+        # Error and velocity history must be reset
+        self.error_history = []
+        self.velocity_history = []
+
+        # Movement-threshold debounce (stopping distance)
+        # Ensures that HOLD/UP can be applied normally at start of new cycle
+        self.frames_since_move = 0
+        self.last_move_time = None
+
+        # Arrow estimation / box detection state
         self.last_indicator_x = None
         self.last_holding_state = None
         self.estimated_box_length = None
         self.last_left_x = None
         self.last_right_x = None
         self.last_known_box_center_x = None
+
+        # General state flags (run this at the start of enter minigame)
+        self.first_pid_frame = True
     
     def _find_arrow_indicator_x(self, frame, arrow_hex, tolerance, is_holding):
         """
-        stopping-style arrow tracking:
-        - If holding: arrow is RIGHT edge → use max X
-        - If not holding: arrow is LEFT edge → use min X
-        Returns indicator X or None.
+        If releasing -> Left arrow -> Use min
+        If holding -> Right arrow -> Use max
         """
         pixels = self._pixel_search(frame, arrow_hex, tolerance)
         if not pixels:
@@ -2453,6 +2494,8 @@ class App(CTk):
         # Set current cycle to 0
         current_cycle = 0
         cycle = 0
+        # Set current time to 0
+        time_seconds = 0
         # Loop: MAIN MACRO LOOP
         while self.macro_running:
             # Check Reconnect (not implemented yet)
@@ -2533,7 +2576,7 @@ class App(CTk):
 
             # 5. Fish (minigame)
             self.set_status("Fishing")
-            self._enter_minigame()
+            time_seconds = self._enter_minigame(time_seconds)
             # Restart: When minigame ends, loop repeats from Select Rod
     def execute_totem(self, cycle, shake_x, shake_y):
         """Trigger totem when cycle count matches."""
@@ -3026,19 +3069,13 @@ class App(CTk):
         tl   = threading.local()     # private thread-local MSS instance
 
         while self.macro_running:
-            fish_img = self._grab_screen_region_cap(
-                fish_left, fish_top, fish_right, fish_bottom, mon, tl
-            )
+            fish_img = self._grab_screen_region_cap(fish_left, fish_top, fish_right, fish_bottom, mon, tl)
             if tracking_focus != 2:
-                gift_img = self._grab_screen_region_cap(
-                    shake_left, shake_top, shake_right, shake_bottom, mon, tl
-                )
+                gift_img = self._grab_screen_region_cap(shake_left, shake_top, shake_right, shake_bottom, mon, tl)
             else:
                 gift_img = None
             if restart_method == "Friend Area":
-                friend_img = self._grab_screen_region_cap(
-                    friend_left, friend_top, friend_right, friend_bottom, mon, tl
-                )
+                friend_img = self._grab_screen_region_cap(friend_left, friend_top, friend_right, friend_bottom, mon, tl)
             else:
                 friend_img = None # To prevent UnboundLocalError in logic thread when restart_method is not "Friend Area"
 
@@ -3056,11 +3093,13 @@ class App(CTk):
         self._cap_event.set()
 
     # ------------------------------------------------------------------
-    def _enter_minigame(self):
+    def _enter_minigame(self, time_seconds):
         """
         Controls the bar minigame based on multiple factors.
         This is the secret sauce of ICF V2 that makes it better than Hydra.
         """
+        # Reset PID state
+        self._reset_pid_state()
         # --- SHAKE AREA ---
         shake = self.bar_areas.get("shake")
         if isinstance(shake, dict):
@@ -3125,6 +3164,9 @@ class App(CTk):
         thresh = float(self.vars["stabilize_threshold"].get() or 8)
         pid_clamp = float(self.vars["pid_clamp"].get() or 100)
         mouse_down = False
+        # Discord Settings (Capture minigame)
+        discord_webhook_mode = (self.vars["discord_webhook_mode"].get() or "Cycles")
+        discord_webhook_time = (self.vars["discord_webhook_time"].get() or "Cycles")
         # PID mode settings
         self.pid_last_time = None
         self.pid_integral = 0.0
@@ -3183,7 +3225,7 @@ class App(CTk):
                 gift_img = self._cap_gift_img
 
             if img is None:
-                return
+                return time_seconds
             fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             # Gift box (if tracking focus is not fish)
@@ -3207,7 +3249,7 @@ class App(CTk):
                         time.sleep(restart_delay)
                         if click_after_minigame == "on":
                             self._click_at(shake_left, shake_top)
-                        return
+                        return time_seconds
                     else:
                         fish_x = self.last_fish_x
                         if left_x is not None and right_x is not None:
@@ -3222,7 +3264,7 @@ class App(CTk):
                         time.sleep(restart_delay)
                         if click_after_minigame == "on":
                             self._click_at(shake_left, shake_top)
-                        return
+                        return time_seconds
                     else:
                         fish_x = self.last_fish_x
             else:
@@ -3233,7 +3275,14 @@ class App(CTk):
                     time.sleep(restart_delay)
                     if click_after_minigame == "on":
                         self._click_at(fish_left, fish_top)
-                    return
+                    return time_seconds
+            # Discord Webhook during minigame
+            if time_seconds < 1:
+                discord_time = 1
+            else:
+                discord_time = int(discord_webhook_time) % round(time_seconds)
+            if discord_webhook_mode == "Time" and discord_time == 0:
+                self.send_discord_webhook(f"**Playing Bar Minigame**", f"Time: {time_seconds} seconds")
             # Stabilize frame
             deadzone_action = deadzone_action + 1
             if deadzone_action == 2:
@@ -3284,10 +3333,7 @@ class App(CTk):
                 if max_left is not None and fish_x <= max_left: # Max left and right check (inside bar)
                     self.set_overlay_status(1, "Tracking source: Bars")
                     if self.vars["fish_overlay"].get() == "Enabled":
-                        if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
-                        else:
-                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                        self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
                         self.after(0, lambda _ml=max_left, _fl=fish_left: self.draw_overlay(bar_center=_ml, box_size=15, color="lightblue", canvas_offset=_fl))
                         self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
                     self.set_overlay_status(2, "Tracking Mode: Simple Tracking (Max Left)")
@@ -3295,10 +3341,7 @@ class App(CTk):
                 elif max_right is not None and fish_x >= max_right:
                     self.set_overlay_status(1, "Tracking source: Bars")
                     if self.vars["fish_overlay"].get() == "Enabled":
-                        if self.vars["bar_size"].get() == "on":
-                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
-                        else:
-                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color="green", canvas_offset=_fl))
+                        self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="green", canvas_offset=_fl, show_bar_center=True))
                         self.after(0, lambda _mr=max_right, _fl=fish_left: self.draw_overlay(bar_center=_mr, box_size=15, color="lightblue", canvas_offset=_fl))
                         self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
                     self.set_overlay_status(2, "Tracking Mode: Simple Tracking (Max Right)")
@@ -3332,13 +3375,10 @@ class App(CTk):
                             self.set_overlay_status(2, "Tracking Mode: PD")
                     if self.vars["fish_overlay"].get() == "Enabled":
                         # Draw code
-                        if self.vars["bar_size"].get() == "on":
-                            # Draw extra PD padding
-                            if self.vars["draw_pd_padding"].get() == "on":
-                                self.after(0, lambda _bc=bar_center, _bs=deadzone_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="purple", canvas_offset=_fl, show_bar_center=True))
-                            self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color=draw_color, canvas_offset=_fl, show_bar_center=True))
-                        else:
-                            self.after(0, lambda _bc=bar_center, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=40, color=draw_color, canvas_offset=_fl))
+                        # Draw extra PD padding
+                        if self.vars["draw_pd_padding"].get() == "on":
+                            self.after(0, lambda _bc=bar_center, _bs=deadzone_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color="purple", canvas_offset=_fl, show_bar_center=True))
+                        self.after(0, lambda _bc=bar_center, _bs=bar_size, _fl=fish_left: self.draw_overlay(bar_center=_bc, box_size=_bs, color=draw_color, canvas_offset=_fl, show_bar_center=True))
                         self.after(0, lambda _fx=fish_x, _fl=fish_left: self.draw_overlay(bar_center=_fx, box_size=10, color="red", canvas_offset=_fl))
             elif arrow_center:
                 try:
@@ -3579,6 +3619,10 @@ class App(CTk):
                 release_mouse()
             elif controller_mode == 3:
                 hold_mouse()
+            # Add time
+            if self.vars["show_time"].get() == "on":
+                self.set_overlay_status(3, f"Time: {round(time_seconds)} seconds")
+            time_seconds += scan_delay * 2
             # No sleep here — the capture thread regulates cadence via
             # _cap_event.wait() at the top of this loop.
     def stop_macro(self):

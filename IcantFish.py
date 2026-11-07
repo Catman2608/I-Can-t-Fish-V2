@@ -25,7 +25,6 @@ import json
 # Logging and reconnect
 import requests
 import io
-import psutil
 # OpenCV for pixel searches and NumPy for arrow calculations
 import cv2
 import numpy as np
@@ -54,14 +53,8 @@ elif sys.platform == "darwin":
         point = Quartz.CGPointMake(float(x), float(y))
         Quartz.CGWarpMouseCursorPosition(point)
         Quartz.CGAssociateMouseAndMouseCursorPosition(True)
-
     def _mouse_event(event_type, x, y):
-        event = Quartz.CGEventCreateMouseEvent(
-            None,
-            event_type,
-            Quartz.CGPointMake(float(x), float(y)),
-            Quartz.kCGMouseButtonLeft
-        )
+        event = Quartz.CGEventCreateMouseEvent( None, event_type, Quartz.CGPointMake(float(x), float(y)), Quartz.kCGMouseButtonLeft )
         Quartz.CGEventPost(Quartz.kCGHIDEventTap, event)
 # Initialize controllers
 keyboard_controller = KeyboardController()
@@ -74,7 +67,9 @@ set_appearance_mode("dark") # Force ultra dark mode
 def get_base_path():
     if getattr(sys, 'frozen', False):
         return sys._MEIPASS
+
     return os.path.dirname(os.path.abspath(__file__))
+
 if sys.platform == "darwin":
     user_config_dir = os.path.join(os.path.expanduser("~"), 
                                    "Library", "Application Support", 
@@ -83,10 +78,8 @@ else:
     user_config_dir = os.path.join(os.path.expanduser("~"),
                                    "AppData","Roaming",
                                    "IcantFishV2","configs")
-
 os.makedirs(user_config_dir, exist_ok=True)
 BASE_PATH = get_base_path()
-
 if sys.platform == "darwin" and getattr(sys, "frozen", False):
     # Only use Application Support when bundled
     USER_CONFIG_DIR = os.path.join(os.path.expanduser("~"), "Library", 
@@ -100,109 +93,80 @@ elif sys.platform == "win32" and getattr(sys, "frozen", False):
 else:
     # During development, use local project folder
     USER_CONFIG_DIR = os.path.join(BASE_PATH, "configs")
-
 os.makedirs(USER_CONFIG_DIR, exist_ok=True)
 if sys.platform == "darwin":
     os.chdir(os.path.dirname(os.path.abspath(__file__)))
 else:
-    pass # You're on Windows, no need to change the working directory
-# Dual Area Selector class
+    pass # No need to change directory on Windows
+
+# Triple Area Selector class
 class TripleAreaSelector:
     HANDLE_SIZE = 8
     def __init__(self, parent, shake_area, fish_area, friend_area, callback):
         self.parent = parent
         self.callback = callback
-
         self.window = tk.Toplevel(parent)
         self.window.overrideredirect(True)
         self.window.attributes("-topmost", True)
-
         self.window.configure(bg="#181818")
         self.window.attributes("-alpha", 0.5)
-
         # Force Tk to compute real screen geometry before we query it.
         # Without this, winfo_screenwidth/height can return stale logical
         # values that don't cover the full display on Retina / 4K screens.
         self.window.update_idletasks()
-
-        # Use winfo_vrootwidth/height when available (gives the full virtual
-        # root size).  Fall back to screenwidth/height if not supported.
+        # Use winfo_vrootwidth/height when available (gives the full virtual # root size).  Fall back to screenwidth/height if not supported.
         try:
             w = self.window.winfo_vrootwidth()
             h = self.window.winfo_vrootheight()
             if w <= 0 or h <= 0:
                 raise ValueError("vrootwidth/height not positive")
+
         except Exception:
             w = self.window.winfo_screenwidth()
             h = self.window.winfo_screenheight()
-
         # Position at (0, 0) in screen space.  On macOS the menu bar sits at
         # y=0 in logical coordinates, but overrideredirect windows can still
         # be placed there — we just need to cover the whole logical resolution.
         self.window.geometry(f"{w}x{h}+0+0")
-
         # Second idletasks pass so macOS actually maps the window at the
         # requested size before we start drawing.
         self.window.update_idletasks()
-
         self.canvas = tk.Canvas(self.window, bg="black", highlightthickness=0)
         self.canvas.pack(fill="both", expand=True)
-
         self.shake = shake_area.copy()
         self.fish = fish_area.copy()
         self.friend = friend_area.copy()
-
         self.dragging = None
         self.resize_corner = None
         self.active_area = None
-
         self.start_x = 0
         self.start_y = 0
-
         self.dragging = None
         self.resize_corner = None
         self.active_area = None
-
         self.draw_boxes()
-
         self.canvas.bind("<Button-1>", self.mouse_down)
         self.canvas.bind("<B1-Motion>", self.mouse_drag)
         self.canvas.bind("<ButtonRelease-1>", self.mouse_up)
         self.canvas.bind("<Motion>", self.mouse_move)
-
         self.window.protocol("WM_DELETE_WINDOW", self.close)
-
     # DRAW 
-
     def draw_boxes(self):
-
         self.canvas.delete("all")
-
         self.draw_area(self.shake, "#ff007a")
         self.draw_area(self.fish, "#00daff")
         self.draw_area(self.friend, "#f7ff00")
-
     def draw_area(self, area, color):
-
         x1 = area["x"]
         y1 = area["y"]
         x2 = x1 + area["width"]
         y2 = y1 + area["height"]
-
-        self.canvas.create_rectangle(x1, y1, x2, y2, 
-                                     outline=color, width=3, 
-                                     fill=color, stipple="gray25")
-
+        self.canvas.create_rectangle(x1, y1, x2, y2,  outline=color, width=3, fill=color, stipple="gray25")
         for x, y in [(x1,y1),(x2,y1),(x1,y2),(x2,y2)]:
-            self.canvas.create_rectangle(x-self.HANDLE_SIZE, y-self.HANDLE_SIZE,
-                                         x+self.HANDLE_SIZE,y+self.HANDLE_SIZE, 
-                                         fill="white",outline="")
+            self.canvas.create_rectangle(x-self.HANDLE_SIZE, y-self.HANDLE_SIZE, x+self.HANDLE_SIZE,y+self.HANDLE_SIZE, fill="white",outline="")
     # Resizer / hit test
     def inside(self, x, y, area):
-        return (
-            area["x"] <= x <= area["x"] + area["width"] and
-            area["y"] <= y <= area["y"] + area["height"]
-        )
+        return ( area["x"] <= x <= area["x"] + area["width"] and area["y"] <= y <= area["y"] + area["height"] )
 
     def get_handle(self, x, y, area):
         x1 = area["x"]
@@ -212,20 +176,17 @@ class TripleAreaSelector:
         handles = { "nw": (x1,y1), "ne": (x2,y1), 
                    "sw": (x1,y2), "se": (x2,y2) }
         for name,(hx,hy) in handles.items():
-
             if abs(x-hx) <= self.HANDLE_SIZE and abs(y-hy) <= self.HANDLE_SIZE:
                 return name
 
         return None
+
     # Detect mouse input from user
     def mouse_down(self, e):
         self.start_x = e.x
         self.start_y = e.y
-
         for area,name in [(self.fish,"fish"),(self.shake,"shake"),(self.friend,"friend")]:
-
             handle = self.get_handle(e.x,e.y,area)
-
             if handle:
                 self.resize_corner = handle
                 self.active_area = area
@@ -239,13 +200,11 @@ class TripleAreaSelector:
     def mouse_drag(self, e):
         if not self.dragging and not self.resize_corner:
             return
+
         dx = e.x - self.start_x
         dy = e.y - self.start_y
-
         if self.resize_corner:
-
             a = self.active_area
-
             if "e" in self.resize_corner:
                 a["width"] += dx
             if "s" in self.resize_corner:
@@ -256,7 +215,6 @@ class TripleAreaSelector:
             if "n" in self.resize_corner:
                 a["y"] += dy
                 a["height"] -= dy
-
         elif self.dragging:
             a = self.active_area
             a["x"] += dx
@@ -264,12 +222,10 @@ class TripleAreaSelector:
         self.start_x = e.x
         self.start_y = e.y
         self.draw_boxes()
-
     def mouse_up(self, e):
         self.dragging = None
         self.resize_corner = None
         self.active_area = None
-
     def mouse_move(self, e):
         for area in [self.fish,self.shake,self.friend]:
             handle = self.get_handle(e.x,e.y,area)
@@ -280,7 +236,6 @@ class TripleAreaSelector:
                     "ne":"size_ne_sw",
                     "sw":"size_ne_sw"
                 }[handle]
-
                 self.canvas.config(cursor=cursor)
                 return
 
@@ -289,10 +244,8 @@ class TripleAreaSelector:
                 return
 
         self.canvas.config(cursor="")
-
     # Save
     def close(self):
-
         self.callback(self.shake,self.fish,self.friend)
         self.window.destroy()
 # Main app
@@ -303,20 +256,16 @@ class App(CTk):
         self.vars = {}        # IntVar / StringVar / BooleanVar
         self.checkboxes = {}   # CTkCheckBox vars
         self.comboboxes = {}   # CTkComboBox vars
-        
         # Screen size (cache once – thread safe)
         self.SCREEN_WIDTH = self.winfo_screenwidth()
         self.SCREEN_HEIGHT = self.winfo_screenheight()
-
         # Window 
         self.configure(fg_color="#131313")   # <- Main Window Ultra Dark
         self.geometry("800x600")
         self.title("I Can't Fish V2.62")
-
         # Macro state
         self.macro_running = False
         self.macro_thread = None
-
         # P/D state variables
         self.prev_error = 0.0      # previous error term
         self.last_time = None      # timestamp of last PD sample
@@ -339,19 +288,16 @@ class App(CTk):
         self.overlay_window = None
         self.overlay_canvas = None
         self.overlay_status_lines = [""] * 5
-
         # Hotkey variables
         self.hotkey_start = Key.f5
         self.hotkey_stop = Key.f7
         self.hotkey_change_areas = Key.f6 # added for the bar area selector
         self.hotkey_reserved = Key.f8
         self.hotkey_labels = {}  # Store label widgets for dynamic updates
-
         # Screen capture variables — MSS instances are per-thread (see _thread_local)
         self._thread_local = threading.local()
         self._monitor = {}      # pre-allocated monitor dict, reused every grab
         self._scale_cache = None  # cached DPI scale factor
-
         # Triple-buffer for capture/logic thread decoupling (used in _enter_minigame)
         self._cap_lock = threading.Lock()
         self._cap_fish_img = None    # latest fish-area frame
@@ -365,77 +311,41 @@ class App(CTk):
         self.key_listener = KeyListener(on_press=self.on_key_press)
         self.key_listener.daemon = True
         self.key_listener.start()
-
         # Status Bar 
         self.grid_columnconfigure(0, weight=1)
         self.grid_rowconfigure(0, weight=1)
-
         # Top Bar Frame (Status + Buttons)
         top_bar = CTkFrame(self, fg_color="transparent")
         top_bar.grid(row=0, column=0, padx=20, pady=10, sticky="ew")
-
         top_bar.grid_columnconfigure(0, weight=1)
-
         # Logo Label
-        logo_label = CTkLabel(
-            top_bar, 
-            text="I CAN'T FISH V2.62",
-            font=CTkFont(size=16, weight="bold")
-        )
+        logo_label = CTkLabel( top_bar, text="I CAN'T FISH V2.62", font=CTkFont(size=16, weight="bold") )
         logo_label.grid(row=0, column=0, sticky="w")
-
         # Status label (left side)
         self.status_label = CTkLabel(top_bar, text="Macro status: Idle")
         self.status_label.grid(row=1, column=0, pady=5, sticky="w")
-
         # Buttons frame (right side)
         button_frame = CTkFrame(top_bar, fg_color="transparent")
         button_frame.grid(row=0, column=1, sticky="e")
-
         CTkButton(
             button_frame,
             text="Website",
             corner_radius=32,
             command=self.open_link("https://sites.google.com/view/icf-automation-network/")
         ).pack(side="left", padx=6)
-
         CTkButton(
             button_frame,
             text="Upcoming Features",
             corner_radius=32,
             command=self.open_link("https://docs.google.com/document/d/1WwWWMR-eN-R-GO42IioToHpWTgiXkLoiNE_4NeE-GsU/edit?tab=t.0")
         ).pack(side="left", padx=6)
-
         CTkButton(
             button_frame,
             text="Tutorial",
             corner_radius=32,
             command=self.open_link("https://docs.google.com/document/d/1qjhgcONxpZZbSAEYiSCXoUXGjQwd7Jghf4EysWC4Cps/edit?usp=drive_link")
         ).pack(side="left", padx=6)
-
-        # Bar Areas Variables
-        self.shake_selector = None
-        self.fish_selector = None
-        self.friend_selector = None
-
-        # Tabs 
-        self.tabs = CTkTabview( self, anchor="w", border_color = "#00FF00", fg_color = "#181818")
-
-        self.tabs._segmented_button.configure(
-            fg_color="#202020",
-            selected_color="#404040",
-            selected_hover_color="#505050",
-            unselected_color="#202020",
-            unselected_hover_color="#303030",
-            text_color="#FFFFFF"
-        )
-
-        self.tabs.grid(
-            row=2, column=0,
-            padx=20, pady=10,
-            sticky="nsew"
-        )
-
+        self.tabs.grid( row=2, column=0, padx=20, pady=10, sticky="nsew" )
         self.tabs.add("Basic")
         self.tabs.add("Misc")
         self.tabs.add("Cast")
@@ -444,7 +354,6 @@ class App(CTk):
         self.tabs.add("Logging")
         self.tabs.add("Utilities")
         self.tabs.add("Advanced")
-
         # Build tabs
         self.build_basic_tab(self.tabs.tab("Basic"))
         self.build_misc_tab(self.tabs.tab("Misc"))
@@ -454,14 +363,11 @@ class App(CTk):
         self.build_logging_tab(self.tabs.tab("Logging"))
         self.build_utilities_tab(self.tabs.tab("Utilities"))
         self.build_advanced_tab(self.tabs.tab("Advanced"))
-
         # Grid behavior
         self.grid_columnconfigure(0, weight=1)
-
         self.grid_rowconfigure(0, weight=0)  # Logo
         self.grid_rowconfigure(1, weight=0)  # Status
         self.grid_rowconfigure(2, weight=1)  # Tabs take remaining space
-
         last = self.load_last_config_name()
         self.bar_areas = {"fish": None, "shake": None}
         self.load_misc_settings()
@@ -473,7 +379,6 @@ class App(CTk):
         self.right_mouse_down = False
         # Capture backend
         self.camera = None
-
         if sys.platform == "win32" and dxcam:
             try:
                 self.camera = dxcam.create()
@@ -647,9 +552,7 @@ class App(CTk):
         CTkLabel(arrow_settings, text="Minigame Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         lock_cursor_var = StringVar(value="off")
         self.vars["lock_cursor"] = lock_cursor_var
-        lock_cursor_cb = CTkCheckBox(arrow_settings, text="Lock Cursor", 
-                                           variable=lock_cursor_var, onvalue="on", 
-                                           offvalue="off")
+        lock_cursor_cb = CTkCheckBox(arrow_settings, text="Lock Cursor",  variable=lock_cursor_var, onvalue="on", offvalue="off")
         lock_cursor_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
     # CAST SETTINGS TAB
     def build_cast_tab(self, parent):
@@ -664,9 +567,7 @@ class App(CTk):
         CTkLabel(casting_mode, text="Casting Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         casting_mode_var = StringVar(value="Normal")
         self.vars["casting_mode"] = casting_mode_var
-        casting_cb = CTkComboBox(casting_mode, values=["Perfect", "Normal"], 
-                               variable=casting_mode_var, command=lambda v: self.set_status(f"Casting Mode: {v}")
-                               )
+        casting_cb = CTkComboBox(casting_mode, values=["Perfect", "Normal"],  variable=casting_mode_var, command=lambda v: self.set_status(f"Casting Mode: {v}") )
         casting_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["casting_mode"] = casting_cb
         # Normal Casting Group
@@ -692,7 +593,6 @@ class App(CTk):
         # Perfect Cast Settings 
         perfect_casting = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         perfect_casting.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
-
         CTkLabel(perfect_casting, text="Perfect Casting Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
         CTkLabel(perfect_casting, text="Green (Perfect Cast) Tolerance:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         perfect_cast_tolerance_var = StringVar(value="14")
@@ -714,22 +614,17 @@ class App(CTk):
         self.vars["perfect_max_time"] = perfect_max_time_var
         perfect_max_time_entry = CTkEntry(perfect_casting, width=120, textvariable=perfect_max_time_var)
         perfect_max_time_entry.grid(row=4, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(perfect_casting, text="Perfect Cast Release Method:").grid(row=5, column=0, padx=12, pady=10, sticky="w" )
         release_method_var = StringVar(value="Simple")
         self.vars["release_method"] = release_method_var
-        release_method_cb = CTkComboBox(perfect_casting, values=["Velocity-based", "Simple"], 
-                               variable=release_method_var, command=lambda v: self.set_status(f"Perfect Cast Release Method: {v}")
-                               )
+        release_method_cb = CTkComboBox(perfect_casting, values=["Velocity-based", "Simple"],  variable=release_method_var, command=lambda v: self.set_status(f"Perfect Cast Release Method: {v}") )
         release_method_cb.grid(row=5, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["release_method"] = release_method_cb
-
         CTkLabel(perfect_casting, text="Perfect Cast Release Delay:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
         perfect_release_delay_var = StringVar(value="0")
         self.vars["perfect_release_delay"] = perfect_release_delay_var
         perfect_release_delay_entry = CTkEntry(perfect_casting, width=120, textvariable=perfect_release_delay_var)
         perfect_release_delay_entry.grid(row=6, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(perfect_casting, text="Perfect Cast Threshold (pixels):").grid(row=7, column=0, padx=12, pady=10, sticky="w")
         perfect_threshold_var = StringVar(value="30")
         self.vars["perfect_threshold"] = perfect_threshold_var
@@ -749,9 +644,7 @@ class App(CTk):
         CTkLabel(shake_configuration, text="Shake Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         shake_mode_var = StringVar(value="Click")
         self.vars["shake_mode"] = shake_mode_var
-        shake_cb = CTkComboBox(shake_configuration, values=["Click", "Navigation"], 
-                               variable=shake_mode_var, command=lambda v: self.set_status(f"Shake mode: {v}")
-                               )
+        shake_cb = CTkComboBox(shake_configuration, values=["Click", "Navigation"],  variable=shake_mode_var, command=lambda v: self.set_status(f"Shake mode: {v}") )
         shake_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["shake_mode"] = shake_cb
         CTkLabel(shake_configuration, text="Shake Failsafe (attempts):").grid(row=2, column=0, padx=12, pady=10, sticky="w" )
@@ -776,7 +669,6 @@ class App(CTk):
         shake_clicks_var = StringVar(value="1")
         self.vars["shake_clicks"] = shake_clicks_var
         CTkEntry(click_shake, width=120, textvariable=shake_clicks_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
         # Minigame Detection Settings
         minigame_detection = CTkFrame( scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         minigame_detection.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
@@ -784,17 +676,13 @@ class App(CTk):
         CTkLabel(minigame_detection, text="Detection Method:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         detection_method_var = StringVar(value="Fish")
         self.vars["detection_method"] = detection_method_var
-        detection_cb = CTkComboBox(minigame_detection, values=["Fish", "Fish + Bar", "Friend Area"], 
-                               variable=detection_method_var, command=lambda v: self.set_status(f"Detection Method: {v}")
-                               )
+        detection_cb = CTkComboBox(minigame_detection, values=["Fish", "Fish + Bar", "Friend Area"],  variable=detection_method_var, command=lambda v: self.set_status(f"Detection Method: {v}") )
         detection_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["detection_method"] = detection_cb
         CTkLabel(minigame_detection, text="Restart Method:").grid(row=2, column=0, padx=12, pady=10, sticky="w" )
         restart_method_var = StringVar(value="Fish")
         self.vars["restart_method"] = restart_method_var
-        restart_cb = CTkComboBox(minigame_detection, values=["Fish", "Fish + Bar", "Friend Area"], 
-                               variable=restart_method_var, command=lambda v: self.set_status(f"Restart Method: {v}")
-                               )
+        restart_cb = CTkComboBox(minigame_detection, values=["Fish", "Fish + Bar", "Friend Area"],  variable=restart_method_var, command=lambda v: self.set_status(f"Restart Method: {v}") )
         restart_cb.grid(row=2, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["restart_method"] = restart_cb
     # FISHING SETTINGS TAB
@@ -844,7 +732,6 @@ class App(CTk):
         fish_tolerance_var = StringVar(value="0")
         self.vars["fish_tolerance"] = fish_tolerance_var
         CTkEntry(pixel_settings, width=120, textvariable=fish_tolerance_var).grid(row=5, column=3, padx=12, pady=10, sticky="w")
-
         # Ratio & Delays
         ratio_settings = CTkFrame(scroll, border_width=2 , border_color = "#00FF00", fg_color = "#181818")
         ratio_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
@@ -854,135 +741,105 @@ class App(CTk):
         bar_ratio_var = StringVar(value="0.5")
         self.vars["bar_ratio"] = bar_ratio_var
         CTkEntry(ratio_settings,width=120,textvariable=bar_ratio_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(ratio_settings, text="Scan Delay (seconds):").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         minigame_scan_delay_var = StringVar(value="0.05")
         self.vars["minigame_scan_delay"] = minigame_scan_delay_var
         CTkEntry(ratio_settings, width=120, textvariable=minigame_scan_delay_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(ratio_settings, text="Restart Delay:").grid(row=3, column=0, padx=12, pady=10, sticky="w" )
         restart_delay_var = StringVar(value="1")
         self.vars["restart_delay"] = restart_delay_var
         CTkEntry(ratio_settings, width=120, textvariable=restart_delay_var ).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
         # Move Check Settings
         move_check_settings = CTkFrame(scroll, border_width=2 , border_color = "#00FF00", fg_color = "#181818")
         move_check_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(move_check_settings, text="Move Check Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-
         CTkLabel(move_check_settings, text="Bar Controller Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         bar_controller_mode_var = StringVar(value="Stopping Distance")
         self.vars["bar_controller_mode"] = bar_controller_mode_var
-        bar_controller_cb = CTkComboBox(move_check_settings, width=150, values=["Stopping Distance", "PID"], 
-                               variable=bar_controller_mode_var, command=lambda v: self.set_status(f"Bar controller mode: {v}")
-                               )
+        bar_controller_cb = CTkComboBox(move_check_settings, width=150, values=["Stopping Distance", "PID"],  variable=bar_controller_mode_var, command=lambda v: self.set_status(f"Bar controller mode: {v}") )
         bar_controller_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["bar_controller_mode"] = bar_controller_cb
-
         CTkLabel(move_check_settings, text="Arrow Controller Mode:").grid(row=1, column=2, padx=12, pady=10, sticky="w" )
         arrow_controller_mode_var = StringVar(value="PID")
         self.vars["arrow_controller_mode"] = arrow_controller_mode_var
-        arrow_controller_cb = CTkComboBox(move_check_settings, values=["Simple Tracking", "PID"], 
-                               variable=arrow_controller_mode_var, command=lambda v: self.set_status(f"Arrow controller mode: {v}")
-                               )
+        arrow_controller_cb = CTkComboBox(move_check_settings, values=["Simple Tracking", "PID"],  variable=arrow_controller_mode_var, command=lambda v: self.set_status(f"Arrow controller mode: {v}") )
         arrow_controller_cb.grid(row=1, column=3, padx=12, pady=10, sticky="w")
         self.comboboxes["arrow_controller_mode"] = arrow_controller_cb
-
         CTkLabel(move_check_settings, text="Arrow Tracking Threshold:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         pd_padding2_var = StringVar(value="20")
         self.vars["pd_padding2"] = pd_padding2_var
         CTkEntry(move_check_settings, width=120, textvariable=pd_padding2_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(move_check_settings, text="Stabilize Threshold:").grid(row=2, column=2, padx=12, pady=10, sticky="w")
         stabilize_threshold_var = StringVar(value="6")
         self.vars["stabilize_threshold"] = stabilize_threshold_var
         CTkEntry(move_check_settings, width=120, textvariable=stabilize_threshold_var).grid(row=2, column=3, padx=12, pady=10, sticky="w")
-
         # Stopping Distance and PID
         pid_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         pid_settings.grid(row=3, column=0, padx=20, pady=20, sticky="nw")
         # Stopping Distance
         CTkLabel(pid_settings, text="Movement Check Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-
         CTkLabel(pid_settings, text="Stopping Distance Multiplier:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         stopping_distance_var = StringVar(value="0.9")
         self.vars["stopping_distance"] = stopping_distance_var
         CTkEntry(pid_settings, width=120, textvariable=stopping_distance_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(pid_settings, text="Velocity Smoothing:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         velocity_smoothing_var = StringVar(value="0.25")
         self.vars["velocity_smoothing"] = velocity_smoothing_var
         CTkEntry(pid_settings, width=120, textvariable=velocity_smoothing_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(pid_settings, text="Movement Threshold:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         movement_threshold_var = StringVar(value="6")
         self.vars["movement_threshold"] = movement_threshold_var
         CTkEntry(pid_settings, width=120, textvariable=movement_threshold_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
         # PID
         CTkLabel(pid_settings, text="PD Controller Settings", font=CTkFont(size=14, weight="bold")).grid(row=0, column=2, padx=12, pady=8, sticky="w")
-
         CTkLabel(pid_settings, text="Proportional gain:").grid(row=1, column=2, padx=12, pady=10, sticky="w")
         p_gain_var = StringVar(value="0.8")
         self.vars["proportional_gain"] = p_gain_var
         CTkEntry(pid_settings, width=120, textvariable=p_gain_var).grid(row=1, column=3, padx=12, pady=10, sticky="w")
-
         CTkLabel(pid_settings, text="Derivative gain:").grid(row=2, column=2, padx=12, pady=10, sticky="w")
         d_gain_var = StringVar(value="0.4")
         self.vars["derivative_gain"] = d_gain_var
         CTkEntry(pid_settings, width=120, textvariable=d_gain_var).grid(row=2, column=3, padx=12, pady=10, sticky="w")
-
         CTkLabel(pid_settings, text="P/D Clamp:").grid(row=3, column=2, padx=12, pady=10, sticky="w")
         pid_clamp_var = StringVar(value="100")
         self.vars["pid_clamp"] = pid_clamp_var
         CTkEntry(pid_settings, width=120, textvariable=pid_clamp_var).grid(row=3, column=3, padx=12, pady=10, sticky="w")
-
     # LOGGING TAB
     def build_logging_tab(self, parent):
         scroll = CTkScrollableFrame(parent, border_color = "#00FF00", fg_color = "#181818")
         scroll.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
-
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-
         # Discord Webhook Settings
         discord_webhook = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         discord_webhook.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(discord_webhook, text="Discord Webhook", font=CTkFont(size=16, weight="bold") ).grid(row=0, column=0, columnspan=2, padx=12, pady=(10, 5), sticky="w")
-
         CTkLabel(discord_webhook, text="Discord Webhook Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         discord_webhook_mode_var = StringVar(value="Time")
         self.vars["discord_webhook_mode"] = discord_webhook_mode_var
-        discord_webhook_cb = CTkComboBox(discord_webhook, values=["Time", "Cycles", "Disabled"], 
-                               variable=discord_webhook_mode_var, command=lambda v: self.set_status(f"Discord Webhook mode: {v}")
-                               )
+        discord_webhook_cb = CTkComboBox(discord_webhook, values=["Time", "Cycles", "Disabled"],  variable=discord_webhook_mode_var, command=lambda v: self.set_status(f"Discord Webhook mode: {v}") )
         discord_webhook_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["discord_webhook_mode"] = discord_webhook_cb
-
         discord_screenshot_var = StringVar(value="off")
         self.vars["discord_screenshot"] = discord_screenshot_var
         CTkCheckBox(discord_webhook, text="Send Screenshot (instead of text)", variable=discord_screenshot_var, onvalue="on", offvalue="off"
                     ).grid(row=2, column=0, columnspan=2, padx=12, pady=8, sticky="w")
-
         CTkLabel(discord_webhook, text="Trigger on ___ cycles:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         discord_webhook_cycle_var = StringVar(value="3")
         self.vars["discord_webhook_cycle"] = discord_webhook_cycle_var
         CTkEntry(discord_webhook, width=160, textvariable=discord_webhook_cycle_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(discord_webhook, text="Trigger when time hits ___ (seconds):").grid(row=4, column=0, padx=12, pady=10, sticky="w")
         discord_webhook_time_var = StringVar(value="60")
         self.vars["discord_webhook_time"] = discord_webhook_time_var
         CTkEntry(discord_webhook, width=160, textvariable=discord_webhook_time_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(discord_webhook, text="Webhook URL:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
         discord_webhook_url_var = StringVar(value="https://discord.com/api/webhooks/XXXXXXXXXX/XXXXXXXXXX")
         self.vars["discord_webhook_url"] = discord_webhook_url_var
         CTkEntry(discord_webhook, width=260, textvariable=discord_webhook_url_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(discord_webhook, text="Webhook name:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
         discord_webhook_name_var = StringVar(value="I Can't Fish")
         self.vars["discord_webhook_name"] = discord_webhook_name_var
         CTkEntry(discord_webhook, width=160, textvariable=discord_webhook_name_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
-
         # Test webhook button
         CTkButton(discord_webhook, text="Test Webhook", command=self.test_discord_webhook
                   ).grid(row=7, column=0, columnspan=2, padx=12, pady=12, sticky="w")
@@ -997,7 +854,6 @@ class App(CTk):
         auto_totem = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         auto_totem.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(auto_totem, text="Auto Totem", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-        
         CTkLabel(auto_totem, text="Auto Totem Mode:").grid(row=1, column=0, padx=12, pady=10, sticky="w" )
         auto_totem_mode_var = StringVar(value="Cycles")
         self.vars["auto_totem_mode"] = auto_totem_mode_var
@@ -1006,37 +862,30 @@ class App(CTk):
                                )
         auto_totem_cb.grid(row=1, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["auto_totem_mode"] = auto_totem_cb
-        
         # CTkLabel(auto_totem, text="Totem Delay (seconds):").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         # totem_delay_var = StringVar(value="900")
         # self.vars["totem_delay"] = totem_delay_var
         # CTkEntry(auto_totem, width=120, textvariable=totem_delay_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(auto_totem, text="Totem Cycles:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         totem_cycles_var = StringVar(value="70")
         self.vars["totem_cycles"] = totem_cycles_var
         CTkEntry(auto_totem, width=120, textvariable=totem_cycles_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
         use_sundial_var = StringVar(value="off")
         self.vars["use_sundial"] = use_sundial_var
         use_sundial_cb = CTkCheckBox(auto_totem, text="Use Sundial if Totem fails", variable=use_sundial_var, onvalue="on", offvalue="off")
         use_sundial_cb.grid(row=4, column=0, padx=12, pady=8, sticky="w")
-
         CTkLabel(auto_totem, text="Totem Fail Color:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
         totem_color_var = StringVar(value="#7effad")
         self.vars["totem_color"] = totem_color_var
         CTkEntry(auto_totem, width=120, textvariable=totem_color_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(auto_totem, text="Totem Fail Tolerance:").grid(row=6, column=0, padx=12, pady=10, sticky="w")
         totem_tolerance_var = StringVar(value="4")
         self.vars["totem_tolerance"] = totem_tolerance_var
         CTkEntry(auto_totem, width=120, textvariable=totem_tolerance_var).grid(row=6, column=1, padx=12, pady=10, sticky="w")
-    
         # Auto Reconnect
         # auto_reconnect = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         # auto_reconnect.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         # CTkLabel(auto_reconnect, text="Auto Reconnect", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")
-
         # auto_reconnect_var = StringVar(value="off")
         # self.vars["auto_reconnect"] = auto_reconnect_var
         # auto_reconnect_cb = CTkCheckBox(auto_reconnect, text="Auto Reconnect (Roblox)", variable=auto_reconnect_var, onvalue="on", offvalue="off")
@@ -1053,41 +902,33 @@ class App(CTk):
         # VERY important
         parent.grid_rowconfigure(0, weight=1)
         parent.grid_columnconfigure(0, weight=1)
-
         # Advanced Colors
         advanced_colors = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         advanced_colors.grid(row=0, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(advanced_colors, text="Advanced Colors", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w")   
-        
         CTkLabel(advanced_colors, text="Shake Color:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         shake_color_var = StringVar(value="#FFFFFF")
         self.vars["shake_color"] = shake_color_var
         CTkEntry(advanced_colors, width=120, textvariable=shake_color_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(advanced_colors, text="Perfect Cast (Green) Color:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         perfect_color_var = StringVar(value="#64a04c")
         self.vars["perfect_color"] = perfect_color_var
         CTkEntry(advanced_colors, width=120, textvariable=perfect_color_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(advanced_colors, text="Perfect Cast (White) Color:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         perfect_color2_var = StringVar(value="#d4d3ca")
         self.vars["perfect_color2"] = perfect_color2_var
         CTkEntry(advanced_colors, width=120, textvariable=perfect_color2_var).grid(row=3, column=1, padx=12, pady=10, sticky="w")
-
         gift_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         gift_settings.grid(row=1, column=0, padx=20, pady=20, sticky="nw")
         CTkLabel(gift_settings, text="Gift Box Options", font=CTkFont(size=14, weight="bold")).grid(row=0, column=0, padx=12, pady=8, sticky="w") 
-
         CTkLabel(gift_settings, text="Gift Box Color:").grid(row=1, column=0, padx=12, pady=10, sticky="w")
         gift_box_color_var = StringVar(value="#00990c")
         self.vars["gift_box_color"] = gift_box_color_var
         CTkEntry(gift_settings, width=120, textvariable=gift_box_color_var).grid(row=1, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(gift_settings, text="Gift Box Tolerance:").grid(row=2, column=0, padx=12, pady=10, sticky="w")
         gift_box_tolerance_var = StringVar(value="2")
         self.vars["gift_box_tolerance"] = gift_box_tolerance_var
         CTkEntry(gift_settings, width=120, textvariable=gift_box_tolerance_var).grid(row=2, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(gift_settings, text="Tracking Focus:").grid(row=3, column=0, padx=12, pady=10, sticky="w")
         tracking_focus_var = StringVar(value="Fish")
         self.vars["tracking_focus"] = tracking_focus_var
@@ -1095,17 +936,14 @@ class App(CTk):
                                   variable=tracking_focus_var, command=lambda v: self.set_status(f"Tracking mode set to {v}"))
         tracking_cb.grid(row=3, column=1, padx=12, pady=10, sticky="w")
         self.comboboxes["tracking_focus"] = tracking_cb
-
         CTkLabel(gift_settings, text="Ratio Before Tracking:").grid(row=4, column=0, padx=12, pady=10, sticky="w")
         gift_track_ratio_var = StringVar(value="0.1")
         self.vars["gift_track_ratio"] = gift_track_ratio_var
         CTkEntry(gift_settings, width=120, textvariable=gift_track_ratio_var).grid(row=4, column=1, padx=12, pady=10, sticky="w")
-
         CTkLabel(gift_settings, text="Note Cooldown:").grid(row=5, column=0, padx=12, pady=10, sticky="w")
         note_cooldown_var = StringVar(value="0.2")
         self.vars["note_cooldown"] = note_cooldown_var
         CTkEntry(gift_settings, width=120, textvariable=note_cooldown_var).grid(row=5, column=1, padx=12, pady=10, sticky="w")
-
         # Compatibility Settings
         compatibility_settings = CTkFrame(scroll, border_width=2, border_color = "#00FF00", fg_color = "#181818")
         compatibility_settings.grid(row=2, column=0, padx=20, pady=20, sticky="nw")
@@ -1114,7 +952,6 @@ class App(CTk):
         self.vars["click_after_minigame"] = click_after_minigame_var
         click_after_minigame_cb = CTkCheckBox(compatibility_settings, text="Click After Minigame", variable=click_after_minigame_var, onvalue="on", offvalue="off")
         click_after_minigame_cb.grid(row=1, column=0, padx=12, pady=8, sticky="w")
-
         click_mode2_var = StringVar(value="off")
         self.vars["click_mode2"] = click_mode2_var
         click_mode2_cb = CTkCheckBox(compatibility_settings, text="Alternative Click Method", variable=click_mode2_var, onvalue="on", offvalue="off")
@@ -1130,32 +967,29 @@ class App(CTk):
             name for name in os.listdir(config_dir)
             if os.path.isdir(os.path.join(config_dir, name))
         ]
-
         if not config_names:
             # Create default config if none exists
             self.save_settings("default.json")
             config_names = ["default.json"]
-        
         return sorted(config_names)
-    
+
     def load_last_config_name(self):
         """Load the last used config name safely."""
         path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-
         if os.path.exists(path):
             try:
                 with open(path, "r") as f:
                     data = json.load(f)
                     return data.get("last_config", "default.json")
+
             except:
                 return "default.json"
 
         return "default.json"
-    
+
     def save_last_config_name(self, name):
         """Safely save the last selected config name without overwriting misc settings."""
         path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-
         # Load existing file if exists
         data = {}
         if os.path.exists(path):
@@ -1164,18 +998,14 @@ class App(CTk):
                     data = json.load(f)
             except:
                 data = {}
-
         # Update only the field we want
         data["last_config"] = name
-
         # Save merged data
         with open(path, "w") as f:
             json.dump(data, f, indent=4)
-    
     def save_misc_settings(self):
         """Save misc settings without overwriting last_config."""
         path = os.path.join(USER_CONFIG_DIR, "last_config.json")
-
         # Load existing content
         data = {}
         if os.path.exists(path):
@@ -1184,7 +1014,6 @@ class App(CTk):
                     data = json.load(f)
             except:
                 data = {}
-
         # Build clean bar areas
         clean_bar_areas = {}
         for key in ["shake", "fish", "friend"]:
@@ -1198,21 +1027,17 @@ class App(CTk):
                 }
             else:
                 clean_bar_areas[key] = None
-
         # Update fields (MERGE ONLY)
         data["last_rod"] = self.current_rod_name
         data["bar_areas"] = clean_bar_areas
-
         # Save hotkeys
         data["start_key"] = self.vars["start_key"].get()
         data["change_bar_areas_key"] = self.vars["change_bar_areas_key"].get()
         data["screenshot_key"] = self.vars["screenshot_key"].get()
         data["stop_key"] = self.vars["stop_key"].get()
-
         # Write merged result
         with open(path, "w") as f:
             json.dump(data, f, indent=4)
-
     def save_settings(self, name=None):
         """Save all settings to a JSON config file."""
         if name == None:
@@ -1220,7 +1045,6 @@ class App(CTk):
         config_dir = USER_CONFIG_DIR
         if not os.path.exists(config_dir):
             os.makedirs(config_dir)
-        
         data = {}
         self.set_status(f"Settings saved to {name}")
         # Save all StringVar and related variables
@@ -1232,25 +1056,21 @@ class App(CTk):
                     data[key] = var
         except Exception as e:
             print(f"Error saving vars: {e}")
-        
         # Save checkbox states
         try:
             for key, checkbox in self.checkboxes.items():
                 data[f"checkbox_{key}"] = checkbox.get()
         except Exception as e:
             print(f"Error saving checkboxes: {e}")
-        
         # Save combobox states
         try:
             for key, combobox in self.comboboxes.items():
                 data[f"combobox_{key}"] = combobox.get()
         except Exception as e:
             print(f"Error saving comboboxes: {e}")
-
         # Get rod folder based on config name
         rod_folder = os.path.join(config_dir, name.replace(".json", ""))
         os.makedirs(rod_folder, exist_ok=True)
-
         path = os.path.join(rod_folder, "config.json")
         try:
             with open(path, "w") as f:
@@ -1265,18 +1085,17 @@ class App(CTk):
         config_dir = USER_CONFIG_DIR
         rod_folder = os.path.join(config_dir, name.replace(".json", ""))
         path = os.path.join(rod_folder, "config.json")
-
         if not os.path.exists(path):
             self.set_status(f"Config not found: {name}")
             return
-        
+
         try:
             with open(path, "r") as f:
                 data = json.load(f)
         except Exception as e:
             self.set_status(f"Error loading config: {e}")
             return
-        
+
         # Load StringVar and related variables
         try:
             for key, var in self.vars.items():
@@ -1284,7 +1103,6 @@ class App(CTk):
                     var.set(data[key])
         except Exception as e:
             print(f"Error loading vars: {e}")
-        
         # Load checkbox states
         try:
             for key, checkbox in self.checkboxes.items():
@@ -1293,7 +1111,6 @@ class App(CTk):
                     checkbox.set(data[checkbox_key])
         except Exception as e:
             print(f"Error loading checkboxes: {e}")
-        
         # Load combobox states
         try:
             for key, cb in self.comboboxes.items():
@@ -1316,12 +1133,10 @@ class App(CTk):
                     change_key = data.get("change_bar_areas_key", "F6")
                     screenshot_key = data.get("screenshot_key", "F8")
                     stop_key = data.get("stop_key", "F7")
-
                     self.vars["start_key"].set(start_key)
                     self.vars["change_bar_areas_key"].set(change_key)
                     self.vars["screenshot_key"].set(screenshot_key)
                     self.vars["stop_key"].set(stop_key)
-
                     # Convert to pynput keys
                     self.hotkey_start = self._string_to_key(start_key)
                     self.hotkey_change_areas = self._string_to_key(change_key)
@@ -1342,16 +1157,19 @@ class App(CTk):
             self.hotkey_stop = self._string_to_key(self.vars["stop_key"].get())
     def _string_to_key(self, key_string):
         key_string = key_string.strip().lower()
-
         try:
             return Key[key_string]
+
         except KeyError:
             return key_string  # normal character keys
+
     def normalize_key(self, key):
         try:
             return key.char.lower()  # letter keys
+
         except:
             return str(key).replace("Key.", "").lower()
+
     def on_key_press(self, key):
         if key == self.hotkey_start and not self.macro_running:
             # Save settings
@@ -1363,13 +1181,10 @@ class App(CTk):
                 self.macro_running = True
                 self.after(0, self.withdraw)
                 threading.Thread(target=self.start_macro, daemon=True).start()
-
         elif key == self.hotkey_change_areas:
             self.open_dual_area_selector()
-
         elif self.normalize_key(key) == self.vars["screenshot_key"].get().lower():
             self._take_debug_screenshot()
-
         elif key == self.hotkey_stop:
             self.stop_macro()
     def set_status(self, text, key=None):
@@ -1395,7 +1210,6 @@ class App(CTk):
                 w = right - x
                 h = bottom - y
                 fallback = True
-
         if w <= 0 or h <= 0:
             self.set_status("Fish area has nonpositive dimensions")
             return
@@ -1418,29 +1232,22 @@ class App(CTk):
     def _pick_colors(self):
         """Live eyedropper tool."""
         self.eyedropper = tk.Toplevel(self)
-
         w = self.winfo_screenwidth()
         h = self.winfo_screenheight()
-
         self.eyedropper.geometry(f"{w}x{h}+0+0")
-
         # Initial nearly-transparent overlay (for hover)
         self.eyedropper.attributes("-alpha", 0.01)
         self.eyedropper.attributes("-topmost", True)
         self.eyedropper.config(cursor="crosshair")
-
         self.eyedropper.bind("<Motion>", self._update_hover_color)
         self.eyedropper.bind("<Button-1>", self._on_pick_color)
         self.eyedropper.bind("<Escape>", self._close_eyedropper)
-
     def _eyedropper_pixel_at(self, x, y):
         """
         Return (r, g, b) for the logical screen position (x, y).
-
         The eyedropper Toplevel is hidden for the duration of the grab so the
         compositor doesn't blend its semi-transparent surface into the captured
         pixel (which was causing a slight brightness lift on macOS).
-
         _grab_screen_region scales the coordinates by the retina factor, so
         the captured region may be 2×2 physical pixels on a Retina display.
         We always sample [0, 0] — accurate enough for colour picking.
@@ -1448,6 +1255,7 @@ class App(CTk):
         frame = self._grab_screen_region(x, y, x + 1, y + 1)
         if frame is None or frame.size == 0:
             return None
+
         b, g, r = int(frame[0, 0, 0]), int(frame[0, 0, 1]), int(frame[0, 0, 2])
         return r, g, b
 
@@ -1455,7 +1263,6 @@ class App(CTk):
         # Step 1: Save exact pointer coords BEFORE hiding
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
-
         # Step 2: Make window *fully invisible* (alpha = 0)
         if self.eyedropper and self.eyedropper.winfo_exists():
             self.eyedropper.attributes("-alpha", 0.0)
@@ -1463,7 +1270,6 @@ class App(CTk):
         time.sleep(0.05)  # empirical delay to ensure compositor updates (especially on Windows)
         # Step 3: Capture pixel with no brightness contamination
         frame = self._grab_screen_region(x, y, x + 1, y + 1)
-
         # Step 4: Handle fails
         if frame is None or frame.size == 0:
             self._close_eyedropper()
@@ -1471,18 +1277,14 @@ class App(CTk):
 
         b, g, r = int(frame[0, 0, 0]), int(frame[0, 0, 1]), int(frame[0, 0, 2])
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
-
         # Step 5: Update UI
         self.last_picked_color = hex_color
         self.set_status(f"Picked: {hex_color}")
-
         # Step 6: Close eyedropper
         self._close_eyedropper()
-
     def _update_hover_color(self, event):
         x = self.winfo_pointerx()
         y = self.winfo_pointery()
-
         pixel = self._eyedropper_pixel_at(x, y)
         if pixel is None:
             return
@@ -1490,7 +1292,6 @@ class App(CTk):
         r, g, b = pixel
         hex_color = f"#{r:02X}{g:02X}{b:02X}"
         self.set_status(f"Hover: {hex_color} | Click to pick")
-        
     def _close_eyedropper(self, event=None):
         if self.eyedropper:
             self.eyedropper.destroy()
@@ -1498,16 +1299,15 @@ class App(CTk):
     def open_link(self, url):
         """Open a URL in the default web browser."""
         return lambda: webbrowser.open(url)
+
     def _click_at(self, x, y, click_count=1):
         click_mode2 = self.vars["fish_color"].get()
         if click_mode2 == "on":
             mouse_controller.position = (x, y)
             time.sleep(0.01)
-
             # micro-jitter
             mouse_controller.position = (x + 3, y + 3)
             mouse_controller.position = (x, y)
-
             mouse_controller.press(Button.left)
             time.sleep(0.04)
             mouse_controller.release(Button.left)
@@ -1525,17 +1325,13 @@ class App(CTk):
             elif sys.platform == "darwin":
                 x = int(x)
                 y = int(y)
-
                 # Move cursor
                 _move_mouse(x, y)
-
                 # Tiny movement (Roblox trick)
                 _move_mouse(x, y + 1)
-
                 for i in range(click_count):
                     _mouse_event(Quartz.kCGEventLeftMouseDown, x, y)
                     _mouse_event(Quartz.kCGEventLeftMouseUp, x, y)
-
                     if i < click_count - 1:
                         time.sleep(0.03)
     def accessibility_perms(self):
@@ -1553,6 +1349,7 @@ class App(CTk):
             self.area_selector = None
             self.set_status("Area selector closed")
             return
+
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         # Default fallback areas 
@@ -1562,6 +1359,7 @@ class App(CTk):
             right = int(screen_w * 0.7813)
             bottom = int(screen_h * 0.7778)
             return {"x": left, "y": top, 
+
                     "width": right - left, "height": bottom - top}
         def default_fish_area():
             left = int(screen_w * 0.2844)
@@ -1569,6 +1367,7 @@ class App(CTk):
             right = int(screen_w * 0.7141)
             bottom = int(screen_h * 0.8370)
             return {"x": left, "y": top, 
+
                     "width": right - left, "height": bottom - top}
         def default_friend_area():
             left = int(screen_w * 0.0046)
@@ -1576,6 +1375,7 @@ class App(CTk):
             right = int(screen_w * 0.0401)
             bottom = int(screen_h * 0.94)
             return {"x": left, "y": top, 
+
                     "width": right - left, "height": bottom - top}
         # Load saved areas or fallback 
         shake_area = (self.bar_areas.get("shake") 
@@ -1603,50 +1403,6 @@ class App(CTk):
             subprocess.run(["open", folder])
         else:  # Linux
             subprocess.run(["xdg-open", folder])
-    # Reconnect-related functions
-    def get_roblox_proc(self):
-        """Finds the Roblox process if it is running."""
-        for p in psutil.process_iter(['pid', 'name']):
-            try:
-                if 'RobloxPlayerBeta' in p.info['name']:
-                    return p
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                continue
-        return None
-
-    def get_connection_count(self, proc):
-        """Counts active established network connections for the process."""
-        try:
-            connections = proc.connections()
-            established = [c for c in connections if c.status == 'ESTABLISHED']
-            return len(established)
-        except Exception:
-            return 0
-
-    def check_roblox_connection(self):
-        """
-        Runs once to verify Roblox is healthy before starting the main macro loop.
-        Returns True if connection is stable, False otherwise.
-        """
-        proc = self.get_roblox_proc()
-        if not proc:
-            self.set_status("Error: Roblox is not running!")
-            return False
-            
-        self.set_status(f"Verifying Roblox (PID: {proc.pid})...")
-        
-        # Check baseline over a short 2-second window to ensure stability
-        baseline = self.get_connection_count(proc)
-        time.sleep(1)
-        current = self.get_connection_count(proc)
-        
-        # If connections are non-existent or dropped immediately, consider it a fail
-        if baseline == 0 or current < (baseline * 0.5):
-            self.set_status("Connection unstable. Start aborted.")
-            return False
-            
-        self.set_status("Connection verified. Starting sequence...")
-        return True
     # Logging-related functions
     def _discord_text_worker(self, webhook_url, message_prefix, loop_count, show_status):
         """Worker function to send text webhook."""
@@ -1686,12 +1442,9 @@ class App(CTk):
             with mss.mss() as sct:
                 monitor = sct.monitors[1]
                 screenshot = np.array(sct.grab(monitor))
-
             screenshot = cv2.cvtColor(screenshot, cv2.COLOR_BGRA2BGR)
-
             _, buffer = cv2.imencode(".png", screenshot)
             img_byte_arr = io.BytesIO(buffer.tobytes())
-
             files = {'file': ('screenshot.png', img_byte_arr, 'image/png')}
             if show_status == True:
                 payload = {
@@ -1704,13 +1457,11 @@ class App(CTk):
                     'username': discord_webhook_name
                 }
             response = requests.post(webhook_url, data=payload, files=files, timeout=10)
-
             if response.status_code in (200, 204):
                 if show_status == True:
                     self.set_status(f"Discord screenshot sent (Loop #{loop_count})")
             else:
                 self.set_status(f"Error: Discord screenshot failed: {response.status_code}")
-
         except Exception as e:
             self.set_status(f"Error: sending Discord screenshot: {e}")
     def test_discord_webhook(self):
@@ -1719,17 +1470,15 @@ class App(CTk):
         if self.vars["discord_webhook_mode"].get() == "Disabled":
             self.set_status("⚠ Discord webhook is disabled.")
             return
+
         # discord_webhook_url
         webhook_url = self.vars["discord_webhook_url"].get().strip()
-
         if not webhook_url.startswith("https://discord.com/api/webhooks/"):
             self.set_status("Error: Invalid webhook URL.")
             return
 
         self.set_status("Sending test webhook...")
-
         use_screenshot = self.vars.get("discord_screenshot") and self.vars["discord_screenshot"].get() == "on"
-
         if use_screenshot:
             thread = threading.Thread(
                 target=self._discord_screenshot_worker,
@@ -1747,53 +1496,43 @@ class App(CTk):
     def _pixel_search(self, frame, target_color_hex, tolerance=10):
         """
         Search for a specific color in a frame and return all matching pixel coordinates.
-        
         Args:
             frame: BGR numpy array from cv2/mss
             target_color_hex: Hex color code (e.g., "#FFFFFF")
             tolerance: Color tolerance range (0-255)
-        
         Returns:
             List of (x, y) tuples of matching pixels, or empty list if none found
         """
         if frame is None or frame.size == 0:
             return []
-        
+
         # Convert hex to BGR
         bgr_color = self._hex_to_bgr(target_color_hex)
         if bgr_color is None:
             return []
-        
+
         # Create color range with tolerance
-        lower_bound = np.array([
-            max(0, bgr_color[0] - tolerance),
-            max(0, bgr_color[1] - tolerance),
-            max(0, bgr_color[2] - tolerance)
-        ])
-        upper_bound = np.array([
-            min(255, bgr_color[0] + tolerance),
-            min(255, bgr_color[1] + tolerance),
-            min(255, bgr_color[2] + tolerance)
-        ])
-        
+        lower_bound = np.array([ max(0, bgr_color[0] - tolerance), max(0, bgr_color[1] - tolerance), max(0, bgr_color[2] - tolerance) ])
+        upper_bound = np.array([ min(255, bgr_color[0] + tolerance), min(255, bgr_color[1] + tolerance), min(255, bgr_color[2] + tolerance) ])
         # Create mask for matching colors
         mask = cv2.inRange(frame, lower_bound, upper_bound)
         y_coords, x_coords = np.where(mask > 0)
-        
         # Return as list of (x, y) tuples
         if len(x_coords) > 0:
             return list(zip(x_coords, y_coords))
+
         return []
+
     def _get_scale_factor(self):
         """
         Return physical-pixels-per-logical-point for the display.
-
         Derived from Tkinter's winfo_fpixels so it reflects whichever monitor
         the window is currently on.  Falls back to Quartz if Tk isn't ready.
         Cache is invalidated by _invalidate_scale_cache() on <Configure>.
         """
         if self._scale_cache is not None:
             return self._scale_cache
+
         if sys.platform == "darwin":
             try:
                 tk_dpi = self.winfo_fpixels('1i')   # e.g. 144.0 on Retina
@@ -1816,7 +1555,6 @@ class App(CTk):
     def _invalidate_scale_cache(self):
         """Force _get_scale_factor to re-query on next call (e.g. window moved to another monitor)."""
         self._scale_cache = None
-
     def _grab_screen_region(self, left, top, right, bottom):
         # Apply DPI scale once
         scale = self._get_scale_factor()
@@ -1835,17 +1573,17 @@ class App(CTk):
         m["top"]    = top
         m["width"]  = width
         m["height"] = height
-
         mode = self.vars.get("capture_mode")
-
         # Windows — DXCAM or MSS
         if sys.platform == "win32":
             if mode and mode.get() == "DXCAM" and self.camera:
                 frame = self.camera.get_latest_frame()
                 if frame is None:
                     return None
+
                 cropped = frame[top:bottom, left:right]
                 return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
+
             # MSS (Windows)
             if not hasattr(self._thread_local, "sct"):
                 self._thread_local.sct = mss.mss()
@@ -1860,91 +1598,64 @@ class App(CTk):
         # mss returns BGRA; take only first 3 channels (BGR) without a copy
         return np.frombuffer(img.raw, dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
 
-        
     def _find_color_center(self, frame, target_color_hex, tolerance=10):
         """
         Find the center point of a color cluster in a frame.
         Using vectorized detection.
         """
-
         if frame is None:
             return None
 
         # Convert color
         target_bgr = np.array(self._hex_to_bgr(target_color_hex), dtype=np.int16)
-
         # Convert frame for safe subtraction
         frame_int = frame.astype(np.int16)
-
         tol = int(np.clip(tolerance, 0, 255))
-
         # Vectorized absolute tolerance comparison
         mask = np.all(np.abs(frame_int - target_bgr) <= tol, axis=2)
-
         y_coords, x_coords = np.where(mask)
-
         if len(x_coords) == 0:
             return None
 
         # Center calculation (vectorized mean)
         center_x = int(np.mean(x_coords))
         center_y = int(np.mean(y_coords))
-
         return (center_x, center_y)
-    
-    def _find_bar_edges_strict(
-        self,
-        frame,
-        left_hex,
-        right_hex,
-        tolerance=15,
-        tolerance2=15,
-        scan_height_ratio=0.55
-     ):
+
+    def _find_bar_edges_strict( self, frame, left_hex, right_hex, tolerance=15, tolerance2=15, scan_height_ratio=0.55 ):
         if frame is None:
             return None, None
 
         h, w = frame.shape[:2]
         y = int(h * scan_height_ratio)
-
         # Convert to BGR
         left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
         right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
-
         # Extract single horizontal scan line
         line = frame[y].astype(np.int16)
-
         # Clamp tolerances
         tol_l = int(np.clip(tolerance, 0, 255))
         tol_r = int(np.clip(tolerance2, 0, 255))
-
         bar_x_coords = None
-
         # --- LEFT BAR COLOR ---
         if left_hex is not None:
             lower_l = left_bgr - tol_l
             upper_l = left_bgr + tol_l
-
             left_mask = np.all((line >= lower_l) & (line <= upper_l), axis=1)
             left_indices = np.where(left_mask)[0]
-
             if left_indices.size > 0:
                 bar_x_coords = left_indices
-
         # --- RIGHT BAR COLOR ---
         if right_hex is not None:
             lower_r = right_bgr - tol_r
             upper_r = right_bgr + tol_r
-
             right_mask = np.all((line >= lower_r) & (line <= upper_r), axis=1)
             right_indices = np.where(right_mask)[0]
-
             if right_indices.size > 0:
                 if bar_x_coords is not None:
                     bar_x_coords = np.concatenate([bar_x_coords, right_indices])
                 else:
                     bar_x_coords = right_indices
-
         # --- FINAL EDGE EXTRACTION ---
         if bar_x_coords is not None and bar_x_coords.size > 0:
             bar_left_x = int(np.min(bar_x_coords))
@@ -1952,53 +1663,37 @@ class App(CTk):
             return bar_left_x, bar_right_x
 
         return None, None
-    
-    def _find_bar_edges(
-        self,
-        frame,
-        left_hex,
-        right_hex,
-        tolerance=15,
-        tolerance2=15,
-        scan_height_ratio=0.55
-     ):
+
+    def _find_bar_edges( self, frame, left_hex, right_hex, tolerance=15, tolerance2=15, scan_height_ratio=0.55 ):
         if frame is None:
             return None, None
 
         h, w, _ = frame.shape
         y = int(h * scan_height_ratio)
-
         left_bgr = np.array(self._hex_to_bgr(left_hex), dtype=np.int16)
         right_bgr = np.array(self._hex_to_bgr(right_hex), dtype=np.int16)
-
         line = frame[y].astype(np.int16)
-
         tol_l = int(np.clip(tolerance, 0, 255))
         tol_r = int(np.clip(tolerance2, 0, 255))
-
         # V1-style threshold comparison
         left_mask = np.all(line >= (left_bgr - tol_l), axis=1)
         right_mask = np.all(line >= (right_bgr - tol_r), axis=1)
-
         left_indices = np.where(left_mask)[0]
         right_indices = np.where(right_mask)[0]
-
         left_edge = int(left_indices[0]) if left_indices.size else None
         right_edge = int(right_indices[-1]) if right_indices.size else None
-
         return left_edge, right_edge
-    
+
     def _find_color_bounds(self, frame, target_color_hex, tolerance=10):
         pixels = self._pixel_search(frame, target_color_hex, tolerance)
         if not pixels:
             return None
 
         xs, ys = zip(*pixels)
-
         min_x, max_x = min(xs), max(xs)
         min_y, max_y = min(ys), max(ys)
-
         return {
+
             "min_x": min_x,
             "max_x": max_x,
             "min_y": min_y,
@@ -2008,18 +1703,12 @@ class App(CTk):
             "center_x": (min_x + max_x) / 2,
             "center_y": (min_y + max_y) / 2
         }
-
     def _find_shake_pixel(self, frame, hex, tolerance=10):
         tolerance = int(np.clip(tolerance, 0, 255))
         b, g, r = self._hex_to_bgr(hex)
         white = np.array([b, g, r], dtype=np.int16)
         frame_i = frame.astype(np.int16)
-
-        mask = np.all(
-            np.abs(frame_i - white) <= tolerance,
-            axis=-1
-        )
-
+        mask = np.all( np.abs(frame_i - white) <= tolerance, axis=-1 )
         coords = np.argwhere(mask)
         if coords.size > 0:
             y, x = coords[0]
@@ -2030,16 +1719,14 @@ class App(CTk):
     def _hex_to_bgr(self, hex_color):
         """
         Convert hex color to BGR tuple for OpenCV.
-        
         Args:
             hex_color: Hex color string (e.g., "#FFFFFF")
-        
         Returns:
             (B, G, R) tuple or None if invalid
         """
         if hex_color is None or hex_color.lower() in ["none", "#none", ""]:
             return None
-        
+
         hex_color = hex_color.lstrip('#')
         if len(hex_color) == 6:
             try:
@@ -2047,10 +1734,12 @@ class App(CTk):
                 g = int(hex_color[2:4], 16)
                 b = int(hex_color[4:6], 16)
                 return (b, g, r)  # BGR format for OpenCV
+
             except ValueError:
                 return None
+
         return None
-    
+
     def _get_pid_gains(self):
         """Get PID gains from config, with sensible defaults."""
         try:
@@ -2061,15 +1750,13 @@ class App(CTk):
             kd = float(self.vars["derivative_gain"].get() or 0.2)
         except:
             kd = 0.2
-        
         return kp, kd
-    
+
     def _pid_control_strict(self, error, bar_center_x=None):
         """
         Compute PD output using proportional gain system from comet reference.
         Uses velocity-based derivative with asymmetric damping.
         """
-
         now = time.perf_counter()
         pd_clamp = float(self.vars["pid_clamp"].get() or 1.0)  # Changed default to 1.0 like comet
         # first sample: initialize state and return zero control
@@ -2085,10 +1772,8 @@ class App(CTk):
             return 0.0
 
         kp, kd = self._get_pid_gains()
-
         # P term - proportional to how far we need to move
         p_term = kp * error
-
         # D term - asymmetric damping based on situation
         d_term = 0.0
         if bar_center_x is not None and self.last_bar_x is not None and dt > 0:
@@ -2101,22 +1786,18 @@ class App(CTk):
             # Fallback to standard derivative
             if self.prev_error is not None and dt > 0:
                 d_term = kd * (error - self.prev_error) / dt
-
         # Combined control signal (PD controller output)
         control_signal = p_term + d_term
         control_signal = max(-pd_clamp, min(pd_clamp, control_signal))  # Clamp output
-
         # update history
         self.prev_error = error
         self.last_time = now
         if bar_center_x is not None:
             self.last_bar_x = bar_center_x
-
         return control_signal
-    
+
     def _pid_control(self, error):
         now = time.perf_counter()
-
         if self.pid_last_time is None:
             self.pid_last_time = now
             self.pid_prev_error = error
@@ -2128,63 +1809,47 @@ class App(CTk):
 
         kp, kd = self._get_pid_gains()
         ki = 0.15
-
         # Integral (anti-windup)
         self.pid_integral += error * dt
         self.pid_integral = max(-100, min(100, self.pid_integral))
-
         # Derivative
         derivative = (error - self.pid_prev_error) / dt
-
-        output = (
-            kp * error +
-            ki * self.pid_integral +
-            kd * derivative
-        )
-
+        output = ( kp * error + ki * self.pid_integral + kd * derivative )
         self.pid_prev_error = error
         self.pid_last_time = now
-
         return output
-        
+
     def _reset_pid_state(self):
         """
         Reset PD/PID control state variables for a new minigame cycle.
         Ensures no derivative spikes, velocity carryover, or stabilization drift.
         """
-
         # Core PID error + timing state + state variables (all used by _pid_control method)
         self.prev_error = 0.0          # prevents derivative kick
         self.last_time = None          # forces fresh dt on next frame
         self.pid_last_time = None      # forces fresh dt calculation
         self.pid_prev_error = 0.0      # prevents derivative kick
         self.pid_integral = 0.0        # resets accumulated integral term
-
         # Bar / measurement state
         self.last_bar_x = None
         self.prev_measurement = None   # derivative source
         self.filtered_derivative = 0.0
         self.pid_source = None
-
         # Velocity smoothing state (Stopping distance)
         # (Prevents velocity from previous fish being reused)
         self.velocity_filtered = 0.0
         self.prev_velocity = 0.0
-
         # Stabilization / oscillation control
         # These prevent oscillation when kept across cycles
         self.stabilize_counter = 0
         self.last_direction = 0
-
         # Error and velocity history must be reset
         self.error_history = []
         self.velocity_history = []
-
         # Movement-threshold debounce (stopping distance)
         # Ensures that HOLD/UP can be applied normally at start of new cycle
         self.frames_since_move = 0
         self.last_move_time = None
-
         # Arrow estimation / box detection state
         self.last_indicator_x = None
         self.last_holding_state = None
@@ -2192,10 +1857,8 @@ class App(CTk):
         self.last_left_x = None
         self.last_right_x = None
         self.last_known_box_center_x = None
-
         # General state flags (run this at the start of enter minigame)
         self.first_pid_frame = True
-    
     def _find_arrow_indicator_x(self, frame, arrow_hex, tolerance, is_holding):
         """
         If releasing -> Left arrow -> Use min
@@ -2206,14 +1869,11 @@ class App(CTk):
             return None
 
         xs = [x for x, _ in pixels]
-
         indicator_x = max(xs) if is_holding else min(xs)
-
         # Small jitter filter
         if self.last_indicator_x is not None:
             if abs(indicator_x - self.last_indicator_x) < 2:
                 indicator_x = self.last_indicator_x
-
         return indicator_x
 
     def _update_arrow_box_estimation(self, arrow_centroid_x, is_holding, capture_width):
@@ -2223,36 +1883,28 @@ class App(CTk):
         - If not holding: arrow is LEFT edge → box extends RIGHT
         - When state swaps: measure arrow-to-arrow distance = box length
         """
-
         current_time = time.time()
-
         # ---- Handle missing arrow ----
         if arrow_centroid_x is None:
             if self.last_known_box_center_x is not None:
                 return self.last_known_box_center_x, self.last_left_x, self.last_right_x
-            
+
             if self.last_left_x is not None and self.last_right_x is not None:
                 center = (self.last_left_x + self.last_right_x) / 2.0
                 return center, self.last_left_x, self.last_right_x
-            
+
             return None, None, None
 
         # ---- Detect state swap ----
-        state_swapped = (
-            self.last_holding_state is not None and 
-            is_holding != self.last_holding_state
-        )
-
+        state_swapped = ( self.last_holding_state is not None and is_holding != self.last_holding_state )
         # ---- Recalculate box size when swapped ----
         if state_swapped and self.last_indicator_x is not None:
             new_box_size = abs(arrow_centroid_x - self.last_indicator_x)
             if new_box_size >= 10:
                 self.estimated_box_length = new_box_size
-
         # ---- Default box size ----
         if self.estimated_box_length is None or self.estimated_box_length <= 0:
             self.estimated_box_length = min(capture_width * 0.3, 200)
-
         # ---- Position the box ----
         if is_holding:
             # arrow on RIGHT
@@ -2262,26 +1914,22 @@ class App(CTk):
             # arrow on LEFT
             self.last_left_x = float(arrow_centroid_x)
             self.last_right_x = self.last_left_x + self.estimated_box_length
-
         # ---- Clamp to capture bounds ----
         if self.last_left_x < 0:
             self.last_left_x = 0.0
             self.last_right_x = self.estimated_box_length
-
         if self.last_right_x > capture_width:
             self.last_right_x = float(capture_width)
             self.last_left_x = self.last_right_x - self.estimated_box_length
-
         # ---- Calculate center ----
         box_center = (self.last_left_x + self.last_right_x) / 2.0
         self.last_known_box_center_x = box_center
         self.last_known_box_timestamp = current_time
-
         # ---- Update state ----
         self.last_indicator_x = arrow_centroid_x
         self.last_holding_state = is_holding
-
         return box_center, self.last_left_x, self.last_right_x
+
     # === MINIGAME WINDOW (instance methods) ===
     def init_overlay_window(self):
         """
@@ -2299,11 +1947,8 @@ class App(CTk):
         else:
             self.overlay_window.overrideredirect(True)
         self.overlay_window.attributes("-topmost", True)
-
-        self.overlay_canvas = tk.Canvas(self.overlay_window, width=800, height=60, 
-                                        bg="#1d1d1d", highlightthickness=0)
+        self.overlay_canvas = tk.Canvas(self.overlay_window, width=800, height=60,  bg="#1d1d1d", highlightthickness=0)
         self.overlay_canvas.pack(fill="both", expand=True)
-
     def _toggle_overlay(self, *_):
         if self.vars["fish_overlay"].get() == "Enabled":
             self.show_overlay()
@@ -2313,17 +1958,15 @@ class App(CTk):
         if self.overlay_window and self.overlay_window.winfo_exists():
             self.overlay_window.deiconify()
             self.overlay_window.lift()
-
     def hide_overlay(self):
         if self.overlay_window and self.overlay_window.winfo_exists():
             self.overlay_window.withdraw()
-
     def clear_overlay(self):
         if not self.overlay_canvas or not self.overlay_canvas.winfo_exists():
             return
+
         self.overlay_canvas.delete("all")
         self.initial_bar_size = None
-
         # Clear status lines visually but keep blank placeholders
         self.overlay_status_lines = [""] * 5
     def set_overlay_status(self, index: int, text: str):
@@ -2341,69 +1984,43 @@ class App(CTk):
 
         # Remove old text
         self.overlay_canvas.delete("status_text")
-
         canvas_w = self.overlay_canvas.winfo_width()
         canvas_h = self.overlay_canvas.winfo_height()
-
         start_x = 10              # left padding
         start_y = canvas_h - 70   # bottom padding (space for 5 lines)
-
         line_height = 14
-
         for i, text in enumerate(self.overlay_status_lines):
             y = start_y + i * line_height
-            self.overlay_canvas.create_text(
-                start_x,
-                y,
-                anchor="nw",
-                text=text,
-                fill="#00FF00",
-                font=("Segoe UI", 10),
-                tags="status_text"
-            )
+            self.overlay_canvas.create_text( start_x, y, anchor="nw", text=text, fill="#00FF00", font=("Segoe UI", 10), tags="status_text" )
     def draw_box(self, x1, y1, x2, y2, fill="#000000", outline="white"):
         if not self.overlay_canvas or not self.overlay_canvas.winfo_exists():
             return
 
-        self.overlay_canvas.create_rectangle(
-            x1, y1, x2, y2,
-            outline=outline,
-            width=2,
-            fill=fill
-        )
-
-    def draw_overlay(self, 
-                     bar_center, box_size, 
-                     color, canvas_offset, show_bar_center=False, 
-                     bar_y1=25, bar_y2=55,):
+        self.overlay_canvas.create_rectangle( x1, y1, x2, y2, outline=outline, width=2, fill=fill )
+    def draw_overlay(self,  bar_center, box_size, color, canvas_offset, show_bar_center=False, bar_y1=25, bar_y2=55,):
         """
         Draws:
         - Square box with size
         - Optional gray center line
         """
-
         # Guard against missing center
         if bar_center is None:
             return
+
         try:
             box_size = int(box_size / 2)
             # Calculate bar edges
             left_edge = bar_center - box_size
             right_edge = bar_center + box_size
-
             # Convert to canvas coordinates
             bx1 = left_edge - canvas_offset
             bx2 = right_edge - canvas_offset
             center_x = bar_center - canvas_offset
-
             # Main bar
             self.draw_box(bx1, bar_y1, bx2, bar_y2, fill="#000000", outline=color)
-
             # Center line
             if show_bar_center == True:
-                self.overlay_canvas.create_line(center_x, bar_y1, 
-                                                center_x, bar_y2, 
-                                                fill="gray", width=2)
+                self.overlay_canvas.create_line(center_x, bar_y1,  center_x, bar_y2, fill="gray", width=2)
             self.render_overlay_status_lines()
         except Exception as e:
             print(f"Error in draw_overlay: {e}")
@@ -2412,7 +2029,6 @@ class App(CTk):
         fish_hex = self.vars["fish_color"].get()
         left_bar_hex = self.vars["left_color"].get()
         right_bar_hex = self.vars["right_color"].get()
-
         left_tol = int(self.vars["left_tolerance"].get() or 8)
         right_tol = int(self.vars["right_tolerance"].get() or 8)
         fish_tol = int(self.vars["fish_tolerance"].get() or 1)
@@ -2423,44 +2039,28 @@ class App(CTk):
             fish_tol += 2
         fish_center = self._find_color_center(img, fish_hex, fish_tol)
         # Strict Detection (main priority)
-        left_bar_center, right_bar_center = self._find_bar_edges_strict(
-            img, left_bar_hex, right_bar_hex, left_tol, right_tol
-        )
-
+        left_bar_center, right_bar_center = self._find_bar_edges_strict( img, left_bar_hex, right_bar_hex, left_tol, right_tol )
         # Try strict fallback for left
         if left_bar_center is None:
-            l2, r2 = self._find_bar_edges_strict(
-                img, right_bar_hex, right_bar_hex, right_tol, right_tol
-            )
+            l2, r2 = self._find_bar_edges_strict( img, right_bar_hex, right_bar_hex, right_tol, right_tol )
             if l2 is not None:
                 left_bar_center, right_bar_center = l2, r2
-
         # Try strict fallback for right
         if right_bar_center is None:
-            l2, r2 = self._find_bar_edges_strict(
-                img, left_bar_hex, left_bar_hex, left_tol, left_tol
-            )
+            l2, r2 = self._find_bar_edges_strict( img, left_bar_hex, left_bar_hex, left_tol, left_tol )
             if r2 is not None:
                 left_bar_center, right_bar_center = l2, r2
         # Normal detection (If strict fails and this doesn't detect black bars well)
         if left_bar_center is None and right_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(
-                img, left_bar_hex, right_bar_hex, left_tol, right_tol
-            )
-
+            left_bar_center, right_bar_center = self._find_bar_edges( img, left_bar_hex, right_bar_hex, left_tol, right_tol )
         # Normal fallback for left
         if left_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(
-                img, right_bar_hex, right_bar_hex, right_tol, right_tol
-            )
-
+            left_bar_center, right_bar_center = self._find_bar_edges( img, right_bar_hex, right_bar_hex, right_tol, right_tol )
         # Normal fallback for right
         if right_bar_center is None:
-            left_bar_center, right_bar_center = self._find_bar_edges(
-                img, left_bar_hex, left_bar_hex, left_tol, left_tol
-            )
-
+            left_bar_center, right_bar_center = self._find_bar_edges( img, left_bar_hex, left_bar_hex, left_tol, left_tol )
         return fish_center, left_bar_center, right_bar_center
+
     # Start macro and main loop
     def _start_macro_handler(self):
         return self.start_macro()
@@ -2483,7 +2083,6 @@ class App(CTk):
         self.macro_running = True
         self._reset_pid_state()
         self.set_status("Macro Status: Running")
-
         if self.vars["auto_zoom_in"].get() == "on":
             self.set_overlay_status(0, "Process: Zooming In")
             for _ in range(20):
@@ -2519,7 +2118,6 @@ class App(CTk):
             # Check Totem
             if not self.vars["auto_totem_mode"].get() == "Disabled":
                self.execute_totem(cycle, shake_x, shake_y)
-
             # 1. Select rod
             if self.vars["auto_select_rod"].get() == "on":
                 self.set_overlay_status(0, "Process: Selecting rod")
@@ -2552,14 +2150,12 @@ class App(CTk):
                 self._execute_cast_perfect()
             else:
                 self._execute_cast_normal()
-
             # Optional delay after cast
             try:
                 delay = float(self.vars["cast_duration"].get() or 0.6)
                 time.sleep(delay)
             except:
                 time.sleep(0.6)
-
             if not self.macro_running:
                 break
 
@@ -2570,7 +2166,6 @@ class App(CTk):
                 self._execute_shake_click()
             else:
                 self._execute_shake_navigation()
-
             if not self.macro_running:
                 break
 
@@ -2598,7 +2193,7 @@ class App(CTk):
         mode = self.vars["auto_totem_mode"].get()
         if mode == "Disabled":
             return
-        
+
         # Only handle cycle-based toteming here
         if mode != "Cycles":
             return
@@ -2617,27 +2212,23 @@ class App(CTk):
             totem_color = self.vars["totem_color"].get()
             totem_tolerance = self.vars["totem_tolerance"].get()
             use_sundial = self.vars["use_sundial"].get()
-
             # Press the totem key
             keyboard_controller.press(target_slot)
             time.sleep(0.05)
             keyboard_controller.release(target_slot)
             time.sleep(0.2)
-
             # Click once anywhere (default: center of screen)
             mouse_controller.position = (shake_x, shake_y)
             time.sleep(0.05)
             self._click_at(shake_x, shake_y)
             time.sleep(1)
-
             # Check if it's day or night
-            day_night = self._find_color_center(
-                detection_area, totem_color, totem_tolerance
-            )
+            day_night = self._find_color_center( detection_area, totem_color, totem_tolerance )
             try:
                 day_night = day_night[0]
             except:
                 pass # it's already in the normal format
+
             if not day_night == None and use_sundial == "on":
                 time.sleep(0.2) # small delay between totems to prevent roblox from having issues
                 # Press the sundial key
@@ -2655,7 +2246,6 @@ class App(CTk):
                 time.sleep(0.05)
                 keyboard_controller.release(target_slot)
                 time.sleep(0.4) # delay and delay
-
                 # Click once anywhere (default: center of screen)
                 mouse_controller.position = (shake_x, shake_y)
                 time.sleep(0.05)
@@ -2729,8 +2319,10 @@ class App(CTk):
                 if time.time() - start_time > max_time:
                     mouse_controller.release(Button.left)
                     return
+
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
+
             # Lowest green pixel
             green_x, green_y = max(green_pixels, key=lambda p: p[1])
             green_y_canvas = int((green_y / shake_height) * fish_width) + fish_top
@@ -2742,6 +2334,7 @@ class App(CTk):
             if not white_pixels:
                 time.sleep(float(self.vars["cast_scan_delay"].get()))
                 continue
+
             white_x, white_y = min(white_pixels, key=lambda p: abs(p[1] - green_y))
             white_y_canvas = int((white_y / shake_height) * fish_width) + fish_top
             # Status
@@ -2770,9 +2363,11 @@ class App(CTk):
                     time.sleep(release_delay)
                     mouse_controller.release(Button.left)
                     return
+
             if time.time() - start_time > max_time: # Timer limit reached
                 mouse_controller.release(Button.left)
                 return
+
             time.sleep(float(self.vars["cast_scan_delay"].get()))
     def _execute_cast_normal(self):
         """Hold left click for user cast delay"""
@@ -2850,10 +2445,12 @@ class App(CTk):
             if shake_area is None:
                 time.sleep(scan_delay)
                 continue
+
             detection_area = self._grab_screen_region(fish_left, fish_top, fish_right, fish_bottom)
             if detection_area is None:
                 time.sleep(scan_delay)
                 continue
+
             # 2. Look for shake pixel
             shake_pixel = self._find_shake_pixel(shake_area, shake_hex, tolerance)
             if shake_pixel:
@@ -2863,48 +2460,41 @@ class App(CTk):
                 self.set_overlay_status(1, f"Shake X: {screen_x}")
                 self.set_overlay_status(2, f"Shake Y: {screen_y}")
                 self._click_at(screen_x, screen_y, shake_clicks)
-
             # 2. Fish detection (Multiple Methods)
             detected = False
             while detected == False and self.macro_running:
                 if detection_method == "Friend Area":
-                    detection_area = self._grab_screen_region(
-                        friend_left, friend_top, friend_right, friend_bottom
-                    )
+                    detection_area = self._grab_screen_region( friend_left, friend_top, friend_right, friend_bottom )
                 else:
-                    detection_area = self._grab_screen_region(
-                        fish_left, fish_top, fish_right, fish_bottom
-                    )
+                    detection_area = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom )
                 if detection_area is None:
                     break
+
                 if detection_method == "Friend Area":
-                    friend_x = self._find_color_center(
-                        detection_area, "#9bff9b", tolerance
-                    )
-                fish_x = self._find_color_center(
-                    detection_area, fish_hex, tolerance
-                )
-                bar_x = self._find_color_center(
-                    detection_area, bar_hex, bar_tolerance
-                )
+                    friend_x = self._find_color_center( detection_area, "#9bff9b", tolerance )
+                fish_x = self._find_color_center( detection_area, fish_hex, tolerance )
+                bar_x = self._find_color_center( detection_area, bar_hex, bar_tolerance )
                 if detection_method == "Friend Area":
                     if not friend_x:
                         detected = True
                         time.sleep(0.005)
                     else:
                         break
+
                 elif detection_method == "Fish + Bar":
                     if fish_x and bar_x:
                         detected = True
                         time.sleep(0.005)
                     else:
                         break
+
                 else:
                     if fish_x:
                         detected = True
                         time.sleep(0.005)
                     else:
                         break
+
             # 3. Fish detected → enter minigame
             if detected == True:
                 self.set_status("Entering Minigame")
@@ -2912,6 +2502,7 @@ class App(CTk):
                 time.sleep(0.003)
                 mouse_controller.release(Button.left)
                 return  # exit shake cleanly
+
             attempts += 1
             time.sleep(scan_delay)
     def _execute_shake_navigation(self):
@@ -2960,43 +2551,37 @@ class App(CTk):
             detected = False
             while detected == False and self.macro_running:
                 if detection_method == "Friend Area":
-                    detection_area = self._grab_screen_region(
-                        friend_left, friend_top, friend_right, friend_bottom
-                    )
+                    detection_area = self._grab_screen_region( friend_left, friend_top, friend_right, friend_bottom )
                 else:
-                    detection_area = self._grab_screen_region(
-                        fish_left, fish_top, fish_right, fish_bottom
-                    )
+                    detection_area = self._grab_screen_region( fish_left, fish_top, fish_right, fish_bottom )
                 if detection_area is None:
                     break
+
                 if detection_method == "Friend Area":
-                    friend_x = self._find_color_center(
-                        detection_area, "#9bff9b", tolerance
-                    )
-                fish_x = self._find_color_center(
-                    detection_area, fish_hex, tolerance
-                )
-                bar_x = self._find_color_center(
-                    detection_area, bar_hex, bar_tolerance
-                )
+                    friend_x = self._find_color_center( detection_area, "#9bff9b", tolerance )
+                fish_x = self._find_color_center( detection_area, fish_hex, tolerance )
+                bar_x = self._find_color_center( detection_area, bar_hex, bar_tolerance )
                 if detection_method == "Friend Area":
                     if not friend_x:
                         detected = True
                         time.sleep(0.005)
                     else:
                         break
+
                 elif detection_method == "Fish + Bar":
                     if fish_x and bar_x:
                         detected = True
                         time.sleep(0.005)
                     else:
                         break
+
                 else:
                     if fish_x:
                         detected = True
                         time.sleep(0.005)
                     else:
                         break
+
             # 3. Fish detected → enter minigame
             if detected == True:
                 self.set_status("Entering Minigame")
@@ -3004,6 +2589,7 @@ class App(CTk):
                 time.sleep(0.003)
                 mouse_controller.release(Button.left)
                 return  # exit shake cleanly
+
             attempts += 1
             time.sleep(scan_delay)
     # ------------------------------------------------------------------
@@ -3012,7 +2598,6 @@ class App(CTk):
     def _grab_screen_region_cap(self, left, top, right, bottom, monitor_dict, thread_local):
         """
         Thread-safe screen grab for the dedicated capture thread.
-
         Uses its own pre-allocated *monitor_dict* and *thread_local* so it
         never races with the main thread's self._monitor / self._thread_local.
         """
@@ -3030,16 +2615,16 @@ class App(CTk):
         monitor_dict["top"]    = top
         monitor_dict["width"]  = width
         monitor_dict["height"] = height
-
         mode = self.vars.get("capture_mode")
-
         if sys.platform == "win32":
             if mode and mode.get() == "DXCAM" and self.camera:
                 frame = self.camera.get_latest_frame()
                 if frame is None:
                     return None
+
                 cropped = frame[top:bottom, left:right]
                 return cv2.cvtColor(cropped, cv2.COLOR_RGB2BGR)
+
             if not hasattr(thread_local, "sct"):
                 thread_local.sct = mss.mss()
             img = thread_local.sct.grab(monitor_dict)
@@ -3051,23 +2636,17 @@ class App(CTk):
         img = thread_local.sct.grab(monitor_dict)
         return np.frombuffer(img.raw, dtype=np.uint8).reshape(height, width, 4)[:, :, :3]
 
-    def _capture_loop_minigame(self, fish_left, fish_top, fish_right, fish_bottom,
-                            shake_left, shake_top, shake_right, shake_bottom,
-                            friend_left, friend_top, friend_right, friend_bottom,
-                            tracking_focus, scan_delay, restart_method):
+    def _capture_loop_minigame(self, fish_left, fish_top, fish_right, fish_bottom, shake_left, shake_top, shake_right, shake_bottom, friend_left, friend_top, friend_right, friend_bottom, tracking_focus, scan_delay, restart_method):
         """
         Dedicated capture thread for the bar minigame.
-
         Continuously grabs both screen regions and stores them in the shared
         frame buffer (_cap_fish_img / _cap_gift_img).  The logic thread reads
         from these without blocking on I/O.
-
         scan_delay: seconds to sleep between captures (mirrors minigame_scan_delay).
         Runs until self.macro_running is False.
         """
         mon  = {}                    # private monitor dict — no race with self._monitor
         tl   = threading.local()     # private thread-local MSS instance
-
         while self.macro_running:
             fish_img = self._grab_screen_region_cap(fish_left, fish_top, fish_right, fish_bottom, mon, tl)
             if tracking_focus != 2:
@@ -3078,20 +2657,16 @@ class App(CTk):
                 friend_img = self._grab_screen_region_cap(friend_left, friend_top, friend_right, friend_bottom, mon, tl)
             else:
                 friend_img = None # To prevent UnboundLocalError in logic thread when restart_method is not "Friend Area"
-
             if fish_img is not None:
                 with self._cap_lock:
                     self._cap_fish_img = fish_img
                     self._cap_gift_img = gift_img
                     self._cap_friend_img = friend_img
                 self._cap_event.set()   # wake logic thread
-
             if scan_delay > 0:
                 time.sleep(scan_delay)
-
         # Signal one last time so the logic thread can exit its wait
         self._cap_event.set()
-
     # ------------------------------------------------------------------
     def _enter_minigame(self, time_seconds):
         """
@@ -3194,38 +2769,29 @@ class App(CTk):
             if mouse_down:
                 mouse_controller.release(Button.left)
                 mouse_down = False
-
         # --- Start dedicated capture thread ---
         # Reset shared state so stale frames from a previous run are not used.
         with self._cap_lock:
             self._cap_fish_img = None
             self._cap_gift_img = None
         self._cap_event.clear()
-
-        cap_thread = threading.Thread(
-            target=self._capture_loop_minigame,
-            args=(fish_left, fish_top, fish_right, fish_bottom,
-                shake_left, shake_top, shake_right, shake_bottom,
-                friend_left, friend_top, friend_right, friend_bottom,
-                tracking_focus, scan_delay, restart_method),
+        cap_thread = threading.Thread( target=self._capture_loop_minigame, args=(fish_left, fish_top, fish_right, fish_bottom, shake_left, shake_top, shake_right, shake_bottom, friend_left, friend_top, friend_right, friend_bottom, tracking_focus, scan_delay, restart_method),
             daemon=True
         )
         cap_thread.start()
-
         while self.macro_running: # Main macro loop
             # Wait for the capture thread to deposit a fresh frame pair.
             # Timeout avoids a deadlock if macro_running flips to False
             # while we're waiting.
             self._cap_event.wait(timeout=0.5)
             self._cap_event.clear()
-
             with self._cap_lock:
                 img      = self._cap_fish_img
                 friend_img = self._cap_friend_img
                 gift_img = self._cap_gift_img
-
             if img is None:
                 return time_seconds
+
             fish_x, left_x, right_x = self._do_pixel_search(img) # Check line 1750-1850 for details
             arrow_center = self._find_color_center(img, arrow_hex, arrow_tol)
             # Gift box (if tracking focus is not fish)
@@ -3250,6 +2816,7 @@ class App(CTk):
                         if click_after_minigame == "on":
                             self._click_at(shake_left, shake_top)
                         return time_seconds
+
                     else:
                         fish_x = self.last_fish_x
                         if left_x is not None and right_x is not None:
@@ -3265,6 +2832,7 @@ class App(CTk):
                         if click_after_minigame == "on":
                             self._click_at(shake_left, shake_top)
                         return time_seconds
+
                     else:
                         fish_x = self.last_fish_x
             else:
@@ -3276,6 +2844,7 @@ class App(CTk):
                     if click_after_minigame == "on":
                         self._click_at(fish_left, fish_top)
                     return time_seconds
+
             # Discord Webhook during minigame
             if time_seconds < 1:
                 discord_time = 1
@@ -3294,6 +2863,7 @@ class App(CTk):
             bars_found = left_x is not None and right_x is not None
             if fish_x is None:
                 pass
+
             elif isinstance(fish_x, (list, tuple)):
                 fish_x = fish_x[0] + fish_left
             else:
@@ -3327,6 +2897,7 @@ class App(CTk):
                         controller_mode = 3
                 elif tracking_focus == 1:
                     pass
+
                 bar_left_screen  = left_x  + fish_left - pd_padding2   # ← add this
                 bar_right_screen = right_x + fish_left + pd_padding2   # ← add this
                 deadzone_size = bar_right_screen - bar_left_screen
@@ -3391,6 +2962,7 @@ class App(CTk):
                 if arrow_indicator_x is None:
                     controller_mode = 2
                     return
+
                 arrow_screen_x = arrow_indicator_x + fish_left
                 estimated_bar_center, estimated_left, estimated_right = self._update_arrow_box_estimation(arrow_indicator_x, mouse_down, capture_width)
                 estimated_size = abs(estimated_right - estimated_left)
@@ -3449,25 +3021,21 @@ class App(CTk):
                         release_mouse()
             elif controller_mode == 1:
                 # stopping STOPPING DISTANCE + MOVEMENT THRESHOLD
-
                 # --- Ensure bar and target exist ---
                 if bar_center is None or fish_x is None:
                     release_mouse()
                     continue
 
                 # 1. MOVEMENT STABILIZATION / MOVEMENT THRESHOLD
-
                 # Load values from GUI
                 try:
                     move_stabilize_frames = float(self.vars["stabilize_threshold"].get())
                 except:
                     move_stabilize_frames = 3.0
-
                 try:
                     movement_threshold = float(self.vars["movement_threshold"].get())
                 except:
                     movement_threshold = 3.0
-
                 # Initialize persistent storage
                 if not hasattr(self, "_stopping_move_stable_count"):
                     self._stopping_move_stable_count = 0
@@ -3476,15 +3044,12 @@ class App(CTk):
                     self._stopping_initial_target = None
                     self._stopping_initial_bar = None
                     self._stopping_ready = False
-
                 # -------------------------
                 # Stabilization phase
                 # -------------------------
                 if not self._stopping_ready:
-
                     # First stabilization
                     if self._stopping_initial_target is None:
-
                         # Compare with previous frame
                         if self._stopping_last_target is not None and self._stopping_last_bar is not None:
                             if fish_x == self._stopping_last_target and bar_center == self._stopping_last_bar:
@@ -3493,16 +3058,13 @@ class App(CTk):
                                 self._stopping_move_stable_count = 1
                         else:
                             self._stopping_move_stable_count = 1
-
                         # Save last positions
                         self._stopping_last_target = fish_x
                         self._stopping_last_bar = bar_center
-
                         # Enough stable frames → lock initial positions
                         if self._stopping_move_stable_count >= move_stabilize_frames:
                             self._stopping_initial_target = fish_x
                             self._stopping_initial_bar = bar_center
-
                         continue   # do not run stopping logic yet
 
                     # -------------------------
@@ -3510,7 +3072,6 @@ class App(CTk):
                     # -------------------------
                     target_moved = abs(fish_x - self._stopping_initial_target) > movement_threshold
                     bar_moved = abs(bar_center - self._stopping_initial_bar) > movement_threshold
-
                     if target_moved or bar_moved:
                         # stopping requires that the mouse is HELD when entering loop 3
                         hold_mouse()
@@ -3521,10 +3082,8 @@ class App(CTk):
                 # ==================================================
                 # 2. stopping STOPPING DISTANCE CONTROLLER (ACTIVE MODE)
                 # ==================================================
-
                 # Velocity smoothing coefficient
                 velocity_smoothing = float(self.vars["velocity_smoothing"].get())
-
                 # Create persistent storage for velocity
                 if not hasattr(self, "_stopping_prev_bar2"):
                     self._stopping_prev_bar2 = bar_center
@@ -3532,50 +3091,35 @@ class App(CTk):
                     self._stopping_prev_time2 = time.perf_counter()
                     self._stopping_bar_vel2 = 0.0
                     self._stopping_target_vel2 = 0.0
-
                 # Time step
                 now = time.perf_counter()
                 dt = now - self._stopping_prev_time2
                 if dt <= 0:
                     dt = 1e-6
-
                 # Raw velocities
                 raw_bar_v = (bar_center - self._stopping_prev_bar2) / dt
                 raw_target_v = (fish_x - self._stopping_prev_target2) / dt
-
                 # Smoothed velocities
-                self._stopping_bar_vel2 = (
-                    velocity_smoothing * raw_bar_v +
-                    (1 - velocity_smoothing) * self._stopping_bar_vel2
-                )
-                self._stopping_target_vel2 = (
-                    velocity_smoothing * raw_target_v +
-                    (1 - velocity_smoothing) * self._stopping_target_vel2
-                )
-
+                self._stopping_bar_vel2 = ( velocity_smoothing * raw_bar_v + (1 - velocity_smoothing) * self._stopping_bar_vel2 )
+                self._stopping_target_vel2 = ( velocity_smoothing * raw_target_v + (1 - velocity_smoothing) * self._stopping_target_vel2 )
                 # Save old values
                 self._stopping_prev_bar2 = bar_center
                 self._stopping_prev_target2 = fish_x
                 self._stopping_prev_time2 = now
-
                 # stopping core signals
                 error = bar_center - fish_x
                 relative_v = self._stopping_bar_vel2 - self._stopping_target_vel2
-
                 # Stopping distance
                 try:
                     stopping_mult = float(self.vars["stopping_distance"].get())
                 except:
                     stopping_mult = 20.0
-
                 stopping_distance = abs(relative_v) * stopping_mult
-
                 # stopping constants
                 emergency_brake_velocity = 1400
                 micro_nudge_velocity = 5
                 error_deadzone = 3
                 cushion = 4
-
                 # Emergency brake
                 if abs(relative_v) > emergency_brake_velocity:
                     release_mouse()
@@ -3628,6 +3172,7 @@ class App(CTk):
     def stop_macro(self):
         if not self.macro_running:
             return
+
         self.macro_running = False
         self._reset_pid_state()
         self.after(0, self.deiconify)  # show window safely
